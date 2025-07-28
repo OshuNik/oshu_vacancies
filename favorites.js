@@ -2,10 +2,8 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// !!! Убедитесь, что здесь ваши правильные URL-адреса !!!
-// URL для ПОЛУЧЕНИЯ списка ИЗБРАННЫХ вакансий
+// Ваши рабочие URL-адреса
 const GET_FAVORITES_API_URL = 'https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2';
-// URL для ОБНОВЛЕНИЯ статуса (тот же, что и на главной)
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
 const container = document.getElementById('vacancies-list');
@@ -13,6 +11,9 @@ const container = document.getElementById('vacancies-list');
 // Функция для обновления статуса (удаления из избранного)
 async function updateStatus(vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
+    const button = event.target;
+    button.classList.add('button-loading'); // Включаем спиннер
+
     try {
         await fetch(UPDATE_API_URL, {
             method: 'POST',
@@ -25,6 +26,7 @@ async function updateStatus(vacancyId, newStatus) {
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
         tg.showAlert('Не удалось обновить статус.');
+        button.classList.remove('button-loading'); // Выключаем спиннер при ошибке
     }
 }
 
@@ -33,7 +35,6 @@ async function loadVacancies() {
     container.innerHTML = '<p>🔄 Загрузка...</p>';
     try {
         const response = await fetch(GET_FAVORITES_API_URL + '?cache_buster=' + new Date().getTime());
-        // Проверяем, пустой ли ответ, ПЕРЕД парсингом JSON
         const text = await response.text();
         if (!text) {
             container.innerHTML = '<p>В избранном пусто</p>';

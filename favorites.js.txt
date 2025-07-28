@@ -1,0 +1,50 @@
+// Инициализируем API Телеграма
+const tg = window.Telegram.WebApp;
+tg.expand();
+
+// URL для ПОЛУЧЕНИЯ списка ИЗБРАННЫХ вакансий
+const GET_FAVORITES_API_URL = 'https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2';
+
+const container = document.getElementById('vacancies-list');
+
+// Функция для загрузки и отображения вакансий
+async function loadVacancies() {
+    try {
+        const response = await fetch(GET_FAVORITES_API_URL + '?cache_buster=' + new Date().getTime());
+        let items = await response.json();
+        container.innerHTML = '';
+        if (items && !Array.isArray(items)) { items = [items]; }
+        if (!items || items.length === 0) {
+            container.innerHTML = '<p>Избранных вакансий пока нет.</p>';
+            return;
+        }
+        for (const item of items) {
+            const vacancy = item.json ? item.json : item;
+            if (!vacancy.id) continue;
+            
+            const card = document.createElement('div');
+            card.className = 'vacancy-card';
+            card.id = `card-${vacancy.id}`;
+            
+            // Версия карточки без кнопок
+            card.innerHTML = `
+                <h3>${vacancy.category || '⚠️ Вакансия без категории'}</h3>
+                <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
+                <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
+                <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
+                <hr>
+                <details>
+                    <summary>Показать полный текст</summary>
+                    <p>${vacancy.text_highlighted || 'Нет данных'}</p>
+                </details>
+            `;
+            container.appendChild(card);
+        }
+    } catch (error) {
+        console.error('Ошибка в скрипте:', error);
+        container.innerHTML = `<p>Ошибка при загрузке данных: ${error.message}</p>`;
+    }
+}
+
+// Загружаем вакансии при открытии приложения
+loadVacancies();

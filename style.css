@@ -151,3 +151,15 @@ h1 {
     background-color: #27ae60; /* Зеленый */
     color: white;
 }
+
+.settings-button {
+    flex-grow: 1;
+    display: block;
+    padding: 10px;
+    background-color: #7f8c8d; /* Серый */
+    color: white;
+    text-align: center;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+}

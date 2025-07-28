@@ -2,11 +2,11 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// !!! URL для ПОЛУЧЕНИЯ списка вакансий
-const GET_API_URL = 'СЮДА_ВСТАВЬТЕ_ВАШ_API_URL_ДЛЯ_ПОЛУЧЕНИЯ_ДАННЫХ';
+// URL для ПОЛУЧЕНИЯ списка вакансий
+const GET_API_URL = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b';
 
-// !!! URL для ОБНОВЛЕНИЯ статуса вакансии
-const UPDATE_API_URL = 'СЮДА_ВСТАВЬТЕ_URL_ИЗ_ВОРКФЛОУ_ДЛЯ_ОБНОВЛЕНИЯ';
+// URL для ОБНОВЛЕНИЯ статуса вакансии (кнопки)
+const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
 const container = document.getElementById('vacancies-list');
 
@@ -19,7 +19,6 @@ async function updateStatus(vacancyId, newStatus) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: vacancyId, newStatus: newStatus })
         });
-        // Если запрос успешен, плавно удаляем карточку с экрана
         cardElement.style.transition = 'opacity 0.3s ease';
         cardElement.style.opacity = '0';
         setTimeout(() => cardElement.remove(), 300);
@@ -31,7 +30,7 @@ async function updateStatus(vacancyId, newStatus) {
 
 // Функция для загрузки и отображения вакансий
 async function loadVacancies() {
-    container.innerHTML = '<p>🔄 Загрузка...</p>'; // Показываем статус загрузки
+    container.innerHTML = '<p>🔄 Загрузка...</p>';
     try {
         const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
         let items = await response.json();
@@ -72,10 +71,8 @@ async function loadVacancies() {
     }
 }
 
-// --- Код для кнопки "Обновить" ---
-// Находим кнопку по её id
+// Код для кнопки "Обновить"
 const refreshBtn = document.getElementById('refresh-button');
-// При клике на кнопку - вызываем функцию загрузки вакансий
 refreshBtn.addEventListener('click', loadVacancies);
 
 // Загружаем вакансии при первом открытии приложения

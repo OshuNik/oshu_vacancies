@@ -59,12 +59,12 @@ async function loadVacancies() {
             card.innerHTML = `
                 <h3>${vacancy.category || '⚠️ Вакансия без категории'}</h3>
                 <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
-                <p><strong>Ключевые слова:</strong> ${vacancy.keyword || 'Нет данных'}</p>
+                <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
                 <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
                 <hr>
                 <details>
                     <summary>Показать полный текст</summary>
-                    <p>${vacancy.text_highlighted_sms || vacancy.text_highlighted || 'Нет данных'}</p>
+                    <p>${vacancy.text_highlighted || 'Нет данных'}</p>
                 </details>
                 <div class="card-buttons">
                     <button class="delete-button" onclick="updateStatus('${vacancy.id}', 'deleted')">❌ Удалить из избранного</button>

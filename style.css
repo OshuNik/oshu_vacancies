@@ -58,6 +58,7 @@ h1 {
 .vacancy-card p {
     margin: 0 0 10px 0;
     font-size: 14px;
+    white-space: pre-wrap; /* This line preserves all line breaks and spacing */
 }
 
 /* Стили для кнопок внутри карточки (В избранное, Удалить) */

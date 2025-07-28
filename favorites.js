@@ -2,9 +2,9 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
+// !!! Убедитесь, что здесь ваши правильные URL-адреса !!!
 // URL для ПОЛУЧЕНИЯ списка ИЗБРАННЫХ вакансий
 const GET_FAVORITES_API_URL = 'https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2';
-
 // URL для ОБНОВЛЕНИЯ статуса (тот же, что и на главной)
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
@@ -33,11 +33,18 @@ async function loadVacancies() {
     container.innerHTML = '<p>🔄 Загрузка...</p>';
     try {
         const response = await fetch(GET_FAVORITES_API_URL + '?cache_buster=' + new Date().getTime());
-        let items = await response.json();
+        // Проверяем, пустой ли ответ, ПЕРЕД парсингом JSON
+        const text = await response.text();
+        if (!text) {
+            container.innerHTML = '<p>В избранном пусто</p>';
+            return;
+        }
+        let items = JSON.parse(text);
+        
         container.innerHTML = '';
         if (items && !Array.isArray(items)) { items = [items]; }
         if (!items || items.length === 0) {
-            container.innerHTML = '<p>Избранных вакансий пока нет.</p>';
+            container.innerHTML = '<p>В избранном пусто</p>';
             return;
         }
         for (const item of items) {

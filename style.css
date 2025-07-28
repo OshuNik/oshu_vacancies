@@ -118,3 +118,36 @@ h1 {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
+
+/* Стили для страницы настроек */
+.settings-form {
+    margin-bottom: 20px;
+}
+.settings-form label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 14px;
+    color: var(--tg-theme-hint-color);
+}
+.settings-form textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid var(--tg-theme-hint-color);
+    background-color: var(--tg-theme-secondary-bg-color);
+    color: var(--tg-theme-text-color);
+    font-size: 16px;
+    margin-bottom: 15px;
+}
+.save-button {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: bold;
+    cursor: pointer;
+    background-color: #27ae60; /* Зеленый */
+    color: white;
+}

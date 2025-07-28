@@ -88,3 +88,27 @@ h1 {
     background-color: #c0392b; /* Красный */
     color: white;
 }
+
+/* Состояние загрузки для кнопок */
+.button-loading {
+    position: relative;
+    color: transparent !important;
+    pointer-events: none;
+}
+.button-loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 16px;
+    height: 16px;
+    margin-top: -8px;
+    margin-left: -8px;
+    border: 2px solid var(--tg-theme-button-text-color, #fff);
+    border-radius: 50%;
+    border-top-color: transparent;
+    animation: spin 1s linear infinite;
+}
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

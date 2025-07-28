@@ -80,8 +80,8 @@ h1 {
 }
 
 .favorite-button {
-    background-color: #3498db; /* Синий */
-    color: white;
+    background-color: #f1c40f; /* Yellow */
+    color: #2c3e50; /* Dark text for contrast */
 }
 
 .delete-button {

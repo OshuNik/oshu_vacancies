@@ -23,7 +23,7 @@ h1 {
     flex-grow: 1;
     display: block;
     padding: 10px;
-    background-color: #3498db;
+    background-color: #3498db; /* Синий */
     color: white;
     text-align: center;
     border-radius: 8px;
@@ -34,9 +34,9 @@ h1 {
 .refresh-button {
     flex-grow: 1;
     padding: 10px;
-    border: 1px solid var(--tg-theme-hint-color);
-    color: var(--tg-theme-link-color);
-    background-color: var(--tg-theme-secondary-bg-color);
+    border: none;
+    color: #2c3e50; /* Темный текст */
+    background-color: #f1c40f; /* Желтый */
     border-radius: 8px;
     font-weight: bold;
     cursor: pointer;
@@ -83,8 +83,8 @@ h1 {
 }
 
 .favorite-button {
-    background-color: #f1c40f; /* Желтый */
-    color: #2c3e50; /* Темный текст для контраста */
+    background-color: #3498db; /* Синий */
+    color: white;
 }
 
 .delete-button {

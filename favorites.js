@@ -5,7 +5,7 @@ tg.expand();
 // URL для ПОЛУЧЕНИЯ списка ИЗБРАННЫХ вакансий
 const GET_FAVORITES_API_URL = 'https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2';
 
-// URL для ОБНОВЛЕНИЯ статуса вакансии (тот же, что и на главной)
+// URL для ОБНОВЛЕНИЯ статуса (тот же, что и на главной)
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
 const container = document.getElementById('vacancies-list');
@@ -19,7 +19,6 @@ async function updateStatus(vacancyId, newStatus) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: vacancyId, newStatus: newStatus })
         });
-        // Если запрос успешен, плавно удаляем карточку с экрана
         cardElement.style.transition = 'opacity 0.3s ease';
         cardElement.style.opacity = '0';
         setTimeout(() => cardElement.remove(), 300);
@@ -31,6 +30,7 @@ async function updateStatus(vacancyId, newStatus) {
 
 // Функция для загрузки и отображения вакансий
 async function loadVacancies() {
+    container.innerHTML = '<p>🔄 Загрузка...</p>';
     try {
         const response = await fetch(GET_FAVORITES_API_URL + '?cache_buster=' + new Date().getTime());
         let items = await response.json();
@@ -48,7 +48,6 @@ async function loadVacancies() {
             card.className = 'vacancy-card';
             card.id = `card-${vacancy.id}`;
             
-            // ОБНОВЛЕННЫЙ БЛОК: Добавляем кнопку "Удалить"
             card.innerHTML = `
                 <h3>${vacancy.category || '⚠️ Вакансия без категории'}</h3>
                 <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>

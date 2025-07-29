@@ -1,35 +1,32 @@
-// script.js
-
 // Инициализируем Telegram WebApp API
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// URL ваших n8n‑API
+// Ваши webhook URL
 const GET_API_URL    = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b';
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
 const container  = document.getElementById('vacancies-list');
 const refreshBtn = document.getElementById('refresh-button');
 
-// Обновление статуса вакансии (в избранное/удалить)
+// Обновление статуса
 async function updateStatus(id, newStatus) {
   const btn = event.target;
   btn.classList.add('button-loading');
   try {
     await fetch(UPDATE_API_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
       body: JSON.stringify({ id, newStatus }),
     });
     document.getElementById(`card-${id}`)?.remove();
-  } catch (e) {
-    console.error(e);
+  } catch {
     tg.showAlert('Не удалось обновить статус.');
     btn.classList.remove('button-loading');
   }
 }
 
-// Загрузка и рендер списка вакансий
+// Загрузка и рендер
 async function loadVacancies() {
   container.innerHTML = '<p>🔄 Загрузка...</p>';
   refreshBtn.classList.add('button-loading');
@@ -37,8 +34,8 @@ async function loadVacancies() {
   let items = [];
   try {
     const res  = await fetch(`${GET_API_URL}?cache_buster=${Date.now()}`);
-    const text = await res.text();
-    items = text ? JSON.parse(text) : [];
+    const txt  = await res.text();
+    items = txt ? JSON.parse(txt) : [];
     if (!Array.isArray(items)) items = [items];
   } catch (e) {
     console.error(e);
@@ -65,14 +62,14 @@ async function loadVacancies() {
       <hr>
       <details>
         <summary>Показать полный текст</summary>
-        <p>${v.text_highlighted || 'нет данных'}</p>
+        <p>${v.text_highlighted_webapp || 'нет данных'}</p>
       </details>
       <div class="card-buttons">
         <button class="favorite-button" onclick="updateStatus('${v.id}','favorite')">
-          ⭐ В избранное
+          ⭐ В избранное
         </button>
         <button class="delete-button" onclick="updateStatus('${v.id}','deleted')">
-          ❌ Удалить
+          ❌ Удалить
         </button>
       </div>
     `;
@@ -82,6 +79,5 @@ async function loadVacancies() {
   refreshBtn.classList.remove('button-loading');
 }
 
-// Привязка и первичная загрузка
 refreshBtn.addEventListener('click', loadVacancies);
 loadVacancies();

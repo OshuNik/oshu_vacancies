@@ -1,20 +1,26 @@
-<!-- settings.html -->
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="light">
 <head>
   <meta charset="UTF-8"/>
-  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, shrink-to-fit=no"/>
   <title>Настройки парсера</title>
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <h1>⚙️ Настройки парсера</h1>
-  <div class="settings-form">
-    <label for="keywords-input">Ключевые слова (через запятую):</label><br>
-    <textarea id="keywords-input" rows="4" placeholder="монтаж, рилс, анимация..."></textarea><br><br>
-    <button id="save-button" class="refresh-button">Сохранить</button>
-  </div>
-  <a href="index.html" class="view-favorites-button">⬅️ Назад</a>
+
+  <main class="container">
+    <h1>⚙️ Настройки парсера</h1>
+    
+    <div class="settings-form">
+      <label for="keywords-input">Ключевые слова (через запятую):</label>
+      <textarea id="keywords-input" rows="5" placeholder="монтаж, рилс, анимация..."></textarea>
+      
+      <div class="action-buttons">
+        <button id="save-button">Сохранить</button>
+        <a href="index.html" class="button-secondary">⬅️ Назад</a>
+      </div>
+    </div>
+  </main>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="settings.js"></script>

@@ -64,11 +64,11 @@ async function loadVacancies() {
         <hr>
         <details>
           <summary>Показать полный текст</summary>
-          <p>${v.text_highlighted || 'нет данных'}</p>
+          <p>${v.text_highlighted_webapp || 'нет данных'}</p>
         </details>
         <div class="card-buttons">
-          <button class="favorite-button" onclick="updateStatus('${v.id}', 'favorite')">⭐ В избранное</button>
-          <button class="delete-button"   onclick="updateStatus('${v.id}', 'deleted')">❌ Удалить</button>
+          <button class="favorite-button" onclick="updateStatus('${v.id}','favorite')">⭐ В избранное</button>
+          <button class="delete-button"   onclick="updateStatus('${v.id}','deleted')">❌ Удалить</button>
         </div>
       `;
       container.appendChild(card);
@@ -81,5 +81,6 @@ async function loadVacancies() {
   }
 }
 
+// Привязываем обновление к кнопке и запуск при старте
 refreshBtn.addEventListener('click', loadVacancies);
 loadVacancies();

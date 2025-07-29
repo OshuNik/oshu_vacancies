@@ -1,40 +1,127 @@
+/* Базовые стили страницы */
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  margin: 0; padding: 15px;
+  margin: 0;
+  padding: 15px;
   background-color: var(--tg-theme-bg-color);
   color: var(--tg-theme-text-color);
 }
-h1 { font-size: 24px; margin-top: 0; }
-.header-buttons { display: flex; gap: 10px; margin-bottom: 20px; }
-.view-favorites-button, .refresh-button {
-  flex: 1; padding: 10px; border-radius: 8px; font-weight: bold; text-align: center;
+
+h1 {
+  font-size: 24px;
+  margin-top: 0;
 }
-.view-favorites-button { background: #3498db; color: white; text-decoration: none; }
-.refresh-button       { background: #f1c40f; color: #2c3e50; border: none; cursor: pointer; }
+
+/* Шапка с кнопками */
+.header-buttons {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+/* Общие стили для трёх кнопок/ссылок */
+.view-favorites-button,
+.refresh-button,
+.settings-button {
+  flex: 1;
+  padding: 10px;
+  border-radius: 8px;
+  font-weight: bold;
+  text-align: center;
+  cursor: pointer;
+  border: none;
+  text-decoration: none;
+}
+
+/* Синяя кнопка “Избранное” */
+.view-favorites-button {
+  background-color: #3498db;
+  color: white;
+}
+
+/* Жёлтая кнопка “Обновить” */
+.refresh-button {
+  background-color: #f1c40f;
+  color: #2c3e50;
+}
+
+/* Серая кнопка “Настройки” */
+.settings-button {
+  background-color: #7f8c8d;
+  color: white;
+}
+
+.view-favorites-button:active,
+.refresh-button:active,
+.settings-button:active {
+  opacity: 0.7;
+}
+
+/* Карточка вакансии */
 .vacancy-card {
-  background: var(--tg-theme-secondary-bg-color);
-  border-radius: 12px; padding: 15px; margin-bottom: 15px;
+  background-color: var(--tg-theme-secondary-bg-color);
+  border-radius: 12px;
+  padding: 15px;
+  margin-bottom: 15px;
 }
-.vacancy-card p { margin: 0 0 10px; white-space: pre-wrap; }
-.card-buttons { display: flex; gap: 10px; margin-top: 15px; }
+
+.vacancy-card p {
+  margin: 0 0 10px;
+  white-space: pre-wrap; /* сохраняет переносы */
+}
+
+/* Кнопки внутри карточки */
+.card-buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+}
+
 .card-buttons button {
-  flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
 }
-.favorite-button { background: #3498db; color: white; }
-.delete-button   { background: #c0392b; color: white; }
+
+.favorite-button {
+  background-color: #3498db;
+  color: white;
+}
+
+.delete-button {
+  background-color: #c0392b;
+  color: white;
+}
+
+/* Спиннер для кнопок */
 .button-loading {
-  position: relative; color: transparent !important; pointer-events: none;
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
 }
+
 .button-loading::after {
-  content: ''; position: absolute; top: 50%; left: 50%;
-  width: 16px; height: 16px; margin: -8px 0 0 -8px;
-  border: 2px solid var(--tg-theme-button-text-color,#fff);
-  border-radius: 50%; border-top-color: transparent;
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid var(--tg-theme-button-text-color, #fff);
+  border-radius: 50%;
+  border-top-color: transparent;
   animation: spin 1s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
 
-/* Жёлтый фон для ключевых слов */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Подсветка ключевых слов жёлтым фоном */
 .highlight {
   background-color: #f1c40f;
   padding: 0 2px;

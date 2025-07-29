@@ -1,23 +1,22 @@
-<!-- settings.html -->
+<!-- index.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8"/>
   <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
-  <title>Настройки парсера</title>
+  <title>Новые вакансии</title>
   <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-  <h1>⚙️ Настройки парсера</h1>
-  <div class="settings-form">
-    <label for="keywords-input">Ключевые слова (через запятую):</label><br>
-    <textarea id="keywords-input" rows="4"
-      placeholder="монтаж, рилс, анимация..."></textarea><br><br>
-    <button id="save-button" class="refresh-button">Сохранить</button>
+  <h1>Новые вакансии</h1>
+  <div class="header-buttons">
+    <a href="favorites.html" class="view-favorites-button">⭐ Избранное</a>
+    <button id="refresh-button"   class="refresh-button">🔄 Обновить</button>
+    <a href="settings.html"      class="settings-button">⚙️ Настройки</a>
   </div>
-  <a href="index.html" class="view-favorites-button">⬅️ Назад к вакансиям</a>
+  <div id="vacancies-list"><p>Загрузка...</p></div>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="settings.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

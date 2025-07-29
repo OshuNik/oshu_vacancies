@@ -1,6 +1,4 @@
-// script.js
-
-// Вставьте сюда ваши реальные URL
+// Замените на реальные URL ваших n8n‑вебхуков:
 const GET_API_URL    = 'https://oshunik.ru/webhook/ВАШ_GET_NEW_PATH';
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/ВАШ_UPDATE_STATUS_PATH';
 
@@ -24,41 +22,42 @@ async function loadVacancies() {
       container.innerHTML = '<p>Новых вакансий нет</p>';
       return;
     }
-    for (const it of items) {
-      const v    = it.json || it;
-      const text = v.text || '';
-      const keys = (v.keywords_found || '').split(',').map(k=>k.trim()).filter(Boolean);
-      const re   = new RegExp(`(${keys.join('|')})`, 'gi');
-      const highlighted = text.replace(re, '<span class="highlight">$1</span>');
-
-      const card = document.createElement('div');
-      card.className = 'vacancy-card';
-      card.id        = `card-${v.id}`;
-      card.innerHTML = `
-        <h3>${v.category}</h3>
-        <p><strong>Причина:</strong> ${v.reason}</p>
-        <p><strong>Ключевые слова:</strong> ${v.keywords_found}</p>
-        <p><strong>Канал:</strong> ${v.channel}</p>
-        <hr>
-        <details>
-          <summary>Показать полный текст</summary>
-          <p>${highlighted}</p>
-        </details>
-        <div class="card-buttons">
-          <button class="favorite-button">⭐ В избранное</button>
-          <button class="delete-button">❌ Удалить</button>
-        </div>
-      `;
-      const [favBtn, delBtn] = card.querySelectorAll('button');
-      favBtn.addEventListener('click', () => updateStatus(v.id, 'favorite', favBtn));
-      delBtn.addEventListener('click', () => updateStatus(v.id, 'deleted',   delBtn));
-      container.appendChild(card);
-    }
+    items.forEach(it => renderVacancy(it.json || it));
   } catch (err) {
     container.innerHTML = `<p>Ошибка загрузки: ${err.message}</p>`;
   } finally {
     refreshBtn.classList.remove('button-loading');
   }
+}
+
+function renderVacancy(v) {
+  const text = v.text || '';
+  const keys = (v.keywords_found || '').split(',').map(k => k.trim()).filter(Boolean);
+  const re   = new RegExp(`(${keys.join('|')})`, 'gi');
+  const highlighted = text.replace(re, '<span class="highlight">$1</span>');
+
+  const card = document.createElement('div');
+  card.className = 'vacancy-card';
+  card.id        = `card-${v.id}`;
+  card.innerHTML = `
+    <h3>${v.category}</h3>
+    <p><strong>Причина:</strong> ${v.reason}</p>
+    <p><strong>Ключевые слова:</strong> ${v.keywords_found}</p>
+    <p><strong>Канал:</strong> ${v.channel}</p>
+    <hr>
+    <details>
+      <summary>Показать полный текст</summary>
+      <p>${highlighted}</p>
+    </details>
+    <div class="card-buttons">
+      <button class="favorite-button">⭐ В избранное</button>
+      <button class="delete-button">❌ Удалить</button>
+    </div>
+  `;
+  const [favBtn, delBtn] = card.querySelectorAll('button');
+  favBtn.addEventListener('click', () => updateStatus(v.id, 'favorite', favBtn));
+  delBtn.addEventListener('click', () => updateStatus(v.id, 'deleted',   delBtn));
+  container.appendChild(card);
 }
 
 async function updateStatus(id, newStatus, btn) {
@@ -69,10 +68,10 @@ async function updateStatus(id, newStatus, btn) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, newStatus }),
     });
-    const card = document.getElementById(`card-${id}`);
-    card.style.transition = 'opacity .3s';
-    card.style.opacity    = '0';
-    setTimeout(() => card.remove(), 300);
+    document.getElementById(`card-${id}`)
+            .style.transition = 'opacity .3s';
+    document.getElementById(`card-${id}`).style.opacity = '0';
+    setTimeout(() => document.getElementById(`card-${id}`).remove(), 300);
   } catch {
     btn.classList.remove('button-loading');
     tg.showAlert('Не удалось обновить статус');

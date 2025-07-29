@@ -163,3 +163,12 @@ h1 {
     text-decoration: none;
     font-weight: bold;
 }
+
+/* Класс для жёлтого выделения ключевых слов */
+.highlight {
+  background-color: #f1c40f;
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: bold;
+}
+

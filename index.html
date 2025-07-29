@@ -7,24 +7,18 @@
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
-  <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
-  </script>
-
   <h1>Новые вакансии</h1>
   <div class="header-buttons">
-    <a href="favorites.html" class="view-favorites-button">⭐ Избранное</a>
-    <button id="refresh-button" class="refresh-button">🔄 Обновить</button>
-    <button id="settings-button" class="settings-button"
-      onclick="tg.openLink('https://your-domain.com/settings.html')">
-      ⚙️ Настройки
-    </button>
+    <button id="favorites-button" class="view-favorites-button">⭐ Избранное</button>
+    <button id="refresh-button"   class="refresh-button">🔄 Обновить</button>
+    <button id="settings-button"  class="settings-button">⚙️ Настройки</button>
   </div>
 
   <div id="vacancies-list"><p>Загрузка...</p></div>
 
+  <!-- Сначала подключаем Telegram WebApp API -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <!-- Затем свой скрипт -->
   <script src="script.js"></script>
 </body>
 </html>

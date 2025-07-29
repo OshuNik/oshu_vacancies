@@ -3,8 +3,9 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const GET_API_URL    = 'https://oshunik.ru/webhook/ВАШ_GET_NEW';
-const UPDATE_API_URL = 'https://oshunik.ru/webhook/ВАШ_UPDATE';
+// **ВАЖНО**: замените на реальные ваши webhook-URL
+const GET_API_URL    = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b';
+const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
 const container  = document.getElementById('vacancies-list');
 const refreshBtn = document.getElementById('refresh-button');
@@ -28,11 +29,12 @@ async function updateStatus(id, newStatus) {
 async function loadVacancies() {
   container.innerHTML = '<p>🔄 Загрузка...</p>';
   refreshBtn.classList.add('button-loading');
+
   let items = [];
   try {
-    const res  = await fetch(`${GET_API_URL}?cache_buster=${Date.now()}`);
-    const txt  = await res.text();
-    items = txt ? JSON.parse(txt) : [];
+    const response = await fetch(`${GET_API_URL}?cache_buster=${Date.now()}`);
+    const text     = await response.text();
+    items = text ? JSON.parse(text) : [];
     if (!Array.isArray(items)) items = [items];
   } catch (e) {
     console.error(e);
@@ -47,10 +49,11 @@ async function loadVacancies() {
   }
 
   items.forEach(it => {
-    const v = it.json || it;
+    const v    = it.json || it;
     const card = document.createElement('div');
     card.className = 'vacancy-card';
-    card.id = `card-${v.id}`;
+    card.id        = `card-${v.id}`;
+
     card.innerHTML = `
       <h3>${v.category}</h3>
       <p><strong>Причина:</strong> ${v.reason}</p>
@@ -62,8 +65,8 @@ async function loadVacancies() {
         <p>${v.text_highlighted_webapp || 'нет данных'}</p>
       </details>
       <div class="card-buttons">
-        <button class="favorite-button" onclick="updateStatus('${v.id}','favorite')">⭐ В избранное</button>
-        <button class="delete-button"   onclick="updateStatus('${v.id}','deleted')">❌ Удалить</button>
+        <button class="favorite-button" onclick="updateStatus('${v.id}','favorite')">⭐ в избранное</button>
+        <button class="delete-button"   onclick="updateStatus('${v.id}','deleted')">❌ удалить</button>
       </div>
     `;
     container.appendChild(card);

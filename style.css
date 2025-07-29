@@ -31,6 +31,7 @@ h1 {
 /* 2. ЕДИНАЯ СИСТЕМА КНОПОК */
 button, .button {
   display: inline-block;
+  box-sizing: border-box;
   padding: 10px 15px;
   border: none;
   border-radius: 8px;
@@ -40,6 +41,7 @@ button, .button {
   text-align: center;
   text-decoration: none;
   transition: opacity 0.2s ease;
+  width: 100%;
 }
 
 button:hover, .button:hover {
@@ -52,7 +54,7 @@ button:hover, .button:hover {
 .button-secondary { background-color: var(--tg-secondary-bg-color); color: var(--tg-text-color); }
 
 
-/* 3. СТИЛИ ГЛАВНОЙ СТРАНИЦЫ (index.html) */
+/* 3. СТИЛИ ГЛАВНОЙ СТРАНИЦЫ И ИЗБРАННОГО */
 .header-buttons {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -72,7 +74,7 @@ button:hover, .button:hover {
 .highlight { background-color: #f1c40f; padding: 0 2px; border-radius: 2px; font-weight: bold; }
 
 
-/* 4. СТИЛИ СТРАНИЦЫ НАСТРОЕК (settings.html) */
+/* 4. СТИЛИ СТРАНИЦЫ НАСТРОЕК */
 .settings-form { display: flex; flex-direction: column; gap: 16px; }
 textarea {
   width: 100%;

@@ -164,7 +164,8 @@ h1 {
     font-weight: bold;
 }
 
-/* Класс для жёлтого выделения ключевых слов */
+/* ... ваши базовые стили ... */
+
 .highlight {
   background-color: #f1c40f;
   padding: 0 2px;

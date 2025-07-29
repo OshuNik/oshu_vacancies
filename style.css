@@ -1,46 +1,114 @@
-/* style.css */
+/* General App Styles */
+:root {
+  --button-color: var(--tg-theme-button-color, #2481cc);
+  --button-text-color: var(--tg-theme-button-text-color, #ffffff);
+  --secondary-bg-color: var(--tg-theme-secondary-bg-color, #efeff3);
+  --text-color: var(--tg-theme-text-color, #000000);
+  --bg-color: var(--tg-theme-bg-color, #ffffff);
+  --hint-color: var(--tg-theme-hint-color, #999999);
+}
+
 body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-  margin: 0; padding: 15px;
-  background-color: var(--tg-theme-bg-color);
-  color: var(--tg-theme-text-color);
+  margin: 0;
+  padding: 20px;
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
-h1 { font-size: 24px; margin-top: 0; }
-.header-buttons {
-  display: flex; gap: 10px; margin-bottom: 20px;
-}
-.view-favorites-button,
-.refresh-button,
-.settings-button {
-  flex: 1; padding: 10px; border-radius: 8px; font-weight: bold; text-align: center;
-  text-decoration: none; border: none; cursor: pointer;
-}
-.view-favorites-button { background: #3498db; color: #fff; }
-.refresh-button       { background: #f1c40f; color: #2c3e50; }
-.settings-button      { background: #7f8c8d; color: #fff; }
 
-.vacancy-card {
-  background-color: var(--tg-theme-secondary-bg-color);
-  border-radius: 12px; padding: 15px; margin-bottom: 15px;
+main.container {
+  width: 100%;
+  max-width: 600px;
 }
-.vacancy-card p { margin: 0 0 10px; white-space: pre-wrap; }
-.card-buttons { display: flex; gap: 10px; margin-top: 15px; }
-.card-buttons button {
-  flex: 1; padding: 10px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer;
+
+h1 {
+  font-size: 24px;
+  margin-top: 0;
+  margin-bottom: 20px;
+  text-align: center;
 }
-.favorite-button { background-color: #3498db; color: #fff; }
-.delete-button   { background-color: #c0392b; color: #fff; }
-.button-loading {
-  position: relative; color: transparent !important; pointer-events: none;
+
+/* Settings Page Layout */
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px; /* Spacing between label, textarea, and buttons */
 }
-.button-loading::after {
-  content: ''; position: absolute; top:50%; left:50%;
-  width:16px; height:16px; margin:-8px 0 0 -8px;
-  border:2px solid var(--tg-theme-button-text-color,#fff);
-  border-radius:50%; border-top-color:transparent;
+
+textarea {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--hint-color);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+  font-family: inherit;
+  font-size: 1rem;
+  box-sizing: border-box; /* Important for 100% width */
+  resize: vertical;
+}
+
+.action-buttons {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* Two equal-width columns */
+  gap: 12px;
+}
+
+/* Button Styles */
+#save-button,
+.button-secondary {
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-weight: bold;
+  cursor: pointer;
+  text-align: center;
+  font-size: 1rem;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+#save-button:hover,
+.button-secondary:hover {
+  opacity: 0.85;
+}
+
+#save-button {
+  background-color: var(--button-color);
+  color: var(--button-text-color);
+}
+
+.button-secondary {
+  background-color: var(--secondary-bg-color);
+  color: var(--text-color);
+}
+
+/* Loading animation for buttons */
+#save-button:disabled {
+  position: relative;
+  color: transparent !important;
+  pointer-events: none;
+}
+
+#save-button:disabled::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border: 2px solid var(--button-text-color);
+  border-radius: 50%;
+  border-top-color: transparent;
   animation: spin 1s linear infinite;
 }
-@keyframes spin { to { transform: rotate(360deg); } }
-.highlight {
-  background-color: #f1c40f; padding:0 2px; border-radius:2px; font-weight:bold;
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

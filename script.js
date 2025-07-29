@@ -11,95 +11,75 @@ const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85d
 const container  = document.getElementById('vacancies-list');
 const refreshBtn = document.getElementById('refresh-button');
 
-// Функция обновления статуса вакансии
+// Обновление статуса вакансии
 async function updateStatus(vacancyId, newStatus) {
   const cardElement = document.getElementById(`card-${vacancyId}`);
   const button      = event.target;
   button.classList.add('button-loading');
-
   try {
     const res = await fetch(UPDATE_API_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: vacancyId, newStatus })
     });
-    console.log('Update status →', res.status, res.statusText);
-    cardElement.style.transition = 'opacity 0.3s ease';
-    cardElement.style.opacity    = '0';
+    console.log('Update status →', res.status);
+    cardElement.style.opacity = '0';
     setTimeout(() => cardElement.remove(), 300);
   } catch (err) {
-    console.error('Ошибка обновления статуса:', err);
-    tg.showAlert('Не удалось обновить статус.');
+    console.error(err);
+    tg.showAlert('Не удалось обновить статус');
     button.classList.remove('button-loading');
   }
 }
 
-// Функция загрузки и отображения вакансий
+// Загрузка и рендер вакансий
 async function loadVacancies() {
-  container.innerHTML        = '<p>🔄 Загрузка...</p>';
+  container.innerHTML = '<p>🔄 Загрузка...</p>';
   refreshBtn.classList.add('button-loading');
-
   try {
-    // Запрос к API
     const response = await fetch(`${GET_API_URL}?cache_buster=${Date.now()}`);
-    console.log('Fetch to', GET_API_URL, '→', response.status, response.statusText);
-
+    console.log('Fetch status:', response.status);
     const text = await response.text();
-    console.log('Fetch response:', text);
-
-    let items = [];
-    if (text) {
-      try {
-        items = JSON.parse(text);
-      } catch (e) {
-        console.error('Ошибка парсинга JSON:', e);
-        container.innerHTML = '<p>Ошибка разбора данных от сервера</p>';
-        return;
-      }
-    }
+    console.log('Fetch response text:', text);
+    let items = text ? JSON.parse(text) : [];
+    if (!Array.isArray(items)) items = [items];
 
     container.innerHTML = '';
-
-    if (items && !Array.isArray(items)) {
-      items = [items];
-    }
     if (!items.length) {
       container.innerHTML = '<p>Новых вакансий нет</p>';
       return;
     }
 
-    // Рендерим каждую карточку
     items.forEach(item => {
-      const vacancy = item.json ? item.json : item;
+      const v = item.json || item;
       const card = document.createElement('div');
       card.className = 'vacancy-card';
-      card.id        = `card-${vacancy.id}`;
+      card.id        = `card-${v.id}`;
 
       card.innerHTML = `
-        <h3>${vacancy.category || '⚠️ Без категории'}</h3>
-        <p><strong>Причина:</strong> ${vacancy.reason || 'нет данных'}</p>
-        <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'нет данных'}</p>
-        <p><strong>Канал:</strong> ${vacancy.channel || 'нет данных'}</p>
+        <h3>${v.category || '⚠️ Без категории'}</h3>
+        <p><strong>Причина:</strong> ${v.reason || 'нет данных'}</p>
+        <p><strong>Ключевые слова:</strong> ${v.keywords_found || 'нет данных'}</p>
+        <p><strong>Канал:</strong> ${v.channel || 'нет данных'}</p>
         <hr>
         <details>
           <summary>Показать полный текст</summary>
-          <p>${vacancy.text_highlighted_sms || 'нет данных'}</p>
+          <p>${v.text_highlighted || 'нет данных'}</p>
         </details>
         <div class="card-buttons">
-          <button class="favorite-button" onclick="updateStatus('${vacancy.id}', 'favorite')">⭐ В избранное</button>
-          <button class="delete-button"   onclick="updateStatus('${vacancy.id}', 'deleted')">❌ Удалить</button>
+          <button class="favorite-button" onclick="updateStatus('${v.id}', 'favorite')">⭐ В избранное</button>
+          <button class="delete-button"   onclick="updateStatus('${v.id}', 'deleted')">❌ Удалить</button>
         </div>
       `;
       container.appendChild(card);
     });
-  } catch (error) {
-    console.error('Ошибка в loadVacancies:', error);
-    container.innerHTML = `<p>Ошибка при загрузке данных: ${error.message}</p>`;
+  } catch (e) {
+    console.error('Error loadVacancies:', e);
+    container.innerHTML = `<p>Ошибка загрузки: ${e.message}</p>`;
   } finally {
     refreshBtn.classList.remove('button-loading');
   }
 }
 
-// Привязываем кнопку и вызываем при старте
 refreshBtn.addEventListener('click', loadVacancies);
 loadVacancies();

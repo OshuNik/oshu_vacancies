@@ -22,11 +22,11 @@ async function updateStatus(vacancyId, newStatus) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: vacancyId, newStatus })
     });
-    console.log('Update status →', res.status);
+    console.log('Update status →', res.status, res.statusText);
     cardElement.style.opacity = '0';
     setTimeout(() => cardElement.remove(), 300);
   } catch (err) {
-    console.error(err);
+    console.error('Ошибка обновления статуса:', err);
     tg.showAlert('Не удалось обновить статус');
     button.classList.remove('button-loading');
   }
@@ -34,14 +34,19 @@ async function updateStatus(vacancyId, newStatus) {
 
 // Загрузка и рендер вакансий
 async function loadVacancies() {
+  console.log('→ Запрос к API:', GET_API_URL);
   container.innerHTML = '<p>🔄 Загрузка...</p>';
   refreshBtn.classList.add('button-loading');
   try {
     const response = await fetch(`${GET_API_URL}?cache_buster=${Date.now()}`);
-    console.log('Fetch status:', response.status);
+    console.log('Fetch status:', response.status, response.statusText);
+
     const text = await response.text();
     console.log('Fetch response text:', text);
+
     let items = text ? JSON.parse(text) : [];
+    console.log('→ Ответ API items (после parse):', items);
+
     if (!Array.isArray(items)) items = [items];
 
     container.innerHTML = '';
@@ -81,6 +86,5 @@ async function loadVacancies() {
   }
 }
 
-// Привязываем обновление к кнопке и запуск при старте
 refreshBtn.addEventListener('click', loadVacancies);
 loadVacancies();

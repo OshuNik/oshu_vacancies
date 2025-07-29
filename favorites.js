@@ -1,3 +1,4 @@
+<!-- favorites.js (JavaScript-код) -->
 // Инициализируем API Телеграма
 const tg = window.Telegram.WebApp;
 tg.expand();
@@ -6,13 +7,14 @@ tg.expand();
 const GET_FAVORITES_API_URL = 'https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2';
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
-const container = document.getElementById('vacancies-list');
+// ИСПРАВЛЕНО: Теперь скрипт ищет правильный ID контейнера
+const container = document.getElementById('favorites-list');
 
 // Функция для обновления статуса (удаления из избранного)
 async function updateStatus(vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
     const button = event.target;
-    button.classList.add('button-loading');
+    button.disabled = true; // Блокируем кнопку, чтобы избежать двойных нажатий
 
     try {
         await fetch(UPDATE_API_URL, {
@@ -20,18 +22,23 @@ async function updateStatus(vacancyId, newStatus) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: vacancyId, newStatus: newStatus })
         });
+        // Плавное удаление карточки из списка
         cardElement.style.transition = 'opacity 0.3s ease';
         cardElement.style.opacity = '0';
         setTimeout(() => cardElement.remove(), 300);
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
         tg.showAlert('Не удалось обновить статус.');
-        button.classList.remove('button-loading');
+        button.disabled = false; // Разблокируем кнопку в случае ошибки
     }
 }
 
 // Функция для загрузки и отображения вакансий
 async function loadVacancies() {
+    if (!container) {
+        console.error('Контейнер для вакансий не найден!');
+        return;
+    }
     container.innerHTML = '<p>🔄 Загрузка...</p>';
     try {
         const response = await fetch(GET_FAVORITES_API_URL + '?cache_buster=' + new Date().getTime());
@@ -40,6 +47,7 @@ async function loadVacancies() {
             container.innerHTML = '<p>В избранном пусто</p>';
             return;
         }
+        
         let items = JSON.parse(text);
         
         container.innerHTML = '';
@@ -48,6 +56,7 @@ async function loadVacancies() {
             container.innerHTML = '<p>В избранном пусто</p>';
             return;
         }
+
         for (const item of items) {
             const vacancy = item.json ? item.json : item;
             if (!vacancy.id) continue;
@@ -56,6 +65,7 @@ async function loadVacancies() {
             card.className = 'vacancy-card';
             card.id = `card-${vacancy.id}`;
             
+            // Кнопка удаления теперь занимает всю ширину
             card.innerHTML = `
                 <h3>${vacancy.category || '⚠️ Вакансия без категории'}</h3>
                 <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
@@ -66,8 +76,8 @@ async function loadVacancies() {
                     <summary>Показать полный текст</summary>
                     <p>${vacancy.text_highlighted || 'Нет данных'}</p>
                 </details>
-                <div class="card-buttons">
-                    <button class="delete-button" onclick="updateStatus('${vacancy.id}', 'deleted')">❌ Удалить из избранного</button>
+                <div class="card-buttons" style="grid-template-columns: 1fr;">
+                    <button class="button button-danger" onclick="updateStatus('${vacancy.id}', 'deleted')">❌ Удалить из избранного</button>
                 </div>
             `;
             container.appendChild(card);

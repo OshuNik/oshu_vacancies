@@ -52,7 +52,7 @@ async function loadVacancies() {
       <p><strong>Канал:</strong> ${v.channel}</p>
       <hr>
       <details><summary>Показать полный текст</summary>
-        <p>${v.text_highlighted_sheet || 'нет данных'}</p>
+        <p>${v.text_highlighted || 'нет данных'}</p>
       </details>
       <div class="card-buttons">
         <button class="favorite-button" onclick="updateStatus('${v.id}','favorite')">⭐ В избранное</button>

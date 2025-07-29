@@ -1,52 +1,58 @@
-// Инициализируем Telegram WebApp
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// Ваши реальные URL нод n8n:
-const GET_SETTINGS_URL  = 'https://oshunik.ru/webhook/91f2562c-bfad-42d6-90ba-2ca5473c7e7e';
-const SAVE_SETTINGS_URL = 'https://oshunik.ru/webhook/8a21566c-baf5-47e1-a84c-b96b464d3713';
+const GET_URL    = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b';
+const UPDATE_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
-const input   = document.getElementById('keywords-input');
-const btnSave = document.getElementById('save-button');
+const listEl = document.getElementById('vacancies-list');
+const btn     = document.getElementById('refresh-button');
 
-async function loadSettings() {
-  btnSave.disabled = true;
-  btnSave.textContent = 'Загрузка...';
+async function loadVacancies() {
+  listEl.innerHTML = '<p>🔄 Загрузка...</p>';
   try {
-    const res  = await fetch(GET_SETTINGS_URL);
+    const res  = await fetch(GET_URL + '?cache_buster=' + Date.now());
     const data = await res.json();
-    // n8n вернёт [{ json: { keywords: '...', update_key: '1' } }]
-    if (data[0] && data[0].json.keywords) {
-      input.value = data[0].json.keywords;
-    }
-  } catch (e) {
-    console.error(e);
-    tg.showAlert('Не удалось загрузить настройки');
-  } finally {
-    btnSave.disabled = false;
-    btnSave.textContent = 'Сохранить';
-  }
-}
-
-async function saveSettings() {
-  const kws = input.value.trim();
-  btnSave.disabled = true;
-  btnSave.textContent = 'Сохранение...';
-  try {
-    await fetch(SAVE_SETTINGS_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ keywords: kws })
+    listEl.innerHTML = '';
+    (Array.isArray(data)? data : [data]).forEach(item => {
+      const v = item.json || item;
+      const card = document.createElement('div');
+      card.className = 'vacancy-card';
+      card.innerHTML = `
+        <h3>${v.category}</h3>
+        <p><strong>Причина:</strong> ${v.reason}</p>
+        <p><strong>Ключевые слова:</strong> ${v.keywords_found}</p>
+        <p><strong>Канал:</strong> ${v.channel}</p>
+        <hr>
+        <details>
+          <summary>Показать полный текст</summary>
+          <p>${v.text_highlighted_sheet}</p>
+        </details>
+        <div class="card-buttons">
+          <button class="favorite-button" onclick="updateStatus('${v.id}','favorite')">⭐ В избранное</button>
+          <button class="delete-button"   onclick="updateStatus('${v.id}','deleted')">❌ Удалить</button>
+        </div>
+      `;
+      listEl.appendChild(card);
     });
-    tg.showAlert('Настройки сохранены');
-  } catch (e) {
-    console.error(e);
-    tg.showAlert('Ошибка при сохранении');
-  } finally {
-    btnSave.disabled = false;
-    btnSave.textContent = 'Сохранить';
+    if (!data || !data.length) listEl.innerHTML = '<p>Новых вакансий нет</p>';
+  } catch(e) {
+    listEl.innerHTML = `<p>Ошибка: ${e.message}</p>`;
   }
 }
 
-btnSave.addEventListener('click', saveSettings);
-loadSettings();
+async function updateStatus(id, status) {
+  try {
+    await fetch(UPDATE_URL, {
+      method: 'POST',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({ id, newStatus: status })
+    });
+    loadVacancies();
+  } catch(e) {
+    alert('Не удалось обновить статус');
+    console.error(e);
+  }
+}
+
+btn.addEventListener('click', loadVacancies);
+loadVacancies();

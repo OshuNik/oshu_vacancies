@@ -1,5 +1,6 @@
+/* 1. Единый CSS-файл (style.css)                                        */
 /* ======================================================================= */
-@import url('[https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap](https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap)');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
 
 :root {
     --background-color: #F0F0F0;
@@ -72,12 +73,8 @@ body {
     justify-content: space-between;
     align-items: flex-start;
     margin-bottom: 12px;
-}
-/* ИСПРАВЛЕНИЕ: Добавляем обёртку для заголовка и времени */
-.card-title-wrapper {
-    border-bottom: var(--border-width) solid var(--border-color);
     padding-bottom: 8px;
-    flex-grow: 1; /* Занимает всё доступное место */
+    border-bottom: var(--border-width) solid var(--border-color);
 }
 .card-header h3 {
     font-size: 14px;
@@ -86,14 +83,7 @@ body {
     background-color: var(--accent-yellow);
     padding: 4px 8px;
     border: var(--border-width) solid var(--border-color);
-    display: inline-block; /* Чтобы фон был только под текстом */
-}
-.timestamp {
-    font-size: 12px;
-    color: var(--hint-color);
-    white-space: nowrap;
-    padding-top: 4px;
-    margin-top: 8px; /* Отступ от заголовка */
+    display: inline-block;
 }
 
 .card-body p {
@@ -155,6 +145,20 @@ body {
 .card-action-btn.favorite svg { stroke: var(--accent-blue); fill: none; }
 .card-action-btn.delete svg { stroke: var(--accent-red); fill: none; }
 .card-action-btn:active { transform: translateY(2px); }
+
+/* ИСПРАВЛЕНИЕ: Стили для времени внизу */
+.card-footer {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px solid #e0e0e0;
+}
+.timestamp-footer {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--hint-color);
+}
 
 
 /* --- Нижняя панель с категориями --- */

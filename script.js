@@ -6,6 +6,8 @@ tg.expand();
 
 const GET_API_URL = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b'; 
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
+// ИЗМЕНЕНИЕ: Вставляем ваш новый URL
+const CLEAR_CATEGORY_API_URL = 'https://oshunik.ru/webhook/d5a617c6-34db-45f2-a8a5-c88b091923d5';
 
 const containers = {
     main: document.getElementById('vacancies-list-main'),
@@ -53,13 +55,48 @@ async function updateStatus(event, vacancyId, newStatus) {
     }
 }
 
-function renderVacancies(container, vacancies) {
+async function clearCategory(event, categoryName) {
+    const button = event.target;
+    
+    // Для категории "Не твоё" используем более понятное имя в диалоге
+    const displayName = categoryName === 'НЕ ТВОЁ' ? 'Не твоё' : categoryName;
+
+    tg.showConfirm(`Вы уверены, что хотите удалить все из категории "${displayName}"?`, async (isConfirmed) => {
+        if (!isConfirmed) return;
+
+        button.disabled = true;
+        button.textContent = 'Очистка...';
+
+        try {
+            await fetch(CLEAR_CATEGORY_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: categoryName })
+            });
+            loadVacancies(); // Обновляем списки
+        } catch (error) {
+            console.error('Ошибка очистки категории:', error);
+            tg.showAlert('Не удалось очистить категорию.');
+            button.disabled = false;
+            button.textContent = 'Очистить все';
+        }
+    });
+}
+
+function renderVacancies(container, vacancies, categoryName) {
     if (!container) return;
     container.innerHTML = ''; 
-    if (!vacancies || vacancies.length === 0) {
+    
+    if (vacancies && vacancies.length > 0) {
+        const header = document.createElement('div');
+        header.className = 'list-header';
+        header.innerHTML = `<button class="clear-button" onclick="clearCategory(event, '${categoryName}')">Очистить все</button>`;
+        container.appendChild(header);
+    } else {
         container.innerHTML = '<p class="empty-list">Пусто</p>';
         return;
     }
+
     for (const item of vacancies) {
         const vacancy = item.json ? item.json : item;
         if (!vacancy.id) continue;
@@ -100,7 +137,6 @@ async function loadVacancies() {
         const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
         const items = await response.json();
         
-        // ИСПРАВЛЕНИЕ ЗДЕСЬ: Сортировка теперь безопасна
         if (items && items.length > 0) {
             items.sort((a, b) => {
                 const timeA = a.json ? a.json.timestamp : a.timestamp;
@@ -121,6 +157,7 @@ async function loadVacancies() {
                 } else if (vacancy.category === 'МОЖЕТ БЫТЬ') {
                     maybeVacancies.push(item);
                 } else {
+                    // Все остальные категории попадают сюда
                     otherVacancies.push(item);
                 }
             }
@@ -130,9 +167,10 @@ async function loadVacancies() {
         counts.maybe.textContent = `(${maybeVacancies.length})`;
         counts.other.textContent = `(${otherVacancies.length})`;
 
-        renderVacancies(containers.main, mainVacancies);
-        renderVacancies(containers.maybe, maybeVacancies);
-        renderVacancies(containers.other, otherVacancies);
+        // ИЗМЕНЕНИЕ: Передаём правильные имена категорий
+        renderVacancies(containers.main, mainVacancies, 'ТОЧНО ТВОЁ');
+        renderVacancies(containers.maybe, maybeVacancies, 'МОЖЕТ БЫТЬ');
+        renderVacancies(containers.other, otherVacancies, 'НЕ ТВОЁ');
 
     } catch (error) {
         console.error('Ошибка загрузки:', error);

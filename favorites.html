@@ -1,27 +1,26 @@
-<!-- favorites.html (HTML-код) -->
+<!-- 2. HTML для страницы избранного (favorites.html)                      -->
+<!-- ======================================================================= -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Избранные вакансии</title>
+  <title>Избранное</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="container">
-    <h1>⭐ Избранные вакансии</h1>
-
-    <div class="header-buttons" style="grid-template-columns: 1fr;">
-       <a href="index.html" class="button button-secondary">⬅️ Назад на главную</a>
+  <header class="header">
+    <h1>★ Избранное</h1>
+    <div class="header-actions">
+      <a href="index.html" class="header-button">← Назад</a>
     </div>
+  </header>
 
-    <!-- ID этого контейнера теперь будет правильно найден скриптом -->
-    <div id="favorites-list">
-        <!-- Сюда JavaScript будет добавлять карточки -->
-    </div>
+  <main class="content" id="favorites-list">
+      <!-- Сюда JavaScript будет добавлять карточки -->
   </main>
 
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="[https://telegram.org/js/telegram-web-app.js](https://telegram.org/js/telegram-web-app.js)"></script>
   <script src="favorites.js"></script>
 </body>
 </html>

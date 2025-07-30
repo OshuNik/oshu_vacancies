@@ -1,38 +1,36 @@
 /* ======================================================================= */
-/* 1. Обновлённый JavaScript (script.js)                                 */
+/* 3. Обновлённый JavaScript (script.js)                                 */
 /* ======================================================================= */
-// Этот код полностью заменяет содержимое вашего файла script.js
-
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// URL-адреса остаются прежними
 const GET_API_URL = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b'; 
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
-// Получаем ссылки на все три контейнера и кнопку
+// ИЗМЕНЕНИЕ: Получаем ссылки на контейнеры, вкладки и счетчики
 const containers = {
     main: document.getElementById('vacancies-list-main'),
     maybe: document.getElementById('vacancies-list-maybe'),
     other: document.getElementById('vacancies-list-other')
 };
+const counts = {
+    main: document.getElementById('count-main'),
+    maybe: document.getElementById('count-maybe'),
+    other: document.getElementById('count-other')
+};
+const tabButtons = document.querySelectorAll('.tab-button');
+const vacancyLists = document.querySelectorAll('.vacancy-list');
 const refreshBtn = document.getElementById('refresh-button');
 
-// НОВАЯ ФУНКЦИЯ: для форматирования времени без секунд
 function formatTimestamp(isoString) {
     if (!isoString) return '';
     const date = new Date(isoString);
-    // Форматируем дату и время для русского языка (день, месяц, часы, минуты)
     return date.toLocaleString('ru-RU', { 
-        day: '2-digit', 
-        month: 'long', 
-        hour: '2-digit', 
-        minute: '2-digit' 
+        day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' 
     });
 }
 
-// Функция обновления статуса
-async function updateStatus(vacancyId, newStatus) {
+async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
     const button = event.target;
     button.disabled = true;
@@ -45,7 +43,11 @@ async function updateStatus(vacancyId, newStatus) {
         });
         cardElement.style.transition = 'opacity 0.3s ease';
         cardElement.style.opacity = '0';
-        setTimeout(() => cardElement.remove(), 300);
+        setTimeout(() => {
+            cardElement.remove();
+            // Пересчитываем количество после удаления
+            loadVacancies(); 
+        }, 300);
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
         tg.showAlert('Не удалось обновить статус.');
@@ -53,7 +55,6 @@ async function updateStatus(vacancyId, newStatus) {
     }
 }
 
-// Функция для отрисовки вакансий в нужном контейнере
 function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = ''; 
@@ -69,7 +70,6 @@ function renderVacancies(container, vacancies) {
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
         
-        // В карточку добавлено поле с отформатированной датой
         card.innerHTML = `
             <div class="card-header">
                 <h3>${vacancy.category || '⚠️ Без категории'}</h3>
@@ -84,15 +84,14 @@ function renderVacancies(container, vacancies) {
                 <p>${vacancy.text_highlighted_webapp || 'Нет данных'}</p>
             </details>
             <div class="card-buttons">
-                <button class="button button-primary" onclick="updateStatus('${vacancy.id}', 'favorite')">⭐ В избранное</button>
-                <button class="button button-danger" onclick="updateStatus('${vacancy.id}', 'deleted')">❌ Удалить</button>
+                <button class="button button-primary" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">⭐ В избранное</button>
+                <button class="button button-danger" onclick="updateStatus(event, '${vacancy.id}', 'deleted')">❌ Удалить</button>
             </div>
         `;
         container.appendChild(card);
     }
 }
 
-// Основная функция загрузки (сортирует по категориям)
 async function loadVacancies() {
     Object.values(containers).forEach(c => {
         if (c) c.innerHTML = '<p>🔄 Загрузка...</p>';
@@ -120,6 +119,12 @@ async function loadVacancies() {
             }
         }
         
+        // ИЗМЕНЕНИЕ: Обновляем счетчики на кнопках
+        counts.main.textContent = `(${mainVacancies.length})`;
+        counts.maybe.textContent = `(${maybeVacancies.length})`;
+        counts.other.textContent = `(${otherVacancies.length})`;
+
+        // Отрисовываем каждую группу в своём контейнере
         renderVacancies(containers.main, mainVacancies);
         renderVacancies(containers.maybe, maybeVacancies);
         renderVacancies(containers.other, otherVacancies);
@@ -133,6 +138,20 @@ async function loadVacancies() {
         if(refreshBtn) refreshBtn.disabled = false;
     }
 }
+
+// ИЗМЕНЕНИЕ: Добавляем логику для переключения вкладок
+tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        // Убираем активность со всех вкладок и списков
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        vacancyLists.forEach(list => list.classList.remove('active'));
+
+        // Добавляем активность на нажатую вкладку и соответствующий список
+        button.classList.add('active');
+        const targetListId = button.dataset.target;
+        document.getElementById(targetListId).classList.add('active');
+    });
+});
 
 refreshBtn.addEventListener('click', loadVacancies);
 loadVacancies();

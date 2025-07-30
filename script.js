@@ -1,11 +1,12 @@
+/* ======================================================================= */
 /* 5. Обновлённый JavaScript (script.js)                                 */
 /* ======================================================================= */
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const GET_API_URL = '[https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b](https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b)'; 
-const UPDATE_API_URL = '[https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2](https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2)';
-const CLEAR_CATEGORY_API_URL = '[https://oshunik.ru/webhook/d5a617c6-34db-45f2-a8a5-c88b091923d5](https://oshunik.ru/webhook/d5a617c6-34db-45f2-a8a5-c88b091923d5)';
+const GET_API_URL = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b'; 
+const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
+const CLEAR_CATEGORY_API_URL = 'https://oshunik.ru/webhook/d5a617c6-34db-45f2-a8a5-c88b091923d5';
 
 const containers = {
     main: document.getElementById('vacancies-list-main'),
@@ -100,10 +101,10 @@ function renderVacancies(container, vacancies, categoryName) {
         card.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">
-                    <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
                 </button>
                 <button class="card-action-btn delete" onclick="updateStatus(event, '${vacancy.id}', 'deleted')">
-                    <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
                 </button>
             </div>
             <div class="card-header">
@@ -136,7 +137,6 @@ async function loadVacancies() {
         const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
         const items = await response.json();
         
-        // ИСПРАВЛЕНИЕ: Безопасная сортировка
         if (items && items.length > 0) {
             items.sort((a, b) => {
                 const timeA = (a.json || a).timestamp;
@@ -195,4 +195,3 @@ tabButtons.forEach(button => {
 
 refreshBtn.addEventListener('click', loadVacancies);
 loadVacancies();
-```javascript

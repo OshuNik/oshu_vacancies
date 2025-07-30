@@ -7,7 +7,6 @@ tg.expand();
 const GET_API_URL = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b'; 
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
-// ИЗМЕНЕНИЕ: Получаем ссылки на контейнеры, вкладки и счетчики
 const containers = {
     main: document.getElementById('vacancies-list-main'),
     maybe: document.getElementById('vacancies-list-maybe'),
@@ -45,7 +44,6 @@ async function updateStatus(event, vacancyId, newStatus) {
         cardElement.style.opacity = '0';
         setTimeout(() => {
             cardElement.remove();
-            // Пересчитываем количество после удаления
             loadVacancies(); 
         }, 300);
     } catch (error) {
@@ -70,6 +68,8 @@ function renderVacancies(container, vacancies) {
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
         
+        // ИЗМЕНЕНИЕ ЗДЕСЬ:
+        // Используем `text_highlighted` вместо `text_highlighted_webapp`
         card.innerHTML = `
             <div class="card-header">
                 <h3>${vacancy.category || '⚠️ Без категории'}</h3>
@@ -81,7 +81,7 @@ function renderVacancies(container, vacancies) {
             <hr>
             <details>
                 <summary>Показать полный текст</summary>
-                <p>${vacancy.text_highlighted_webapp || 'Нет данных'}</p>
+                <p>${vacancy.text_highlighted || 'Нет данных'}</p>
             </details>
             <div class="card-buttons">
                 <button class="button button-primary" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">⭐ В избранное</button>
@@ -119,12 +119,10 @@ async function loadVacancies() {
             }
         }
         
-        // ИЗМЕНЕНИЕ: Обновляем счетчики на кнопках
         counts.main.textContent = `(${mainVacancies.length})`;
         counts.maybe.textContent = `(${maybeVacancies.length})`;
         counts.other.textContent = `(${otherVacancies.length})`;
 
-        // Отрисовываем каждую группу в своём контейнере
         renderVacancies(containers.main, mainVacancies);
         renderVacancies(containers.maybe, maybeVacancies);
         renderVacancies(containers.other, otherVacancies);
@@ -139,14 +137,11 @@ async function loadVacancies() {
     }
 }
 
-// ИЗМЕНЕНИЕ: Добавляем логику для переключения вкладок
 tabButtons.forEach(button => {
     button.addEventListener('click', () => {
-        // Убираем активность со всех вкладок и списков
         tabButtons.forEach(btn => btn.classList.remove('active'));
         vacancyLists.forEach(list => list.classList.remove('active'));
 
-        // Добавляем активность на нажатую вкладку и соответствующий список
         button.classList.add('active');
         const targetListId = button.dataset.target;
         document.getElementById(targetListId).classList.add('active');

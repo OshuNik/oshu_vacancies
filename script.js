@@ -116,6 +116,9 @@ async function loadVacancies() {
                 if (vacancy.category === 'ТОЧНО ТВОЁ') {
                     mainVacancies.push(item);
                 } else if (vacancy.category === 'МОЖЕТ БЫТЬ') {
+                    // ИСПРАВЛЕНИЕ: Категории теперь распределяются правильно
+                    maybeVacancies.push(item);
+                } else {
                     otherVacancies.push(item);
                 }
             }

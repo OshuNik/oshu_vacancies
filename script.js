@@ -1,4 +1,3 @@
-/* ======================================================================= */
 /* 3. Обновлённый JavaScript (script.js)                                 */
 /* ======================================================================= */
 const tg = window.Telegram.WebApp;
@@ -68,8 +67,6 @@ function renderVacancies(container, vacancies) {
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
         
-        // ИЗМЕНЕНИЕ ЗДЕСЬ:
-        // Используем `text_highlighted` вместо `text_highlighted_webapp`
         card.innerHTML = `
             <div class="card-header">
                 <h3>${vacancy.category || '⚠️ Без категории'}</h3>
@@ -101,6 +98,11 @@ async function loadVacancies() {
     try {
         const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
         const items = await response.json();
+        
+        // ИЗМЕНЕНИЕ ЗДЕСЬ: Сортируем все вакансии по времени (от новой к старой)
+        if (items && items.length > 0) {
+            items.sort((a, b) => new Date(b.json.timestamp) - new Date(a.json.timestamp));
+        }
         
         const mainVacancies = [];
         const maybeVacancies = [];
@@ -136,17 +138,3 @@ async function loadVacancies() {
         if(refreshBtn) refreshBtn.disabled = false;
     }
 }
-
-tabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        vacancyLists.forEach(list => list.classList.remove('active'));
-
-        button.classList.add('active');
-        const targetListId = button.dataset.target;
-        document.getElementById(targetListId).classList.add('active');
-    });
-});
-
-refreshBtn.addEventListener('click', loadVacancies);
-loadVacancies();

@@ -5,43 +5,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Новые вакансии</title>
+  <title>oshu://work</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="container">
-    <h1>Новые вакансии</h1>
-
-    <div class="header-buttons">
-      <a href="favorites.html" class="button button-primary">⭐ Избранное</a>
-      <button id="refresh-button" class="button button-accent">🔄 Обновить</button>
-      <a href="settings.html" class="button button-secondary">⚙️ Настройки</a>
+  <header class="header">
+    <h1>oshu://work</h1>
+    <div class="header-actions">
+      <a href="favorites.html" class="header-button">★ Избранное</a>
+      <a href="settings.html" class="header-button">⚙︎ Настройки</a>
     </div>
+  </header>
 
-    <!-- Блок с кнопками-вкладками для категорий -->
-    <div class="category-tabs">
-      <button class="tab-button active" data-target="vacancies-list-main">
-        🎯 Точно твоё <span class="count" id="count-main">(0)</span>
-      </button>
-      <button class="tab-button" data-target="vacancies-list-maybe">
-        🤔 Может быть <span class="count" id="count-maybe">(0)</span>
-      </button>
-      <button class="tab-button" data-target="vacancies-list-other">
-        🗑️ Не твоё <span class="count" id="count-other">(0)</span>
-      </button>
-    </div>
-
+  <main class="content">
     <!-- Контейнеры для списков вакансий -->
-    <div id="vacancies-list-main" class="vacancy-list active">
-      <!-- Сюда будут загружаться вакансии -->
-    </div>
-    <div id="vacancies-list-maybe" class="vacancy-list">
-      <!-- Сюда будут загружаться вакансии -->
-    </div>
-    <div id="vacancies-list-other" class="vacancy-list">
-      <!-- Сюда будут загружаться вакансии -->
-    </div>
+    <div id="vacancies-list-main" class="vacancy-list active"></div>
+    <div id="vacancies-list-maybe" class="vacancy-list"></div>
+    <div id="vacancies-list-other" class="vacancy-list"></div>
   </main>
+
+  <!-- Нижняя панель с категориями -->
+  <div class="category-tabs">
+    <button class="tab-button active" data-target="vacancies-list-main">
+      <span>ТОЧНО</span>
+      <span class="count" id="count-main">(0)</span>
+    </button>
+    <button class="tab-button" data-target="vacancies-list-maybe">
+      <span>МОЖЕТ</span>
+      <span class="count" id="count-maybe">(0)</span>
+    </button>
+    <button class="tab-button" data-target="vacancies-list-other">
+      <span>НЕ ТО</span>
+      <span class="count" id="count-other">(0)</span>
+    </button>
+  </div>
+
+  <!-- Кнопка "Обновить" -->
+  <button class="refresh-button" id="refresh-button">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+  </button>
   
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="script.js"></script>

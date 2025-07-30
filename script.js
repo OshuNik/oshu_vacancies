@@ -1,4 +1,3 @@
-/* 3. Обновлённый JavaScript (script.js)                                 */
 /* ======================================================================= */
 const tg = window.Telegram.WebApp;
 tg.expand();
@@ -138,3 +137,17 @@ async function loadVacancies() {
         if(refreshBtn) refreshBtn.disabled = false;
     }
 }
+
+tabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        vacancyLists.forEach(list => list.classList.remove('active'));
+
+        button.classList.add('active');
+        const targetListId = button.dataset.target;
+        document.getElementById(targetListId).classList.add('active');
+    });
+});
+
+refreshBtn.addEventListener('click', loadVacancies);
+loadVacancies();

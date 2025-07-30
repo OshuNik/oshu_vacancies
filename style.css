@@ -114,10 +114,9 @@ body {
     transition: all 0.1s ease-out;
 }
 .card-action-btn:hover { transform: scale(1.1); }
-.card-action-btn svg { 
-    /* ИЗМЕНЕНИЕ: Увеличиваем иконки */
-    width: 20px; 
-    height: 20px; 
+.card-action-btn svg {
+    width: 22px;  /* Увеличили еще больше */
+    height: 22px; /* Увеличили еще больше */
     stroke-width: 2.5;
 }
 .card-action-btn.favorite svg { stroke: var(--accent-blue); fill: none; }

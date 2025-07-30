@@ -1,3 +1,6 @@
+<!-- ======================================================================= -->
+<!-- 1. HTML для основной страницы (index.html)                             -->
+<!-- ======================================================================= -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -16,10 +19,24 @@
       <a href="settings.html" class="button button-secondary">⚙️ Настройки</a>
     </div>
 
-    <div id="vacancies-list">
-      </div>
+    <!-- Контейнеры для трёх категорий -->
+    <div class="category-section">
+      <h2>🎯 Точно твоё</h2>
+      <div id="vacancies-list-main" class="vacancy-list"></div>
+    </div>
+
+    <div class="category-section">
+      <h2>🤔 Может быть</h2>
+      <div id="vacancies-list-maybe" class="vacancy-list"></div>
+    </div>
+    
+    <div class="category-section">
+      <h2>🗑️ Не твоё</h2>
+      <div id="vacancies-list-other" class="vacancy-list"></div>
+    </div>
   </main>
   
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="script.js"></script> </body>
+  <script src="script.js"></script>
+</body>
 </html>

@@ -1,6 +1,6 @@
-/* 1. Единый CSS-файл (style.css)                                        */
+/* 4. Единый CSS-файл (style.css)                                        */
 /* ======================================================================= */
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
+@import url('[https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap](https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap)');
 
 :root {
     --background-color: #F0F0F0;
@@ -146,7 +146,6 @@ body {
 .card-action-btn.delete svg { stroke: var(--accent-red); fill: none; }
 .card-action-btn:active { transform: translateY(2px); }
 
-/* ИСПРАВЛЕНИЕ: Стили для времени внизу */
 .card-footer {
     display: flex;
     justify-content: flex-end;
@@ -203,7 +202,6 @@ body {
 .vacancy-list.active { display: block; }
 .empty-list { text-align: center; color: var(--hint-color); padding: 30px 0; }
 
-/* ИСПРАВЛЕНИЕ: Возвращаем кнопку "Очистить все" */
 .list-header {
   display: flex;
   justify-content: flex-end;
@@ -289,3 +287,14 @@ body {
     transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
     box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
 }
+
+/* --- Анимация загрузки --- */
+button:disabled { position: relative; color: transparent !important; pointer-events: none; }
+button:disabled::after {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  width: 16px; height: 16px; margin: -8px 0 0 -8px;
+  border: 2px solid var(--tg-button-text-color);
+  border-radius: 50%; border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

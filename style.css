@@ -1,7 +1,7 @@
-/* 4. Единый CSS-файл (style.css)                                        */
+* 4. Единый CSS-файл (style.css)                                        */
 /* ======================================================================= */
-/* ИСПРАВЛЕНИЕ: Убрали неправильный формат ссылки */
-@import url('[https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap](https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap)');
+/* ИСПРАВЛЕНИЕ: Убедились, что ссылка на шрифт правильная */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
 
 :root {
     --background-color: #F0F0F0;

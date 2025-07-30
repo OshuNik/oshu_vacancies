@@ -30,7 +30,6 @@ body {
     text-align: center;
 }
 .header h1 {
-    /* ИСПРАВЛЕНИЕ: Добавляем запасной шрифт для Telegram */
     font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
     font-size: 20px;
     color: var(--text-color);
@@ -108,7 +107,22 @@ body {
     background-color: var(--accent-yellow);
 }
 
-/* ИСПРАВЛЕНИЕ: Стили для кнопок-иконок в углу */
+/* ИСПРАВЛЕНИЕ: Стили для спойлера "Показать полный текст" */
+.card-body details {
+    margin-top: 10px;
+    font-size: 14px;
+}
+.card-body summary {
+    cursor: pointer;
+    font-weight: 700;
+    color: var(--hint-color);
+}
+.card-body details p {
+    padding-top: 10px;
+    color: var(--text-color);
+    white-space: pre-wrap; /* Сохраняем переносы строк */
+}
+
 .card-actions {
     position: absolute;
     top: 12px;

@@ -1,3 +1,8 @@
+/* ======================================================================= */
+/* 2. Единый и полный CSS-файл (style.css)                               */
+/* ======================================================================= */
+/* Этот код полностью заменяет содержимое вашего файла style.css */
+
 /* 2.1. ОБЩИЕ СТИЛИ */
 :root {
   --tg-button-color: var(--tg-theme-button-color, #2481cc);
@@ -62,7 +67,6 @@ button:hover, .button:hover {
   margin-bottom: 20px;
 }
 
-/* ИЗМЕНЕНИЕ: Стили для кнопок-вкладок */
 .category-tabs {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -87,13 +91,12 @@ button:hover, .button:hover {
   font-weight: normal;
 }
 
-/* ИЗМЕНЕНИЕ: Стили для списков вакансий */
 .vacancy-list {
-  display: none; /* Все списки по умолчанию скрыты */
+  display: none; 
 }
 
 .vacancy-list.active {
-  display: block; /* Активный список показывается */
+  display: block; 
 }
 
 .vacancy-card {
@@ -131,6 +134,28 @@ button:hover, .button:hover {
   color: var(--tg-hint-color);
   white-space: nowrap;
   padding-top: 2px;
+}
+
+/* НОВЫЕ СТИЛИ для кнопки очистки */
+.list-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 10px;
+}
+
+.clear-button {
+  background-color: transparent;
+  color: var(--tg-hint-color);
+  font-size: 0.8rem;
+  font-weight: normal;
+  padding: 5px 10px;
+  width: auto; /* Чтобы кнопка не была на всю ширину */
+  border: 1px solid var(--tg-hint-color);
+}
+
+.clear-button:hover {
+  background-color: var(--tg-secondary-bg-color);
+  color: var(--tg-text-color);
 }
 
 

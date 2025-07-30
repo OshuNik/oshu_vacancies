@@ -1,3 +1,4 @@
+/* ======================================================================= */
 /* 5. Обновлённый JavaScript (script.js)                                 */
 /* ======================================================================= */
 const tg = window.Telegram.WebApp;
@@ -5,6 +6,7 @@ tg.expand();
 
 const GET_API_URL = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b'; 
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
+const CLEAR_CATEGORY_API_URL = 'https://oshunik.ru/webhook/d5a617c6-34db-45f2-a8a5-c88b091923d5';
 
 const containers = {
     main: document.getElementById('vacancies-list-main'),
@@ -50,13 +52,45 @@ async function updateStatus(event, vacancyId, newStatus) {
     }
 }
 
-function renderVacancies(container, vacancies) {
+async function clearCategory(event, categoryName) {
+    const button = event.target;
+    const displayName = categoryName === 'НЕ ТВОЁ' ? 'Не твоё' : categoryName;
+
+    // Используем нативное подтверждение, если tg.showConfirm не поддерживается
+    if (window.confirm(`Вы уверены, что хотите удалить все из категории "${displayName}"?`)) {
+        button.disabled = true;
+        button.textContent = 'Очистка...';
+
+        try {
+            await fetch(CLEAR_CATEGORY_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: categoryName })
+            });
+            loadVacancies();
+        } catch (error) {
+            console.error('Ошибка очистки категории:', error);
+            tg.showAlert('Не удалось очистить категорию.');
+            button.disabled = false;
+            button.textContent = 'Очистить все';
+        }
+    }
+}
+
+function renderVacancies(container, vacancies, categoryName) {
     if (!container) return;
     container.innerHTML = ''; 
-    if (!vacancies || vacancies.length === 0) {
+    
+    if (vacancies && vacancies.length > 0) {
+        const header = document.createElement('div');
+        header.className = 'list-header';
+        header.innerHTML = `<button class="clear-button" onclick="clearCategory(event, '${categoryName}')">Очистить все</button>`;
+        container.appendChild(header);
+    } else {
         container.innerHTML = '<p class="empty-list">-- Пусто --</p>';
         return;
     }
+
     for (const item of vacancies) {
         const vacancy = item.json ? item.json : item;
         if (!vacancy.id) continue;
@@ -65,7 +99,7 @@ function renderVacancies(container, vacancies) {
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
         
-        // ИСПРАВЛЕНИЕ: Возвращаем все поля в карточку
+        // ИСПРАВЛЕНИЕ: Возвращаем все поля и правильную структуру
         card.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">
@@ -76,8 +110,10 @@ function renderVacancies(container, vacancies) {
                 </button>
             </div>
             <div class="card-header">
-                <h3>${vacancy.category || 'NO_CATEGORY'}</h3>
-                <span class="timestamp">${formatTimestamp(vacancy.timestamp)}</span>
+                <div class="card-title-wrapper">
+                    <h3>${vacancy.category || 'NO_CATEGORY'}</h3>
+                    <div class="timestamp">${formatTimestamp(vacancy.timestamp)}</div>
+                </div>
             </div>
             <div class="card-body">
                 <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
@@ -103,10 +139,14 @@ async function loadVacancies() {
         const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
         const items = await response.json();
         
+        // ИСПРАВЛЕНИЕ: Безопасная сортировка
         if (items && items.length > 0) {
             items.sort((a, b) => {
-                const timeA = a.json ? a.json.timestamp : a.timestamp;
-                const timeB = b.json ? b.json.timestamp : b.timestamp;
+                const timeA = (a.json || a).timestamp;
+                const timeB = (b.json || b).timestamp;
+                // Если у какой-то вакансии нет времени, она будет внизу
+                if (!timeA) return 1;
+                if (!timeB) return -1;
                 return new Date(timeB) - new Date(timeA);
             });
         }
@@ -132,9 +172,9 @@ async function loadVacancies() {
         counts.maybe.textContent = `(${maybeVacancies.length})`;
         counts.other.textContent = `(${otherVacancies.length})`;
 
-        renderVacancies(containers.main, mainVacancies);
-        renderVacancies(containers.maybe, maybeVacancies);
-        renderVacancies(containers.other, otherVacancies);
+        renderVacancies(containers.main, mainVacancies, 'ТОЧНО ТВОЁ');
+        renderVacancies(containers.maybe, maybeVacancies, 'МОЖЕТ БЫТЬ');
+        renderVacancies(containers.other, otherVacancies, 'НЕ ТВОЁ');
 
     } catch (error) {
         console.error('Ошибка загрузки:', error);

@@ -1,13 +1,11 @@
 /* ======================================================================= */
-/* 3. Обновлённый JavaScript (script.js)                                 */
+/* 5. Обновлённый JavaScript (script.js)                                 */
 /* ======================================================================= */
 const tg = window.Telegram.WebApp;
 tg.expand();
 
 const GET_API_URL = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b'; 
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
-// ИЗМЕНЕНИЕ: Вставляем ваш новый URL
-const CLEAR_CATEGORY_API_URL = 'https://oshunik.ru/webhook/d5a617c6-34db-45f2-a8a5-c88b091923d5';
 
 const containers = {
     main: document.getElementById('vacancies-list-main'),
@@ -27,23 +25,23 @@ function formatTimestamp(isoString) {
     if (!isoString) return '';
     const date = new Date(isoString);
     return date.toLocaleString('ru-RU', { 
-        day: '2-digit', month: 'long', hour: '2-digit', minute: '2-digit' 
+        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
     });
 }
 
 async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
     const button = event.target;
-    button.disabled = true;
-
+    
     try {
         await fetch(UPDATE_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: vacancyId, newStatus: newStatus })
         });
-        cardElement.style.transition = 'opacity 0.3s ease';
+        cardElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
         cardElement.style.opacity = '0';
+        cardElement.style.transform = 'scale(0.95)';
         setTimeout(() => {
             cardElement.remove();
             loadVacancies(); 
@@ -51,52 +49,16 @@ async function updateStatus(event, vacancyId, newStatus) {
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
         tg.showAlert('Не удалось обновить статус.');
-        button.disabled = false;
     }
 }
 
-async function clearCategory(event, categoryName) {
-    const button = event.target;
-    
-    // Для категории "Не твоё" используем более понятное имя в диалоге
-    const displayName = categoryName === 'НЕ ТВОЁ' ? 'Не твоё' : categoryName;
-
-    tg.showConfirm(`Вы уверены, что хотите удалить все из категории "${displayName}"?`, async (isConfirmed) => {
-        if (!isConfirmed) return;
-
-        button.disabled = true;
-        button.textContent = 'Очистка...';
-
-        try {
-            await fetch(CLEAR_CATEGORY_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ category: categoryName })
-            });
-            loadVacancies(); // Обновляем списки
-        } catch (error) {
-            console.error('Ошибка очистки категории:', error);
-            tg.showAlert('Не удалось очистить категорию.');
-            button.disabled = false;
-            button.textContent = 'Очистить все';
-        }
-    });
-}
-
-function renderVacancies(container, vacancies, categoryName) {
+function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = ''; 
-    
-    if (vacancies && vacancies.length > 0) {
-        const header = document.createElement('div');
-        header.className = 'list-header';
-        header.innerHTML = `<button class="clear-button" onclick="clearCategory(event, '${categoryName}')">Очистить все</button>`;
-        container.appendChild(header);
-    } else {
-        container.innerHTML = '<p class="empty-list">Пусто</p>';
+    if (!vacancies || vacancies.length === 0) {
+        container.innerHTML = '<p class="empty-list">-- Пусто --</p>';
         return;
     }
-
     for (const item of vacancies) {
         const vacancy = item.json ? item.json : item;
         if (!vacancy.id) continue;
@@ -105,22 +67,19 @@ function renderVacancies(container, vacancies, categoryName) {
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
         
+        // Генерируем новый HTML для карточки
         card.innerHTML = `
+            <div class="card-actions">
+                <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">★</button>
+                <button class="card-action-btn delete" onclick="updateStatus(event, '${vacancy.id}', 'deleted')">×</button>
+            </div>
             <div class="card-header">
-                <h3>${vacancy.category || '⚠️ Без категории'}</h3>
+                <h3>${vacancy.category || 'NO_CATEGORY'}</h3>
                 <span class="timestamp">${formatTimestamp(vacancy.timestamp)}</span>
             </div>
-            <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
-            <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
-            <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
-            <hr>
-            <details>
-                <summary>Показать полный текст</summary>
-                <p>${vacancy.text_highlighted || 'Нет данных'}</p>
-            </details>
-            <div class="card-buttons">
-                <button class="button button-primary" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">⭐ В избранное</button>
-                <button class="button button-danger" onclick="updateStatus(event, '${vacancy.id}', 'deleted')">❌ Удалить</button>
+            <div class="card-body">
+                <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
+                <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
             </div>
         `;
         container.appendChild(card);
@@ -129,7 +88,7 @@ function renderVacancies(container, vacancies, categoryName) {
 
 async function loadVacancies() {
     Object.values(containers).forEach(c => {
-        if (c) c.innerHTML = '<p>🔄 Загрузка...</p>';
+        if (c) c.innerHTML = '<p class="empty-list">Загрузка...</p>';
     });
     if(refreshBtn) refreshBtn.disabled = true;
 
@@ -157,7 +116,6 @@ async function loadVacancies() {
                 } else if (vacancy.category === 'МОЖЕТ БЫТЬ') {
                     maybeVacancies.push(item);
                 } else {
-                    // Все остальные категории попадают сюда
                     otherVacancies.push(item);
                 }
             }
@@ -167,15 +125,14 @@ async function loadVacancies() {
         counts.maybe.textContent = `(${maybeVacancies.length})`;
         counts.other.textContent = `(${otherVacancies.length})`;
 
-        // ИЗМЕНЕНИЕ: Передаём правильные имена категорий
-        renderVacancies(containers.main, mainVacancies, 'ТОЧНО ТВОЁ');
-        renderVacancies(containers.maybe, maybeVacancies, 'МОЖЕТ БЫТЬ');
-        renderVacancies(containers.other, otherVacancies, 'НЕ ТВОЁ');
+        renderVacancies(containers.main, mainVacancies);
+        renderVacancies(containers.maybe, maybeVacancies);
+        renderVacancies(containers.other, otherVacancies);
 
     } catch (error) {
         console.error('Ошибка загрузки:', error);
         Object.values(containers).forEach(c => {
-            if(c) c.innerHTML = `<p>Ошибка: ${error.message}</p>`;
+            if(c) c.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
         });
     } finally {
         if(refreshBtn) refreshBtn.disabled = false;

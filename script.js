@@ -65,7 +65,7 @@ function renderVacancies(container, vacancies) {
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
         
-        // ИСПРАВЛЕНИЕ: Генерируем HTML для карточки с иконками
+        // ИСПРАВЛЕНИЕ: Возвращаем все поля в карточку
         card.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">
@@ -81,7 +81,12 @@ function renderVacancies(container, vacancies) {
             </div>
             <div class="card-body">
                 <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
+                <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
                 <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
+                <details>
+                    <summary>Показать полный текст</summary>
+                    <p>${vacancy.text_highlighted || 'Нет данных'}</p>
+                </details>
             </div>
         `;
         container.appendChild(card);
@@ -116,7 +121,6 @@ async function loadVacancies() {
                 if (vacancy.category === 'ТОЧНО ТВОЁ') {
                     mainVacancies.push(item);
                 } else if (vacancy.category === 'МОЖЕТ БЫТЬ') {
-                    // ИСПРАВЛЕНИЕ: Категории теперь распределяются правильно
                     maybeVacancies.push(item);
                 } else {
                     otherVacancies.push(item);

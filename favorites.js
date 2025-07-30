@@ -1,4 +1,3 @@
-/* 6. НОВЫЙ ФАЙЛ: JavaScript для избранного (favorites.js)               */
 /* ======================================================================= */
 const tg = window.Telegram.WebApp;
 tg.expand();
@@ -67,7 +66,7 @@ async function loadFavorites() {
             card.className = 'vacancy-card';
             card.id = `card-${vacancy.id}`;
             
-            // В избранном только одна кнопка - убрать
+            // ИСПРАВЛЕНИЕ: Возвращаем все поля в карточку
             card.innerHTML = `
                 <div class="card-actions">
                     <button class="card-action-btn delete" onclick="updateStatus(event, '${vacancy.id}', 'new')">
@@ -80,7 +79,12 @@ async function loadFavorites() {
                 </div>
                 <div class="card-body">
                     <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
+                    <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
                     <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
+                    <details>
+                        <summary>Показать полный текст</summary>
+                        <p>${vacancy.text_highlighted || 'Нет данных'}</p>
+                    </details>
                 </div>
             `;
             container.appendChild(card);

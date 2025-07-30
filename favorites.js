@@ -1,7 +1,8 @@
+/* 6. Обновлённый JavaScript для избранного (favorites.js)               */
+/* ======================================================================= */
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// ИСПРАВЛЕНИЕ: URL теперь объявлены как чистые строки
 const GET_FAVORITES_API_URL = 'https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2'; 
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
@@ -15,7 +16,7 @@ function formatTimestamp(isoString) {
     });
 }
 
-// Эта функция убирает из избранного, меняя статус обратно на 'new'
+// ИЗМЕНЕНИЕ: Функция теперь не перезагружает страницу
 async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
     
@@ -28,7 +29,13 @@ async function updateStatus(event, vacancyId, newStatus) {
         cardElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
         cardElement.style.opacity = '0';
         cardElement.style.transform = 'scale(0.95)';
-        setTimeout(() => cardElement.remove(), 300);
+        setTimeout(() => {
+            cardElement.remove();
+            // Проверяем, не стал ли список пустым
+            if (container.children.length === 0) {
+                 container.innerHTML = '<p class="empty-list">-- В избранном пусто --</p>';
+            }
+        }, 300);
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
         tg.showAlert('Не удалось обновить статус.');
@@ -36,10 +43,7 @@ async function updateStatus(event, vacancyId, newStatus) {
 }
 
 async function loadFavorites() {
-    if (!container) {
-        console.error('Контейнер #favorites-list не найден!');
-        return;
-    }
+    if (!container) return;
     container.innerHTML = '<p class="empty-list">Загрузка...</p>';
 
     try {
@@ -78,7 +82,6 @@ async function loadFavorites() {
                 </div>
                 <div class="card-header">
                     <h3>${vacancy.category || 'NO_CATEGORY'}</h3>
-                    <span class="timestamp">${formatTimestamp(vacancy.timestamp)}</span>
                 </div>
                 <div class="card-body">
                     <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
@@ -88,6 +91,9 @@ async function loadFavorites() {
                         <summary>Показать полный текст</summary>
                         <p>${vacancy.text_highlighted || 'Нет данных'}</p>
                     </details>
+                </div>
+                <div class="card-footer">
+                    <span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span>
                 </div>
             `;
             container.appendChild(card);

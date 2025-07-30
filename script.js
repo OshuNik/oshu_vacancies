@@ -1,4 +1,6 @@
 /* ======================================================================= */
+/* 3. Обновлённый JavaScript (script.js)                                 */
+/* ======================================================================= */
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -98,9 +100,13 @@ async function loadVacancies() {
         const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
         const items = await response.json();
         
-        // ИЗМЕНЕНИЕ ЗДЕСЬ: Сортируем все вакансии по времени (от новой к старой)
+        // ИСПРАВЛЕНИЕ ЗДЕСЬ: Сортировка теперь безопасна
         if (items && items.length > 0) {
-            items.sort((a, b) => new Date(b.json.timestamp) - new Date(a.json.timestamp));
+            items.sort((a, b) => {
+                const timeA = a.json ? a.json.timestamp : a.timestamp;
+                const timeB = b.json ? b.json.timestamp : b.timestamp;
+                return new Date(timeB) - new Date(timeA);
+            });
         }
         
         const mainVacancies = [];

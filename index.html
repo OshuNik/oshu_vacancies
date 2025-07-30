@@ -1,6 +1,3 @@
-<!-- ======================================================================= -->
-<!-- 1. HTML для основной страницы (index.html)                             -->
-<!-- ======================================================================= -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -19,13 +16,20 @@
   </header>
 
   <main class="content">
-    <!-- Контейнеры для списков вакансий -->
-    <div id="vacancies-list-main" class="vacancy-list active"></div>
-    <div id="vacancies-list-maybe" class="vacancy-list"></div>
-    <div id="vacancies-list-other" class="vacancy-list"></div>
+    <div id="loader-container" class="loader-container">
+        <div class="loader-bar">
+            <div id="loader-progress" class="loader-progress"></div>
+        </div>
+        <div class="loader-text">ЗАГРУЗКА...</div>
+    </div>
+    
+    <div id="vacancies-container" class="hidden">
+        <div id="vacancies-list-main" class="vacancy-list active"></div>
+        <div id="vacancies-list-maybe" class="vacancy-list"></div>
+        <div id="vacancies-list-other" class="vacancy-list"></div>
+    </div>
   </main>
 
-  <!-- Нижняя панель с категориями -->
   <div class="category-tabs">
     <button class="tab-button active" data-target="vacancies-list-main">
       <span>ТОЧНО</span>
@@ -41,7 +45,6 @@
     </button>
   </div>
 
-  <!-- Кнопка "Обновить" -->
   <button class="refresh-button" id="refresh-button">
     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
   </button>

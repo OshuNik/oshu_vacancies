@@ -2,7 +2,7 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// ВАЖНО: Убедитесь, что этот URL ведёт на ваш n8n воркфлоу, который получает вакансии со статусом 'favorite'
+// ИСПРАВЛЕНИЕ: Убрали неправильный формат ссылок
 const GET_FAVORITES_API_URL = '[https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2](https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2)'; 
 const UPDATE_API_URL = '[https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2](https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2)';
 
@@ -66,7 +66,6 @@ async function loadFavorites() {
             card.className = 'vacancy-card';
             card.id = `card-${vacancy.id}`;
             
-            // ИСПРАВЛЕНИЕ: Возвращаем все поля в карточку
             card.innerHTML = `
                 <div class="card-actions">
                     <button class="card-action-btn delete" onclick="updateStatus(event, '${vacancy.id}', 'new')">

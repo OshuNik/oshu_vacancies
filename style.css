@@ -1,6 +1,98 @@
-/* 4. Единый CSS-файл (style.css)                                        */
+<!-- ======================================================================= -->
+<!-- 1. HTML для основной страницы (index.html)                             -->
+<!-- ======================================================================= -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>oshu://work</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <h1>oshu://work</h1>
+    <div class="header-actions">
+      <a href="favorites.html" class="header-button">★ Избранное</a>
+      <a href="settings.html" class="header-button">⚙︎ Настройки</a>
+    </div>
+  </header>
+
+  <main class="content">
+    <!-- ИЗМЕНЕНИЕ: Новый индикатор загрузки -->
+    <div id="loader" class="loader-container">
+        <div class="progress-bar-outline">
+            <div id="progress-bar" class="progress-bar"></div>
+        </div>
+        <div class="loader-text">Loading...</div>
+    </div>
+
+    <!-- Контейнеры для списков вакансий (теперь скрыты по умолчанию) -->
+    <div id="vacancies-content" class="hidden">
+        <div id="vacancies-list-main" class="vacancy-list active"></div>
+        <div id="vacancies-list-maybe" class="vacancy-list"></div>
+        <div id="vacancies-list-other" class="vacancy-list"></div>
+    </div>
+  </main>
+
+  <!-- Нижняя панель с категориями -->
+  <div class="category-tabs">
+    <button class="tab-button active" data-target="vacancies-list-main">
+      <span>ТОЧНО</span>
+      <span class="count" id="count-main">(0)</span>
+    </button>
+    <button class="tab-button" data-target="vacancies-list-maybe">
+      <span>МОЖЕТ</span>
+      <span class="count" id="count-maybe">(0)</span>
+    </button>
+    <button class="tab-button" data-target="vacancies-list-other">
+      <span>НЕ ТО</span>
+      <span class="count" id="count-other">(0)</span>
+    </button>
+  </div>
+
+  <!-- Кнопка "Обновить" (теперь скрыта по умолчанию) -->
+  <button class="refresh-button hidden" id="refresh-button">
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg>
+  </button>
+  
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
+```html
+<!-- ======================================================================= -->
+<!-- 2. HTML для страницы избранного (favorites.html)                      -->
+<!-- ======================================================================= -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Избранное</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <h1>★ Избранное</h1>
+    <div class="header-actions">
+      <a href="index.html" class="header-button">← Назад</a>
+    </div>
+  </header>
+
+  <main class="content" id="favorites-list">
+      <!-- Сюда JavaScript будет добавлять карточки -->
+  </main>
+
+  <script src="[https://telegram.org/js/telegram-web-app.js](https://telegram.org/js/telegram-web-app.js)"></script>
+  <script src="favorites.js"></script>
+</body>
+</html>
+```css
 /* ======================================================================= */
-@import url('[https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap](https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap)');
+/* 3. Единый CSS-файл (style.css)                                        */
+/* ======================================================================= */
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
 
 :root {
     --background-color: #F0F0F0;
@@ -14,6 +106,7 @@
     --accent-red: #FF4141;
     --accent-blue: #41A6FF;
     --accent-yellow: #FFFF57;
+    --accent-green: #57FF57;
 }
 
 body {
@@ -69,9 +162,6 @@ body {
 }
 
 .card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
     margin-bottom: 12px;
     padding-bottom: 8px;
     border-bottom: var(--border-width) solid var(--border-color);
@@ -85,38 +175,17 @@ body {
     border: var(--border-width) solid var(--border-color);
     display: inline-block;
 }
-
 .card-body p {
-    margin: 0 0 10px;
+    margin: 12px 0 10px;
     font-size: 14px;
     line-height: 1.6;
 }
-.card-body p:last-child {
-    margin-bottom: 0;
-}
-.card-body p strong {
-    color: var(--text-color);
-    font-weight: 700;
-}
-.highlight {
-    background-color: var(--accent-yellow);
-}
-
-.card-body details {
-    margin-top: 10px;
-    font-size: 14px;
-}
-.card-body summary {
-    cursor: pointer;
-    font-weight: 700;
-    color: var(--hint-color);
-}
-.card-body details p {
-    padding-top: 10px;
-    color: var(--text-color);
-    white-space: pre-wrap;
-}
-
+.card-body p:last-child { margin-bottom: 0; }
+.card-body p strong { font-weight: 700; }
+.highlight { background-color: var(--accent-yellow); }
+.card-body details { margin-top: 10px; font-size: 14px; }
+.card-body summary { cursor: pointer; font-weight: 700; color: var(--hint-color); }
+.card-body details p { padding-top: 10px; color: var(--text-color); white-space: pre-wrap; }
 .card-actions {
     position: absolute;
     top: 12px;
@@ -137,15 +206,15 @@ body {
     transition: all 0.1s ease-out;
 }
 .card-action-btn:hover { transform: scale(1.1); }
-.card-action-btn svg {
-    width: 18px;
-    height: 18px;
+.card-action-btn svg { 
+    /* ИЗМЕНЕНИЕ: Увеличиваем иконки */
+    width: 20px; 
+    height: 20px; 
     stroke-width: 2.5;
 }
 .card-action-btn.favorite svg { stroke: var(--accent-blue); fill: none; }
 .card-action-btn.delete svg { stroke: var(--accent-red); fill: none; }
 .card-action-btn:active { transform: translateY(2px); }
-
 .card-footer {
     display: flex;
     justify-content: flex-end;
@@ -159,8 +228,7 @@ body {
     color: var(--hint-color);
 }
 
-
-/* --- Нижняя панель с категориями --- */
+/* --- Нижняя панель и Списки --- */
 .category-tabs {
     position: fixed;
     bottom: 0;
@@ -191,17 +259,10 @@ body {
     border-color: var(--border-color);
     box-shadow: 2px 2px 0px var(--border-color);
 }
-.tab-button .count {
-    display: block;
-    font-size: 10px;
-    opacity: 0.7;
-}
-
-/* --- Списки вакансий --- */
+.tab-button .count { display: block; font-size: 10px; opacity: 0.7; }
 .vacancy-list { display: none; }
 .vacancy-list.active { display: block; }
 .empty-list { text-align: center; color: var(--hint-color); padding: 30px 0; }
-
 .list-header {
   display: flex;
   justify-content: flex-end;
@@ -244,22 +305,39 @@ body {
     transform: translate(2px, 2px);
     box-shadow: 0px 0px 0px var(--border-color);
 }
-.refresh-button svg {
-    width: 24px;
-    height: 24px;
-    stroke: #fff;
-    stroke-width: 3px;
+.refresh-button svg { width: 24px; height: 24px; stroke: #fff; stroke-width: 3px; }
+
+/* --- ИЗМЕНЕНИЕ: Стили для индикатора загрузки --- */
+.hidden {
+    display: none !important;
+}
+.loader-container {
+    padding: 50px 20px;
+    text-align: center;
+}
+.progress-bar-outline {
+    width: 100%;
+    height: 20px;
+    border: var(--border-width) solid var(--border-color);
+    background-color: var(--card-color);
+    padding: 2px;
+}
+.progress-bar {
+    width: 1%;
+    height: 100%;
+    background-color: var(--accent-green);
+    transition: width 0.5s ease-in-out;
+}
+.loader-text {
+    font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
+    font-size: 12px;
+    margin-top: 15px;
+    color: var(--hint-color);
 }
 
 /* --- Страница Настроек --- */
-.settings-form {
-    display: flex;
-    flex-direction: column;
-    gap: 15px;
-}
-.settings-form label {
-    font-weight: 700;
-}
+.settings-form { display: flex; flex-direction: column; gap: 15px; }
+.settings-form label { font-weight: 700; }
 .settings-form textarea {
     font-family: 'Roboto Mono', monospace;
     font-size: 14px;
@@ -287,14 +365,3 @@ body {
     transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
     box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
 }
-
-/* --- Анимация загрузки --- */
-button:disabled { position: relative; color: transparent !important; pointer-events: none; }
-button:disabled::after {
-  content: ''; position: absolute; top: 50%; left: 50%;
-  width: 16px; height: 16px; margin: -8px 0 0 -8px;
-  border: 2px solid var(--tg-button-text-color);
-  border-radius: 50%; border-top-color: transparent;
-  animation: spin 1s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }

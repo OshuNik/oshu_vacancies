@@ -4,9 +4,9 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const GET_API_URL = '[https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b](https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b)'; 
-const UPDATE_API_URL = '[https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2](https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2)';
-const CLEAR_CATEGORY_API_URL = '[https://oshunik.ru/webhook/d5a617c6-34db-45f2-a8a5-c88b091923d5](https://oshunik.ru/webhook/d5a617c6-34db-45f2-a8a5-c88b091923d5)';
+const GET_API_URL = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b'; 
+const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
+const CLEAR_CATEGORY_API_URL = 'https://oshunik.ru/webhook/d5a617c6-34db-45f2-a8a5-c88b091923d5';
 
 const containers = {
     main: document.getElementById('vacancies-list-main'),

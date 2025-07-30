@@ -1,26 +1,30 @@
+<!-- 3. HTML для страницы настроек (settings.html)                         -->
+<!-- ======================================================================= -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Настройки парсера</title>
+  <title>Настройки</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <main class="container">
-    <h1>⚙️ Настройки парсера</h1>
+  <header class="header">
+    <h1>⚙︎ Настройки</h1>
+    <div class="header-actions">
+      <a href="index.html" class="header-button">← Назад</a>
+    </div>
+  </header>
 
+  <main class="content">
     <div class="settings-form">
       <label for="keywords-input">Ключевые слова (через запятую):</label>
       <textarea id="keywords-input" rows="5" placeholder="монтаж, рилс, анимация..."></textarea>
-      
-      <div class="action-buttons">
-        <button id="save-button" class="button button-primary">Сохранить</button>
-        <a href="index.html" class="button button-secondary">⬅️ Назад</a>
-      </div>
+      <button id="save-button" class="button-save">Сохранить</button>
     </div>
   </main>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="settings.js"></script> </body>
+  <script src="settings.js"></script>
+</body>
 </html>

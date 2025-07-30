@@ -3,8 +3,8 @@ const tg = window.Telegram.WebApp;
 tg.expand();
 
 // ИСПРАВЛЕНИЕ: Убрали неправильный формат ссылок
-const GET_FAVORITES_API_URL = '[https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2](https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2)'; 
-const UPDATE_API_URL = '[https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2](https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2)';
+const GET_FAVORITES_API_URL = 'https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2';
+const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
 const container = document.getElementById('favorites-list');
 

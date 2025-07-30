@@ -101,3 +101,39 @@ button:disabled::after {
   animation: spin 1s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+.category-section {
+  margin-bottom: 30px;
+}
+
+.category-section h2 {
+  border-bottom: 2px solid var(--tg-secondary-bg-color);
+  padding-bottom: 8px;
+  margin-bottom: 15px;
+}
+
+.empty-list {
+  color: var(--tg-hint-color);
+  text-align: center;
+  padding: 20px 0;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.card-header h3 {
+  margin: 0;
+  line-height: 1.2;
+}
+
+.timestamp {
+  font-size: 0.8rem;
+  color: var(--tg-hint-color);
+  white-space: nowrap;
+  padding-top: 2px;
+}

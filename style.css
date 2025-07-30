@@ -1,5 +1,6 @@
 /* 4. Единый CSS-файл (style.css)                                        */
 /* ======================================================================= */
+/* ИСПРАВЛЕНИЕ: Убрали неправильный формат ссылки */
 @import url('[https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap](https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap)');
 
 :root {
@@ -107,7 +108,6 @@ body {
     background-color: var(--accent-yellow);
 }
 
-/* ИСПРАВЛЕНИЕ: Стили для спойлера "Показать полный текст" */
 .card-body details {
     margin-top: 10px;
     font-size: 14px;
@@ -120,7 +120,7 @@ body {
 .card-body details p {
     padding-top: 10px;
     color: var(--text-color);
-    white-space: pre-wrap; /* Сохраняем переносы строк */
+    white-space: pre-wrap;
 }
 
 .card-actions {

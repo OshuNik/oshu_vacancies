@@ -1,4 +1,4 @@
-/* 1. ОБЩИЕ СТИЛИ (для всех страниц) */
+/* 2.1. ОБЩИЕ СТИЛИ */
 :root {
   --tg-button-color: var(--tg-theme-button-color, #2481cc);
   --tg-button-text-color: var(--tg-theme-button-text-color, #ffffff);
@@ -28,7 +28,7 @@ h1 {
   margin-bottom: 20px;
 }
 
-/* 2. ЕДИНАЯ СИСТЕМА КНОПОК */
+/* 2.2. ЕДИНАЯ СИСТЕМА КНОПОК */
 button, .button {
   display: inline-block;
   box-sizing: border-box;
@@ -40,7 +40,7 @@ button, .button {
   cursor: pointer;
   text-align: center;
   text-decoration: none;
-  transition: opacity 0.2s ease;
+  transition: opacity 0.2s ease, background-color 0.2s ease, color 0.2s ease;
   width: 100%;
 }
 
@@ -54,12 +54,46 @@ button:hover, .button:hover {
 .button-secondary { background-color: var(--tg-secondary-bg-color); color: var(--tg-text-color); }
 
 
-/* 3. СТИЛИ ГЛАВНОЙ СТРАНИЦЫ И ИЗБРАННОГО */
+/* 2.3. СТИЛИ ГЛАВНОЙ СТРАНИЦЫ */
 .header-buttons {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 10px;
   margin-bottom: 20px;
+}
+
+/* ИЗМЕНЕНИЕ: Стили для кнопок-вкладок */
+.category-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.tab-button {
+  background-color: var(--tg-secondary-bg-color);
+  color: var(--tg-hint-color);
+  font-weight: normal;
+}
+
+.tab-button.active {
+  background-color: var(--tg-button-color);
+  color: var(--tg-button-text-color);
+  font-weight: bold;
+}
+
+.tab-button .count {
+  opacity: 0.7;
+  font-weight: normal;
+}
+
+/* ИЗМЕНЕНИЕ: Стили для списков вакансий */
+.vacancy-list {
+  display: none; /* Все списки по умолчанию скрыты */
+}
+
+.vacancy-list.active {
+  display: block; /* Активный список показывается */
 }
 
 .vacancy-card {
@@ -72,45 +106,6 @@ button:hover, .button:hover {
 .vacancy-card p { margin: 0 0 10px; white-space: pre-wrap; }
 .vacancy-card .card-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px; }
 .highlight { background-color: #f1c40f; padding: 0 2px; border-radius: 2px; font-weight: bold; }
-
-
-/* 4. СТИЛИ СТРАНИЦЫ НАСТРОЕК */
-.settings-form { display: flex; flex-direction: column; gap: 16px; }
-textarea {
-  width: 100%;
-  padding: 12px;
-  border-radius: 8px;
-  border: 1px solid var(--tg-hint-color);
-  background-color: var(--tg-bg-color);
-  color: var(--tg-text-color);
-  font-family: inherit;
-  font-size: 1rem;
-  box-sizing: border-box;
-  resize: vertical;
-}
-.settings-form .action-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
-
-/* 5. АНИМАЦИЯ ЗАГРУЗКИ */
-button:disabled { position: relative; color: transparent !important; pointer-events: none; }
-button:disabled::after {
-  content: ''; position: absolute; top: 50%; left: 50%;
-  width: 16px; height: 16px; margin: -8px 0 0 -8px;
-  border: 2px solid var(--tg-button-text-color);
-  border-radius: 50%; border-top-color: transparent;
-  animation: spin 1s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.category-section {
-  margin-bottom: 30px;
-}
-
-.category-section h2 {
-  border-bottom: 2px solid var(--tg-secondary-bg-color);
-  padding-bottom: 8px;
-  margin-bottom: 15px;
-}
 
 .empty-list {
   color: var(--tg-hint-color);
@@ -137,3 +132,15 @@ button:disabled::after {
   white-space: nowrap;
   padding-top: 2px;
 }
+
+
+/* 2.4. АНИМАЦИЯ ЗАГРУЗКИ */
+button:disabled { position: relative; color: transparent !important; pointer-events: none; }
+button:disabled::after {
+  content: ''; position: absolute; top: 50%; left: 50%;
+  width: 16px; height: 16px; margin: -8px 0 0 -8px;
+  border: 2px solid var(--tg-button-text-color);
+  border-radius: 50%; border-top-color: transparent;
+  animation: spin 1s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

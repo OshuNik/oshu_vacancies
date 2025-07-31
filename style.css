@@ -1,5 +1,3 @@
-/* 3. Единый CSS-файл (style.css)                                        */
-/* ======================================================================= */
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
 
 :root {
@@ -10,7 +8,6 @@
     --border-width: 2px;
     --border-color: #000000;
     --shadow-offset: 4px;
-    
     --accent-red: #FF4141;
     --accent-blue: #41A6FF;
     --accent-yellow: #FFFF57;
@@ -57,7 +54,6 @@ body {
     box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
 }
 
-
 /* --- Карточка Вакансии --- */
 .vacancy-card {
     background-color: var(--card-color);
@@ -68,7 +64,6 @@ body {
     position: relative;
     box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
 }
-
 .card-header {
     margin-bottom: 12px;
     padding-bottom: 8px;
@@ -115,8 +110,8 @@ body {
 }
 .card-action-btn:hover { transform: scale(1.1); }
 .card-action-btn svg {
-    width: 22px;  /* Увеличили еще больше */
-    height: 22px; /* Увеличили еще больше */
+    width: 22px;
+    height: 22px;
     stroke-width: 2.5;
 }
 .card-action-btn.favorite svg { stroke: var(--accent-blue); fill: none; }
@@ -288,11 +283,7 @@ body {
     text-decoration: none;
     position: relative;
     box-shadow: 2px 2px 0px var(--accent-blue);
-    transition:
-        box-shadow 0.13s,
-        border-color 0.18s,
-        background 0.18s,
-        color 0.13s;
+    transition: box-shadow 0.13s, border-color 0.18s, background 0.18s, color 0.13s;
     cursor: pointer;
     letter-spacing: 0.04em;
 }
@@ -316,4 +307,3 @@ body {
     opacity: 0.93;
     filter: drop-shadow(0 1px 1px #fff8);
 }
-

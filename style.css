@@ -38,13 +38,8 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
-    justify-content: center; /* Возвращаем центрирование по умолчанию */
-}
-.header-settings .header-actions {
-    justify-content: space-between; /* Для страницы настроек */
-}
-.header-centered .header-actions {
-    justify-content: center; /* Для страниц с одной кнопкой */
+    justify-content: center; /* Центрирование по умолчанию */
+    position: relative; /* Включаем позиционирование для дочерних элементов */
 }
 .header-button {
     font-size: 14px;
@@ -344,3 +339,10 @@ body {
     cursor: not-allowed;
 }
 
+/* Новый стиль для позиционирования кнопки Сохранить */
+.header-settings .header-icon-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}

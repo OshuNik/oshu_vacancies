@@ -1,5 +1,7 @@
-// script.js — полностью рабочий, копируй и вставляй
-// ================================================
+// =======================================================================
+// Полный и исправленный JavaScript для основной страницы (script.js)
+// =======================================================================
+
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -85,15 +87,31 @@ async function clearCategory(event, categoryName) {
     }
 }
 
-function safeHtml(html) {
-    // Минимальный санитайзер для безопасности
-    return html.replace(/<script/gi, '&lt;script');
+function isImageVacancy(vacancy) {
+    // Только если в вакансии есть поле has_image === true и message_link
+    return Boolean(vacancy.has_image && vacancy.message_link);
+}
+
+function processVacancyText(text, isHtml = false) {
+    if (!text) return '';
+    // Удалить все управляющие символы, кроме допустимых \n
+    let safeText = text.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
+
+    // Фильтрация (опционально): убрать html и markdown теги, если не isHtml
+    if (!isHtml) {
+        // Стереть markdown ** и __
+        safeText = safeText.replace(/\*\*(.*?)\*\*/g, '$1');
+        safeText = safeText.replace(/__(.*?)__/g, '$1');
+        // Стереть <b>, <i> и др.
+        safeText = safeText.replace(/<[^>]*>/g, '');
+    }
+    return safeText;
 }
 
 function renderVacancies(container, vacancies, categoryName) {
     if (!container) return;
     container.innerHTML = '';
-
+    
     if (vacancies && vacancies.length > 0) {
         const header = document.createElement('div');
         header.className = 'list-header';
@@ -107,19 +125,17 @@ function renderVacancies(container, vacancies, categoryName) {
     for (const item of vacancies) {
         const vacancy = item.json ? item.json : item;
         if (!vacancy.id) continue;
-
+        
         const card = document.createElement('div');
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
 
-        // Обработка "Изображение" — только если в тексте реально был placeholder
-        let textHtml = vacancy.text_highlighted || '';
-        let showImage = false;
-        if (textHtml.includes('[ Изображение ]')) {
-            showImage = true;
-            // Убираем все плейсхолдеры из текста, кнопку делаем отдельно
-            textHtml = textHtml.replace(/\[ Изображение \]/g, '');
+        // Медиа-метка — только если реально есть изображение
+        let imageLabel = '';
+        if (isImageVacancy(vacancy)) {
+            imageLabel = `<a class="image-label" href="${vacancy.message_link}" target="_blank" rel="noopener noreferrer">[ Изображение ]</a>`;
         }
+        // Показываем только если есть картинка
 
         card.innerHTML = `
             <div class="card-actions">
@@ -137,10 +153,10 @@ function renderVacancies(container, vacancies, categoryName) {
                 <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
                 <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
                 <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
-                ${showImage && vacancy.message_link ? `<a href="${vacancy.message_link}" class="image-label" target="_blank">[ Изображение ]</a>` : ''}
                 <details>
                     <summary>Показать полный текст</summary>
-                    <p id="fulltext-${vacancy.id}"></p>
+                    <div style="margin-top:10px;">${imageLabel}</div>
+                    <pre style="font-family:inherit;font-size:15px;white-space:pre-wrap;word-break:break-word;">${processVacancyText(vacancy.text_highlighted, true)}</pre>
                 </details>
             </div>
             <div class="card-footer">
@@ -148,12 +164,6 @@ function renderVacancies(container, vacancies, categoryName) {
             </div>
         `;
         container.appendChild(card);
-
-        // Вставляем HTML как innerHTML — форматирование работает
-        const fulltextEl = card.querySelector(`#fulltext-${vacancy.id}`);
-        if (fulltextEl) {
-            fulltextEl.innerHTML = safeHtml(textHtml);
-        }
     }
 }
 
@@ -224,3 +234,7 @@ tabButtons.forEach(button => {
 
 refreshBtn.addEventListener('click', loadVacancies);
 loadVacancies();
+
+// === Глобально доступные функции для HTML-атрибутов ===
+window.updateStatus = updateStatus;
+window.clearCategory = clearCategory;

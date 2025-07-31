@@ -29,9 +29,10 @@ body {
 }
 .header h1 {
     font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
-    font-size: 20px;
+    font-size: 28px;
     color: var(--text-color);
     margin: 0 0 15px 0;
+    letter-spacing: 1.5px;
 }
 .header-actions {
     display: flex;
@@ -39,13 +40,13 @@ body {
     gap: 10px;
 }
 .header-button {
-    font-size: 12px;
+    font-size: 14px;
     text-decoration: none;
     color: var(--text-color);
     background-color: var(--card-color);
-    padding: 8px 12px;
+    padding: 10px 18px;
     border: var(--border-width) solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 12px;
     box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
     transition: transform 0.1s, box-shadow 0.1s;
 }
@@ -70,23 +71,26 @@ body {
     border-bottom: var(--border-width) solid var(--border-color);
 }
 .card-header h3 {
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
     margin: 0;
     background-color: var(--accent-yellow);
-    padding: 4px 8px;
+    padding: 5px 12px;
     border: var(--border-width) solid var(--border-color);
     display: inline-block;
+    border-radius: 4px;
+    letter-spacing: 1px;
 }
 .card-body p {
     margin: 12px 0 10px;
-    font-size: 14px;
+    font-size: 15px;
     line-height: 1.6;
+    white-space: pre-wrap;
 }
 .card-body p:last-child { margin-bottom: 0; }
 .card-body p strong { font-weight: 700; }
 .highlight { background-color: var(--accent-yellow); }
-.card-body details { margin-top: 10px; font-size: 14px; }
+.card-body details { margin-top: 10px; font-size: 15px; }
 .card-body summary { cursor: pointer; font-weight: 700; color: var(--hint-color); }
 .card-body details p { padding-top: 10px; color: var(--text-color); white-space: pre-wrap; }
 .card-actions {
@@ -142,6 +146,7 @@ body {
     border-top: var(--border-width) solid var(--border-color);
     padding: 10px;
     padding-bottom: calc(10px + env(safe-area-inset-bottom));
+    z-index: 10;
 }
 .tab-button {
     font-family: 'Roboto Mono', monospace;
@@ -149,7 +154,7 @@ body {
     color: var(--hint-color);
     border: var(--border-width) solid transparent;
     padding: 10px 5px;
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
     border-radius: 8px;
     cursor: pointer;
@@ -191,8 +196,8 @@ body {
     position: fixed;
     bottom: 90px;
     right: 15px;
-    width: 44px;
-    height: 44px;
+    width: 54px;
+    height: 54px;
     background-color: var(--accent-red);
     border-radius: 50%;
     border: var(--border-width) solid var(--border-color);
@@ -202,14 +207,15 @@ body {
     box-shadow: 2px 2px 0px var(--border-color);
     cursor: pointer;
     transition: all 0.1s ease-out;
+    z-index: 11;
 }
 .refresh-button:active {
     transform: translate(2px, 2px);
     box-shadow: 0px 0px 0px var(--border-color);
 }
-.refresh-button svg { width: 24px; height: 24px; stroke: #fff; stroke-width: 3px; }
+.refresh-button svg { width: 28px; height: 28px; stroke: #fff; stroke-width: 3px; }
 
-/* --- ИЗМЕНЕНИЕ: Стили для индикатора загрузки --- */
+/* --- Стили для индикатора загрузки --- */
 .hidden {
     display: none !important;
 }
@@ -242,7 +248,7 @@ body {
 .settings-form label { font-weight: 700; }
 .settings-form textarea {
     font-family: 'Roboto Mono', monospace;
-    font-size: 14px;
+    font-size: 15px;
     padding: 10px;
     border-radius: 8px;
     border: var(--border-width) solid var(--border-color);
@@ -253,7 +259,7 @@ body {
 .button-save {
     font-family: 'Roboto Mono', monospace;
     font-weight: 700;
-    font-size: 16px;
+    font-size: 17px;
     background-color: var(--accent-blue);
     color: var(--card-color);
     border: var(--border-width) solid var(--border-color);
@@ -269,18 +275,20 @@ body {
 }
 
 /* --- Метка "Изображение" для вакансий с фото/медиа --- */
-.image-label {
+.image-label,
+a[href*="Изображение"],
+details a[href*="Изображение"] {
     display: inline-block;
     margin: 12px 0 8px 0;
     padding: 7px 22px 7px 36px;
     font-family: inherit;
-    font-size: 14px;
+    font-size: 16px;
     font-weight: 700;
     color: var(--accent-blue);
     background: linear-gradient(90deg, #f0f8ff 72%, #e2eeff 100%);
     border: 2px solid var(--accent-blue);
     border-radius: 10px;
-    text-decoration: none;
+    text-decoration: none !important;
     position: relative;
     box-shadow: 2px 2px 0px var(--accent-blue);
     transition: box-shadow 0.13s, border-color 0.18s, background 0.18s, color 0.13s;
@@ -288,14 +296,19 @@ body {
     letter-spacing: 0.04em;
 }
 .image-label:hover,
-.image-label:focus {
+a[href*="Изображение"]:hover,
+details a[href*="Изображение"]:hover,
+.image-label:focus,
+a[href*="Изображение"]:focus {
     background: linear-gradient(90deg, #e1f0ff 62%, #cbe3ff 100%);
     color: #1a6fbb;
     border-color: #1a6fbb;
     box-shadow: 3px 4px 8px 0 rgba(41, 166, 255, 0.16);
-    text-decoration: underline;
+    text-decoration: underline !important;
 }
-.image-label::before {
+.image-label::before,
+a[href*="Изображение"]::before,
+details a[href*="Изображение"]::before {
     content: '';
     position: absolute;
     left: 11px;

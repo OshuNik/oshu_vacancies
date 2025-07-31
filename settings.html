@@ -1,6 +1,3 @@
-<!-- ======================================================================= -->
-<!-- 3. HTML для страницы настроек (settings.html)                         -->
-<!-- ======================================================================= -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -14,21 +11,27 @@
     <h1>⚙︎ Настройки</h1>
     <div class="header-actions">
       <a href="index.html" class="header-button">← Назад</a>
+      <button id="save-button" class="header-icon-btn">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+      </button>
     </div>
   </header>
 
   <main class="content">
-  <div class="current-keywords-container">
-    <p class="current-keywords-label">Текущие ключевые слова:</p>
-    <p id="current-keywords-display" class="current-keywords-list">Загрузка...</p>
-  </div>
+    <div class="current-keywords-container">
+      <p class="current-keywords-label">Текущие ключевые слова:</p>
+      <p id="current-keywords-display" class="current-keywords-list">Загрузка...</p>
+    </div>
 
-  <div class="settings-form">
-    <label for="keywords-input">Изменить список (через запятую):</label>
-    <textarea id="keywords-input" rows="5" placeholder="монтаж, рилс, анимация..."></textarea>
-    <button id="save-button" class="button-save">Сохранить</button>
-  </div>
-</main>
+    <div class="settings-form">
+      <label for="keywords-input">Изменить список (через запятую):</label>
+      <textarea id="keywords-input" rows="5" placeholder="монтаж, рилс, анимация..."></textarea>
+    </div>
+  </main>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="settings.js"></script>

@@ -1,7 +1,6 @@
-// =======================================================================
-// Полный и исправленный JavaScript для основной страницы (script.js)
-// =======================================================================
-
+// ===========================
+//  oshu://work  script.js
+// ===========================
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -22,7 +21,6 @@ const counts = {
 const tabButtons = document.querySelectorAll('.tab-button');
 const vacancyLists = document.querySelectorAll('.vacancy-list');
 const refreshBtn = document.getElementById('refresh-button');
-
 const loader = document.getElementById('loader');
 const progressBar = document.getElementById('progress-bar');
 const vacanciesContent = document.getElementById('vacancies-content');
@@ -39,7 +37,7 @@ async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
     const parentList = cardElement.parentElement;
     const categoryKey = Object.keys(containers).find(key => containers[key] === parentList);
-    
+
     try {
         await fetch(UPDATE_API_URL, {
             method: 'POST',
@@ -87,31 +85,11 @@ async function clearCategory(event, categoryName) {
     }
 }
 
-function isImageVacancy(vacancy) {
-    // Только если в вакансии есть поле has_image === true и message_link
-    return Boolean(vacancy.has_image && vacancy.message_link);
-}
-
-function processVacancyText(text, isHtml = false) {
-    if (!text) return '';
-    // Удалить все управляющие символы, кроме допустимых \n
-    let safeText = text.replace(/[\u200B\u200C\u200D\uFEFF]/g, '');
-
-    // Фильтрация (опционально): убрать html и markdown теги, если не isHtml
-    if (!isHtml) {
-        // Стереть markdown ** и __
-        safeText = safeText.replace(/\*\*(.*?)\*\*/g, '$1');
-        safeText = safeText.replace(/__(.*?)__/g, '$1');
-        // Стереть <b>, <i> и др.
-        safeText = safeText.replace(/<[^>]*>/g, '');
-    }
-    return safeText;
-}
-
+// --- ГЛАВНАЯ РЕНДЕР-ФУНКЦИЯ ДЛЯ КАРТОЧКИ ---
 function renderVacancies(container, vacancies, categoryName) {
     if (!container) return;
-    container.innerHTML = '';
-    
+    container.innerHTML = ''; 
+
     if (vacancies && vacancies.length > 0) {
         const header = document.createElement('div');
         header.className = 'list-header';
@@ -125,18 +103,12 @@ function renderVacancies(container, vacancies, categoryName) {
     for (const item of vacancies) {
         const vacancy = item.json ? item.json : item;
         if (!vacancy.id) continue;
-        
+
         const card = document.createElement('div');
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
 
-        // Медиа-метка — только если реально есть изображение
-        let imageLabel = '';
-        if (isImageVacancy(vacancy)) {
-            imageLabel = `<a class="image-label" href="${vacancy.message_link}" target="_blank" rel="noopener noreferrer">[ Изображение ]</a>`;
-        }
-        // Показываем только если есть картинка
-
+        // --- ВСТАВКА HTML через innerHTML ---
         card.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">
@@ -155,8 +127,7 @@ function renderVacancies(container, vacancies, categoryName) {
                 <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
                 <details>
                     <summary>Показать полный текст</summary>
-                    <div style="margin-top:10px;">${imageLabel}</div>
-                    <pre style="font-family:inherit;font-size:15px;white-space:pre-wrap;word-break:break-word;">${processVacancyText(vacancy.text_highlighted, true)}</pre>
+                    <pre style="font-family:inherit;font-size:15px;white-space:pre-wrap;word-break:break-word;">${vacancy.text_highlighted || 'Нет данных'}</pre>
                 </details>
             </div>
             <div class="card-footer">
@@ -181,7 +152,7 @@ async function loadVacancies() {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const items = await response.json();
         progressBar.style.width = '100%';
-        
+
         if (items && items.length > 0) {
             items.sort((a, b) => {
                 const timeA = (a.json || a).timestamp;
@@ -191,7 +162,7 @@ async function loadVacancies() {
                 return new Date(timeB) - new Date(timeA);
             });
         }
-        
+
         const mainVacancies = [], maybeVacancies = [], otherVacancies = [];
         if (items && items.length > 0) {
             for (const item of items) {
@@ -201,7 +172,7 @@ async function loadVacancies() {
                 else otherVacancies.push(item);
             }
         }
-        
+
         counts.main.textContent = `(${mainVacancies.length})`;
         counts.maybe.textContent = `(${maybeVacancies.length})`;
         counts.other.textContent = `(${otherVacancies.length})`;
@@ -234,7 +205,3 @@ tabButtons.forEach(button => {
 
 refreshBtn.addEventListener('click', loadVacancies);
 loadVacancies();
-
-// === Глобально доступные функции для HTML-атрибутов ===
-window.updateStatus = updateStatus;
-window.clearCategory = clearCategory;

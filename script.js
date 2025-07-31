@@ -1,10 +1,11 @@
-// ===========================
-//  oshu://work  script.js
-// ===========================
+// =======================================================================
+// 5. Обновлённый JavaScript (script.js) для oshu://work
+// =======================================================================
+
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const GET_API_URL = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b'; 
+const GET_API_URL = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b';
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 const CLEAR_CATEGORY_API_URL = 'https://oshunik.ru/webhook/d5a617c6-34db-45f2-a8a5-c88b091923d5';
 
@@ -21,6 +22,7 @@ const counts = {
 const tabButtons = document.querySelectorAll('.tab-button');
 const vacancyLists = document.querySelectorAll('.vacancy-list');
 const refreshBtn = document.getElementById('refresh-button');
+
 const loader = document.getElementById('loader');
 const progressBar = document.getElementById('progress-bar');
 const vacanciesContent = document.getElementById('vacancies-content');
@@ -28,8 +30,8 @@ const vacanciesContent = document.getElementById('vacancies-content');
 function formatTimestamp(isoString) {
     if (!isoString) return '';
     const date = new Date(isoString);
-    return date.toLocaleString('ru-RU', { 
-        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
+    return date.toLocaleString('ru-RU', {
+        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit'
     });
 }
 
@@ -85,10 +87,10 @@ async function clearCategory(event, categoryName) {
     }
 }
 
-// --- ГЛАВНАЯ РЕНДЕР-ФУНКЦИЯ ДЛЯ КАРТОЧКИ ---
+// === ГЛАВНАЯ ФУНКЦИЯ ОТОБРАЖЕНИЯ ВАКАНСИЙ ===
 function renderVacancies(container, vacancies, categoryName) {
     if (!container) return;
-    container.innerHTML = ''; 
+    container.innerHTML = '';
 
     if (vacancies && vacancies.length > 0) {
         const header = document.createElement('div');
@@ -108,7 +110,18 @@ function renderVacancies(container, vacancies, categoryName) {
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
 
-        // --- ВСТАВКА HTML через innerHTML ---
+        // Сборка details с новым div
+        let detailsHTML = '';
+        if (vacancy.text_highlighted) {
+            detailsHTML = `
+<details>
+    <summary>Показать полный текст</summary>
+    <div class="vacancy-text" style="margin-top:10px;">
+        ${vacancy.text_highlighted}
+    </div>
+</details>`;
+        }
+
         card.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">
@@ -125,10 +138,7 @@ function renderVacancies(container, vacancies, categoryName) {
                 <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
                 <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
                 <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
-                <details>
-                    <summary>Показать полный текст</summary>
-                    <pre style="font-family:inherit;font-size:15px;white-space:pre-wrap;word-break:break-word;">${vacancy.text_highlighted || 'Нет данных'}</pre>
-                </details>
+                ${detailsHTML}
             </div>
             <div class="card-footer">
                 <span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span>

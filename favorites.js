@@ -1,4 +1,4 @@
-/* 6. Обновлённый JavaScript для избранного (favorites.js)               */
+/* 6. Обновлённый JavaScript для избранного (favorites.js) */
 /* ======================================================================= */
 const tg = window.Telegram.WebApp;
 tg.expand();
@@ -48,7 +48,18 @@ async function loadFavorites() {
 
     try {
         const response = await fetch(GET_FAVORITES_API_URL + '?cache_buster=' + new Date().getTime());
-        const items = await response.json();
+        
+        // Сначала получаем ответ как текст
+        const responseText = await response.text();
+
+        // Проверяем, пустой ли текст. Если да, то список пуст.
+        if (!responseText) {
+            container.innerHTML = '<p class="empty-list">-- В избранном пусто --</p>';
+            return;
+        }
+
+        // Если текст есть, преобразуем его в JSON
+        const items = JSON.parse(responseText);
         
         if (items && items.length > 0) {
             items.sort((a, b) => {

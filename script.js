@@ -22,7 +22,6 @@ const tabButtons = document.querySelectorAll('.tab-button');
 const vacancyLists = document.querySelectorAll('.vacancy-list');
 const refreshBtn = document.getElementById('refresh-button');
 
-// ИЗМЕНЕНИЕ: Элементы для нового индикатора загрузки
 const loader = document.getElementById('loader');
 const progressBar = document.getElementById('progress-bar');
 const vacanciesContent = document.getElementById('vacancies-content');
@@ -35,11 +34,8 @@ function formatTimestamp(isoString) {
     });
 }
 
-// ИЗМЕНЕНИЕ: Функция обновления теперь не перезагружает всё, а только обновляет счётчики
 async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
-    
-    // Определяем, из какой категории удаляется карточка
     const parentList = cardElement.parentElement;
     const categoryKey = Object.keys(containers).find(key => containers[key] === parentList);
     
@@ -54,13 +50,11 @@ async function updateStatus(event, vacancyId, newStatus) {
         cardElement.style.transform = 'scale(0.95)';
         setTimeout(() => {
             cardElement.remove();
-            // Обновляем счётчик
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
             countSpan.textContent = `(${(currentCount - 1)})`;
-            // Проверяем, не стал ли список пустым
             if (parentList.children.length === 0) {
-                 parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+                parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
             }
         }, 300);
     } catch (error) {
@@ -132,7 +126,7 @@ function renderVacancies(container, vacancies, categoryName) {
                 <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
                 <details>
                     <summary>Показать полный текст</summary>
-                    <p>${vacancy.text_highlighted_webapp || 'Нет данных'}</p>
+                    <p>${vacancy.text_highlighted || 'Нет данных'}</p>
                 </details>
             </div>
             <div class="card-footer">
@@ -144,18 +138,17 @@ function renderVacancies(container, vacancies, categoryName) {
 }
 
 async function loadVacancies() {
-    // ИЗМЕНЕНИЕ: Управляем видимостью элементов
     loader.classList.remove('hidden');
     vacanciesContent.classList.add('hidden');
     refreshBtn.classList.add('hidden');
-    progressBar.style.width = '1%'; // Сбрасываем прогресс-бар
+    progressBar.style.width = '1%';
 
-    // Анимация прогресс-бара
     setTimeout(() => { progressBar.style.width = '40%'; }, 100);
     setTimeout(() => { progressBar.style.width = '70%'; }, 500);
 
     try {
         const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const items = await response.json();
         progressBar.style.width = '100%';
         
@@ -170,7 +163,6 @@ async function loadVacancies() {
         }
         
         const mainVacancies = [], maybeVacancies = [], otherVacancies = [];
-
         if (items && items.length > 0) {
             for (const item of items) {
                 const vacancy = item.json || item;
@@ -192,12 +184,11 @@ async function loadVacancies() {
         console.error('Ошибка загрузки:', error);
         loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
     } finally {
-        // ИЗМЕНЕНИЕ: Показываем контент и кнопку "Обновить" после загрузки
         setTimeout(() => {
             loader.classList.add('hidden');
             vacanciesContent.classList.remove('hidden');
             refreshBtn.classList.remove('hidden');
-        }, 500); // Небольшая задержка, чтобы увидеть заполненный прогресс-бар
+        }, 500);
     }
 }
 

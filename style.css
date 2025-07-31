@@ -275,89 +275,41 @@ body {
 }
 
 /* --- Метка "Изображение" для вакансий с фото/медиа --- */
-.image-label,
-a[href*="Изображение"],
-details a[href*="Изображение"] {
-    display: inline-block;
-    margin: 12px 0 8px 0;
-    padding: 7px 22px 7px 36px;
-    font-family: inherit;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--accent-blue);
-    background: linear-gradient(90deg, #f0f8ff 72%, #e2eeff 100%);
-    border: 2px solid var(--accent-blue);
-    border-radius: 10px;
-    text-decoration: none !important;
-    position: relative;
-    box-shadow: 2px 2px 0px var(--accent-blue);
-    transition: box-shadow 0.13s, border-color 0.18s, background 0.18s, color 0.13s;
-    cursor: pointer;
-    letter-spacing: 0.04em;
-}
-.image-label:hover,
-a[href*="Изображение"]:hover,
-details a[href*="Изображение"]:hover,
-.image-label:focus,
-a[href*="Изображение"]:focus {
-    background: linear-gradient(90deg, #e1f0ff 62%, #cbe3ff 100%);
-    color: #1a6fbb;
-    border-color: #1a6fbb;
-    box-shadow: 3px 4px 8px 0 rgba(41, 166, 255, 0.16);
-    text-decoration: underline !important;
-}
-.image-label::before,
-a[href*="Изображение"]::before,
-details a[href*="Изображение"]::before {
-    content: '';
-    position: absolute;
-    left: 11px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 18px;
-    height: 18px;
-    background: url('https://cdn.jsdelivr.net/gh/tabler/tabler-icons/icons/photo.svg') no-repeat center/cover;
-    opacity: 0.93;
-    filter: drop-shadow(0 1px 1px #fff8);
-}
-
-/* Патч для ссылки [ Изображение ] — делает её кнопкой вне зависимости от наличия класса image-label */
 a[href*="Изображение"] {
-    display: inline-block;
-    margin: 12px 0 8px 0;
-    padding: 7px 22px 7px 36px;
-    font-family: inherit;
-    font-size: 16px;
-    font-weight: 700;
+    display: inline-block !important;
+    margin: 12px 0 8px 0 !important;
+    padding: 7px 22px 7px 36px !important;
+    font-family: inherit !important;
+    font-size: 16px !important;
+    font-weight: 700 !important;
     color: var(--accent-blue) !important;
-    background: linear-gradient(90deg, #f0f8ff 72%, #e2eeff 100%);
-    border: 2px solid var(--accent-blue);
-    border-radius: 10px;
+    background: linear-gradient(90deg, #f0f8ff 72%, #e2eeff 100%) !important;
+    border: 2px solid var(--accent-blue) !important;
+    border-radius: 10px !important;
     text-decoration: none !important;
-    position: relative;
-    box-shadow: 2px 2px 0px var(--accent-blue);
-    transition: box-shadow 0.13s, border-color 0.18s, background 0.18s, color 0.13s;
-    cursor: pointer;
-    letter-spacing: 0.04em;
+    position: relative !important;
+    box-shadow: 2px 2px 0px var(--accent-blue) !important;
+    transition: box-shadow 0.13s, border-color 0.18s, background 0.18s, color 0.13s !important;
+    cursor: pointer !important;
+    letter-spacing: 0.04em !important;
 }
 a[href*="Изображение"]:hover,
 a[href*="Изображение"]:focus {
-    background: linear-gradient(90deg, #e1f0ff 62%, #cbe3ff 100%);
+    background: linear-gradient(90deg, #e1f0ff 62%, #cbe3ff 100%) !important;
     color: #1a6fbb !important;
-    border-color: #1a6fbb;
-    box-shadow: 3px 4px 8px 0 rgba(41, 166, 255, 0.16);
+    border-color: #1a6fbb !important;
+    box-shadow: 3px 4px 8px 0 rgba(41, 166, 255, 0.16) !important;
     text-decoration: underline !important;
 }
 a[href*="Изображение"]::before {
     content: '';
-    position: absolute;
-    left: 11px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 18px;
-    height: 18px;
-    background: url('https://cdn.jsdelivr.net/gh/tabler/tabler-icons/icons/photo.svg') no-repeat center/cover;
-    opacity: 0.93;
-    filter: drop-shadow(0 1px 1px #fff8);
+    position: absolute !important;
+    left: 11px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 18px !important;
+    height: 18px !important;
+    background: url('https://cdn.jsdelivr.net/gh/tabler/tabler-icons/icons/photo.svg') no-repeat center/cover !important;
+    opacity: 0.93 !important;
+    filter: drop-shadow(0 1px 1px #fff8) !important;
 }
-

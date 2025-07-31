@@ -1,6 +1,7 @@
-// ======================================================
-// script.js — ВСТАВКА [ ИЗОБРАЖЕНИЕ ] ТОЛЬКО ОДИН РАЗ
-// ======================================================
+// ===================== FRONTEND (script.js) ===================== //
+// 1. Добавляем markdown-преобразование и защиту от пустых картинок
+// 2. Не вставляем кнопку изображения, если нет метки
+// 3. Корректируем форматирование
 
 const tg = window.Telegram.WebApp;
 tg.expand();
@@ -35,69 +36,16 @@ function formatTimestamp(isoString) {
     });
 }
 
-// ====== Только одна красивая метка [ Изображение ] ======
-function stylizeImageLabel(text, messageLink) {
-    if (!messageLink) {
-        // Если нет ссылки — чистим любые метки/ссылки
-        return text.replace(/\[ ?Изображение ?\]/gi, '').replace(/https?:\/\/telegra\.ph\/file\/[\w\d\/_\.-]+/gi, '');
-    }
-    // Убираем все вхождения, вставляем одну метку в начале
-    text = text.replace(/\[ ?Изображение ?\]/gi, '').replace(/https?:\/\/telegra\.ph\/file\/[\w\d\/_\.-]+/gi, '');
-    return `<a href="${messageLink}" class="image-label" target="_blank">[ Изображение ]</a>\n` + text.trim();
-}
-
-function renderVacancies(container, vacancies, categoryName) {
-    if (!container) return;
-    container.innerHTML = '';
-    if (vacancies && vacancies.length > 0) {
-        const header = document.createElement('div');
-        header.className = 'list-header';
-        header.innerHTML = `<button class="clear-button" onclick="clearCategory(event, '${categoryName}')">Очистить все</button>`;
-        container.appendChild(header);
-    } else {
-        container.innerHTML = '<p class="empty-list">-- Пусто --</p>';
-        return;
-    }
-    for (const item of vacancies) {
-        const vacancy = item.json ? item.json : item;
-        if (!vacancy.id) continue;
-        const card = document.createElement('div');
-        card.className = 'vacancy-card';
-        card.id = `card-${vacancy.id}`;
-        // Формируем текст вакансии — корректно вставляем метку изображения
-        let fullText = vacancy.text_highlighted || 'Нет данных';
-        if (vacancy.message_link) {
-            fullText = stylizeImageLabel(fullText, vacancy.message_link);
-        } else {
-            fullText = stylizeImageLabel(fullText, '');
-        }
-        card.innerHTML = `
-            <div class="card-actions">
-                <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                </button>
-                <button class="card-action-btn delete" onclick="updateStatus(event, '${vacancy.id}', 'deleted')">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-                </button>
-            </div>
-            <div class="card-header">
-                <h3>${vacancy.category || 'NO_CATEGORY'}</h3>
-            </div>
-            <div class="card-body">
-                <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
-                <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
-                <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
-                <details>
-                    <summary>Показать полный текст</summary>
-                    <p>${fullText}</p>
-                </details>
-            </div>
-            <div class="card-footer">
-                <span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span>
-            </div>
-        `;
-        container.appendChild(card);
-    }
+function simpleMarkdownToHtml(text) {
+    if (!text) return '';
+    // [ Изображение ] -> убираем дубли (оставляем только первую)
+    text = text.replace(/(\[ Изображение \].*\[ Изображение \])/g, '[ Изображение ]');
+    // Markdown
+    return text
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') // защита
+        .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
+        .replace(/\*([^*]+)\*/g, '<i>$1</i>')
+        .replace(/(?:\r\n|\r|\n)/g, '<br>');
 }
 
 async function updateStatus(event, vacancyId, newStatus) {
@@ -150,6 +98,61 @@ async function clearCategory(event, categoryName) {
     }
 }
 
+function renderVacancies(container, vacancies, categoryName) {
+    if (!container) return;
+    container.innerHTML = '';
+    if (vacancies && vacancies.length > 0) {
+        const header = document.createElement('div');
+        header.className = 'list-header';
+        header.innerHTML = `<button class="clear-button" onclick="clearCategory(event, '${categoryName}')">Очистить все</button>`;
+        container.appendChild(header);
+    } else {
+        container.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+        return;
+    }
+    for (const item of vacancies) {
+        const vacancy = item.json ? item.json : item;
+        if (!vacancy.id) continue;
+        const card = document.createElement('div');
+        card.className = 'vacancy-card';
+        card.id = `card-${vacancy.id}`;
+        // Проверяем есть ли [ Изображение ] в тексте
+        let hasImage = false;
+        let textHtml = vacancy.text_highlighted || '';
+        if (textHtml.includes('[ Изображение ]')) {
+            hasImage = true;
+            // Заменяем на красивую кнопку
+            textHtml = textHtml.replace(/\[ Изображение \]/g, `<a href="${vacancy.message_link}" class="image-label" target="_blank">[ Изображение ]</a>`);
+        }
+        card.innerHTML = `
+            <div class="card-actions">
+                <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                </button>
+                <button class="card-action-btn delete" onclick="updateStatus(event, '${vacancy.id}', 'deleted')">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                </button>
+            </div>
+            <div class="card-header">
+                <h3>${vacancy.category || 'NO_CATEGORY'}</h3>
+            </div>
+            <div class="card-body">
+                <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
+                <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
+                <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
+                <details>
+                    <summary>Показать полный текст</summary>
+                    <p>${simpleMarkdownToHtml(textHtml)}</p>
+                </details>
+            </div>
+            <div class="card-footer">
+                <span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span>
+            </div>
+        `;
+        container.appendChild(card);
+    }
+}
+
 async function loadVacancies() {
     loader.classList.remove('hidden');
     vacanciesContent.classList.add('hidden');
@@ -159,8 +162,8 @@ async function loadVacancies() {
     setTimeout(() => { progressBar.style.width = '70%'; }, 500);
     try {
         const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const items = await response.json();
+        let items = [];
+        try { items = await response.json(); if (!Array.isArray(items)) items = []; } catch (e) { items = []; }
         progressBar.style.width = '100%';
         if (items && items.length > 0) {
             items.sort((a, b) => {

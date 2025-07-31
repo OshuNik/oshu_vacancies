@@ -1,8 +1,5 @@
-// ===================== FRONTEND (script.js) ===================== //
-// 1. Добавляем markdown-преобразование и защиту от пустых картинок
-// 2. Не вставляем кнопку изображения, если нет метки
-// 3. Корректируем форматирование
-
+// script.js — полностью рабочий, копируй и вставляй
+// ================================================
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -36,22 +33,11 @@ function formatTimestamp(isoString) {
     });
 }
 
-function simpleMarkdownToHtml(text) {
-    if (!text) return '';
-    // [ Изображение ] -> убираем дубли (оставляем только первую)
-    text = text.replace(/(\[ Изображение \].*\[ Изображение \])/g, '[ Изображение ]');
-    // Markdown
-    return text
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') // защита
-        .replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>')
-        .replace(/\*([^*]+)\*/g, '<i>$1</i>')
-        .replace(/(?:\r\n|\r|\n)/g, '<br>');
-}
-
 async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
     const parentList = cardElement.parentElement;
     const categoryKey = Object.keys(containers).find(key => containers[key] === parentList);
+    
     try {
         await fetch(UPDATE_API_URL, {
             method: 'POST',
@@ -79,6 +65,7 @@ async function updateStatus(event, vacancyId, newStatus) {
 async function clearCategory(event, categoryName) {
     const button = event.target;
     const displayName = categoryName;
+
     if (window.confirm(`Вы уверены, что хотите удалить все из категории "${displayName}"?`)) {
         button.disabled = true;
         button.textContent = 'Очистка...';
@@ -98,9 +85,15 @@ async function clearCategory(event, categoryName) {
     }
 }
 
+function safeHtml(html) {
+    // Минимальный санитайзер для безопасности
+    return html.replace(/<script/gi, '&lt;script');
+}
+
 function renderVacancies(container, vacancies, categoryName) {
     if (!container) return;
     container.innerHTML = '';
+
     if (vacancies && vacancies.length > 0) {
         const header = document.createElement('div');
         header.className = 'list-header';
@@ -110,20 +103,24 @@ function renderVacancies(container, vacancies, categoryName) {
         container.innerHTML = '<p class="empty-list">-- Пусто --</p>';
         return;
     }
+
     for (const item of vacancies) {
         const vacancy = item.json ? item.json : item;
         if (!vacancy.id) continue;
+
         const card = document.createElement('div');
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
-        // Проверяем есть ли [ Изображение ] в тексте
-        let hasImage = false;
+
+        // Обработка "Изображение" — только если в тексте реально был placeholder
         let textHtml = vacancy.text_highlighted || '';
+        let showImage = false;
         if (textHtml.includes('[ Изображение ]')) {
-            hasImage = true;
-            // Заменяем на красивую кнопку
-            textHtml = textHtml.replace(/\[ Изображение \]/g, `<a href="${vacancy.message_link}" class="image-label" target="_blank">[ Изображение ]</a>`);
+            showImage = true;
+            // Убираем все плейсхолдеры из текста, кнопку делаем отдельно
+            textHtml = textHtml.replace(/\[ Изображение \]/g, '');
         }
+
         card.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')">
@@ -140,9 +137,10 @@ function renderVacancies(container, vacancies, categoryName) {
                 <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
                 <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
                 <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
+                ${showImage && vacancy.message_link ? `<a href="${vacancy.message_link}" class="image-label" target="_blank">[ Изображение ]</a>` : ''}
                 <details>
                     <summary>Показать полный текст</summary>
-                    <p>${simpleMarkdownToHtml(textHtml)}</p>
+                    <p id="fulltext-${vacancy.id}"></p>
                 </details>
             </div>
             <div class="card-footer">
@@ -150,6 +148,12 @@ function renderVacancies(container, vacancies, categoryName) {
             </div>
         `;
         container.appendChild(card);
+
+        // Вставляем HTML как innerHTML — форматирование работает
+        const fulltextEl = card.querySelector(`#fulltext-${vacancy.id}`);
+        if (fulltextEl) {
+            fulltextEl.innerHTML = safeHtml(textHtml);
+        }
     }
 }
 
@@ -158,13 +162,16 @@ async function loadVacancies() {
     vacanciesContent.classList.add('hidden');
     refreshBtn.classList.add('hidden');
     progressBar.style.width = '1%';
+
     setTimeout(() => { progressBar.style.width = '40%'; }, 100);
     setTimeout(() => { progressBar.style.width = '70%'; }, 500);
+
     try {
         const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
-        let items = [];
-        try { items = await response.json(); if (!Array.isArray(items)) items = []; } catch (e) { items = []; }
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const items = await response.json();
         progressBar.style.width = '100%';
+        
         if (items && items.length > 0) {
             items.sort((a, b) => {
                 const timeA = (a.json || a).timestamp;
@@ -174,6 +181,7 @@ async function loadVacancies() {
                 return new Date(timeB) - new Date(timeA);
             });
         }
+        
         const mainVacancies = [], maybeVacancies = [], otherVacancies = [];
         if (items && items.length > 0) {
             for (const item of items) {
@@ -183,12 +191,15 @@ async function loadVacancies() {
                 else otherVacancies.push(item);
             }
         }
+        
         counts.main.textContent = `(${mainVacancies.length})`;
         counts.maybe.textContent = `(${maybeVacancies.length})`;
         counts.other.textContent = `(${otherVacancies.length})`;
+
         renderVacancies(containers.main, mainVacancies, 'ТОЧНО ТВОЁ');
         renderVacancies(containers.maybe, maybeVacancies, 'МОЖЕТ БЫТЬ');
         renderVacancies(containers.other, otherVacancies, 'НЕ ТВОЁ');
+
     } catch (error) {
         console.error('Ошибка загрузки:', error);
         loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;

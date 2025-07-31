@@ -37,12 +37,14 @@ body {
 .header-actions {
     display: flex;
     align-items: center;
-    /* Разное выравнивание для разных страниц */
-    justify-content: center; /* По умолчанию для главной */
     gap: 10px;
 }
 .header-settings .header-actions {
     justify-content: space-between; /* Для страницы настроек */
+}
+/* Новое правило для центрирования */
+.header-centered .header-actions {
+    justify-content: center;
 }
 .header-button {
     font-size: 14px;
@@ -98,8 +100,6 @@ body {
 .card-body details { margin-top: 10px; font-size: 15px; }
 .card-body summary { cursor: pointer; font-weight: 700; color: var(--hint-color); }
 .card-body details p { padding-top: 10px; color: var(--text-color); white-space: pre-wrap; }
-
-/* ИЗМЕНЕНИЕ: Стили для кнопок в карточке (лайк/удалить) */
 .card-actions {
     position: absolute;
     top: 15px;
@@ -118,14 +118,12 @@ body {
     transform: scale(0.9);
 }
 .card-action-btn svg {
-    width: 28px; /* Увеличили размер иконок */
+    width: 28px;
     height: 28px;
     stroke-width: 2.5;
 }
 .card-action-btn.favorite svg { stroke: var(--accent-blue); fill: none; }
 .card-action-btn.delete svg { stroke: var(--accent-red); fill: none; }
-
-
 .card-footer {
     display: flex;
     justify-content: flex-end;

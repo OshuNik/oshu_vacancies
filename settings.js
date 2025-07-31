@@ -8,6 +8,20 @@ const input   = document.getElementById('keywords-input');
 const btnSave = document.getElementById('save-button');
 const display = document.getElementById('current-keywords-display');
 
+// --- НАЧАЛО НОВОЙ ЛОГИКИ ДЛЯ КЛАВИАТУРЫ ---
+
+// Когда пользователь начинает печатать (ставит фокус на поле ввода)
+input.addEventListener('focus', () => {
+    document.body.classList.add('keyboard-visible');
+});
+
+// Когда пользователь заканчивает печатать (убирает фокус)
+input.addEventListener('blur', () => {
+    document.body.classList.remove('keyboard-visible');
+});
+
+// --- КОНЕЦ НОВОЙ ЛОГИКИ ---
+
 async function loadSettings() {
   btnSave.disabled = true; 
   btnSave.textContent = 'Загрузка...';
@@ -17,13 +31,10 @@ async function loadSettings() {
     const data = await response.json();
     let keywords = '';
 
-    // --- НАША НОВАЯ УНИВЕРСАЛЬНАЯ ЛОГИКА ---
     if (data && data.length > 0) {
-        // Сначала пробуем прямой путь (как на телефоне)
         if (data[0].keywords) {
             keywords = data[0].keywords;
         } 
-        // Если не сработало, пробуем путь с "оберткой" .json (как, видимо, на ПК)
         else if (data[0].json && data[0].json.keywords) {
             keywords = data[0].json.keywords;
         }
@@ -54,6 +65,7 @@ async function saveSettings() {
     });
     
     display.textContent = kws || '-- не заданы --'; 
+    input.blur(); // <-- Убираем фокус с поля ввода после сохранения
 
   } catch (error) {
     console.error('Ошибка при сохранении:', error);

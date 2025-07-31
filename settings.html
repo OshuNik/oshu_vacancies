@@ -18,12 +18,17 @@
   </header>
 
   <main class="content">
-    <div class="settings-form">
-      <label for="keywords-input">Ключевые слова (через запятую):</label>
-      <textarea id="keywords-input" rows="5" placeholder="монтаж, рилс, анимация..."></textarea>
-      <button id="save-button" class="button-save">Сохранить</button>
-    </div>
-  </main>
+  <div class="current-keywords-container">
+    <p class="current-keywords-label">Текущие ключевые слова:</p>
+    <p id="current-keywords-display" class="current-keywords-list">Загрузка...</p>
+  </div>
+
+  <div class="settings-form">
+    <label for="keywords-input">Изменить список (через запятую):</label>
+    <textarea id="keywords-input" rows="5" placeholder="монтаж, рилс, анимация..."></textarea>
+    <button id="save-button" class="button-save">Сохранить</button>
+  </div>
+</main>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="settings.js"></script>

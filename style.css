@@ -38,13 +38,13 @@ body {
     display: flex;
     align-items: center;
     gap: 10px;
+    justify-content: center; /* Возвращаем центрирование по умолчанию */
 }
 .header-settings .header-actions {
     justify-content: space-between; /* Для страницы настроек */
 }
-/* Новое правило для центрирования */
 .header-centered .header-actions {
-    justify-content: center;
+    justify-content: center; /* Для страниц с одной кнопкой */
 }
 .header-button {
     font-size: 14px;

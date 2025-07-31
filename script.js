@@ -1,6 +1,6 @@
-/* ======================================================================= */
-/* 5. Обновлённый JavaScript (script.js)                                 */
-/* ======================================================================= */
+// =======================================================================
+// 5. Обновлённый JavaScript (script.js)
+// =======================================================================
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -32,6 +32,16 @@ function formatTimestamp(isoString) {
     return date.toLocaleString('ru-RU', { 
         day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' 
     });
+}
+
+// --- ДОБАВЛЯЕМ КАСТОМНУЮ КНОПКУ "ИЗОБРАЖЕНИЕ" ---
+function getVacancyHtml(vacancy) {
+    let html = '';
+    if (vacancy.has_image && vacancy.message_link) {
+        html += `<a href="${vacancy.message_link}" class="image-label" target="_blank" rel="noopener noreferrer">Изображение</a><br>`;
+    }
+    html += vacancy.text_highlighted || vacancy.text_original || '';
+    return html;
 }
 
 async function updateStatus(event, vacancyId, newStatus) {
@@ -126,7 +136,7 @@ function renderVacancies(container, vacancies, categoryName) {
                 <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
                 <details>
                     <summary>Показать полный текст</summary>
-                    <p>${vacancy.text_highlighted || 'Нет данных'}</p>
+                    <p>${getVacancyHtml(vacancy)}</p>
                 </details>
             </div>
             <div class="card-footer">

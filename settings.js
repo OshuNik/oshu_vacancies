@@ -8,14 +8,6 @@ const input   = document.getElementById('keywords-input');
 const btnSave = document.getElementById('save-button');
 const display = document.getElementById('current-keywords-display');
 
-function showNotification(message) {
-  if (tg.showPopup) {
-    tg.showPopup({ message: message });
-  } else {
-    tg.showAlert(message);
-  }
-}
-
 async function loadSettings() {
   btnSave.disabled = true; 
   btnSave.textContent = 'Загрузка...';
@@ -25,16 +17,23 @@ async function loadSettings() {
     const data = await response.json();
     let keywords = '';
 
-    // ИЗМЕНЕНИЕ ЗДЕСЬ: Убрали .json, так как данные приходят напрямую
-    if (data && data.length > 0 && data[0].keywords) {
-        keywords = data[0].keywords;
+    // --- НАША НОВАЯ УНИВЕРСАЛЬНАЯ ЛОГИКА ---
+    if (data && data.length > 0) {
+        // Сначала пробуем прямой путь (как на телефоне)
+        if (data[0].keywords) {
+            keywords = data[0].keywords;
+        } 
+        // Если не сработало, пробуем путь с "оберткой" .json (как, видимо, на ПК)
+        else if (data[0].json && data[0].json.keywords) {
+            keywords = data[0].json.keywords;
+        }
     }
     
     input.value = keywords;
     display.textContent = keywords || '-- не заданы --'; 
     
   } catch (error) {
-    showNotification(`Ошибка загрузки: ${error.message}`);
+    console.error('Ошибка загрузки:', error);
     display.textContent = 'Ошибка загрузки';
   } finally {
     btnSave.disabled = false;
@@ -55,10 +54,9 @@ async function saveSettings() {
     });
     
     display.textContent = kws || '-- не заданы --'; 
-    showNotification('Настройки сохранены');
 
   } catch (error) {
-    showNotification(`Ошибка при сохранении: ${error.message}`);
+    console.error('Ошибка при сохранении:', error);
   } finally {
     btnSave.disabled = false;
     btnSave.textContent = 'Сохранить';

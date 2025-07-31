@@ -1,4 +1,3 @@
-// settings.js
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -7,34 +6,63 @@ const SAVE_SETTINGS_URL = 'https://oshunik.ru/webhook/8a21566c-baf5-47e1-a84c-b9
 
 const input   = document.getElementById('keywords-input');
 const btnSave = document.getElementById('save-button');
+const display = document.getElementById('current-keywords-display');
+
+// --- НАША НОВАЯ УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ---
+function showNotification(message) {
+  // Проверяем, поддерживает ли Telegram новый метод showPopup
+  if (tg.isVersionAtLeast('6.2')) {
+    tg.showPopup({ message: message });
+  } else {
+    // Если нет, используем старый метод showAlert
+    tg.showAlert(message);
+  }
+}
 
 async function loadSettings() {
-  btnSave.disabled = true; btnSave.textContent = 'Загрузка...';
+  btnSave.disabled = true; 
+  btnSave.textContent = 'Загрузка...';
+  
   try {
     const res  = await fetch(GET_SETTINGS_URL);
     const data = await res.json();
-    if (data[0]?.json.keywords) input.value = data[0].json.keywords;
+    const keywords = data[0]?.json.keywords || '';
+    
+    input.value = keywords;
+    display.textContent = keywords || '-- не заданы --'; 
+    
   } catch {
-    tg.showAlert('Не удалось загрузить настройки');
+    // Используем новую функцию для показа ошибки
+    showNotification('Не удалось загрузить настройки');
+    display.textContent = 'Ошибка загрузки';
   } finally {
-    btnSave.disabled = false; btnSave.textContent = 'Сохранить';
+    btnSave.disabled = false;
+    btnSave.textContent = 'Сохранить';
   }
 }
 
 async function saveSettings() {
   const kws = input.value.trim();
-  btnSave.disabled = true; btnSave.textContent = 'Сохранение...';
+  btnSave.disabled = true;
+  btnSave.textContent = 'Сохранение...';
+  
   try {
     await fetch(SAVE_SETTINGS_URL, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ keywords:kws })
     });
-    tg.showAlert('Настройки сохранены');
+    
+    display.textContent = kws || '-- не заданы --'; 
+    // Используем новую функцию для показа уведомления
+    showNotification('Настройки сохранены');
+
   } catch {
-    tg.showAlert('Ошибка при сохранении');
+    // Используем новую функцию для показа ошибки
+    showNotification('Ошибка при сохранении');
   } finally {
-    btnSave.disabled = false; btnSave.textContent = 'Сохранить';
+    btnSave.disabled = false;
+    btnSave.textContent = 'Сохранить';
   }
 }
 

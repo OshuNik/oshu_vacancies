@@ -36,8 +36,13 @@ body {
 }
 .header-actions {
     display: flex;
-    justify-content: space-between; /* Изменено для выравнивания по краям */
     align-items: center;
+    /* Разное выравнивание для разных страниц */
+    justify-content: center; /* По умолчанию для главной */
+    gap: 10px;
+}
+.header-settings .header-actions {
+    justify-content: space-between; /* Для страницы настроек */
 }
 .header-button {
     font-size: 14px;
@@ -93,34 +98,34 @@ body {
 .card-body details { margin-top: 10px; font-size: 15px; }
 .card-body summary { cursor: pointer; font-weight: 700; color: var(--hint-color); }
 .card-body details p { padding-top: 10px; color: var(--text-color); white-space: pre-wrap; }
+
+/* ИЗМЕНЕНИЕ: Стили для кнопок в карточке (лайк/удалить) */
 .card-actions {
     position: absolute;
-    top: 12px;
-    right: 12px;
+    top: 15px;
+    right: 15px;
     display: flex;
-    gap: 8px;
+    gap: 12px;
 }
 .card-action-btn {
-    background-color: var(--card-color);
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 50%;
-    width: 32px;
-    height: 32px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    background: none;
+    border: none;
+    padding: 0;
     cursor: pointer;
-    transition: all 0.1s ease-out;
+    transition: transform 0.1s ease-out;
 }
-.card-action-btn:hover { transform: scale(1.1); }
+.card-action-btn:active {
+    transform: scale(0.9);
+}
 .card-action-btn svg {
-    width: 22px;
-    height: 22px;
+    width: 28px; /* Увеличили размер иконок */
+    height: 28px;
     stroke-width: 2.5;
 }
 .card-action-btn.favorite svg { stroke: var(--accent-blue); fill: none; }
 .card-action-btn.delete svg { stroke: var(--accent-red); fill: none; }
-.card-action-btn:active { transform: translateY(2px); }
+
+
 .card-footer {
     display: flex;
     justify-content: flex-end;
@@ -311,7 +316,7 @@ body {
 .header-icon-btn {
     background-color: var(--card-color);
     border: var(--border-width) solid var(--border-color);
-    border-radius: 12px; /* Квадратная кнопка с закругленными углами */
+    border-radius: 12px;
     width: 44px;
     height: 44px;
     display: flex;

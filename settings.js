@@ -8,13 +8,13 @@ const input   = document.getElementById('keywords-input');
 const btnSave = document.getElementById('save-button');
 const display = document.getElementById('current-keywords-display');
 
-// --- НАША НОВАЯ УНИВЕРСАЛЬНАЯ ФУНКЦИЯ ---
+// --- САМАЯ НАДЕЖНАЯ ВЕРСИЯ ФУНКЦИИ УВЕДОМЛЕНИЙ ---
 function showNotification(message) {
-  // Проверяем, поддерживает ли Telegram новый метод showPopup
-  if (tg.isVersionAtLeast('6.2')) {
+  // Напрямую проверяем, существует ли функция showPopup
+  if (tg.showPopup) {
     tg.showPopup({ message: message });
   } else {
-    // Если нет, используем старый метод showAlert
+    // Если ее нет, используем старую функцию showAlert
     tg.showAlert(message);
   }
 }
@@ -31,9 +31,9 @@ async function loadSettings() {
     input.value = keywords;
     display.textContent = keywords || '-- не заданы --'; 
     
-  } catch {
-    // Используем новую функцию для показа ошибки
-    showNotification('Не удалось загрузить настройки');
+  } catch (error) {
+    // Используем нашу надежную функцию для показа ошибки
+    showNotification(`Ошибка загрузки: ${error.message}`);
     display.textContent = 'Ошибка загрузки';
   } finally {
     btnSave.disabled = false;
@@ -54,12 +54,12 @@ async function saveSettings() {
     });
     
     display.textContent = kws || '-- не заданы --'; 
-    // Используем новую функцию для показа уведомления
+    // Используем нашу надежную функцию для показа уведомления
     showNotification('Настройки сохранены');
 
-  } catch {
-    // Используем новую функцию для показа ошибки
-    showNotification('Ошибка при сохранении');
+  } catch (error) {
+    // Используем нашу надежную функцию для показа ошибки
+    showNotification(`Ошибка при сохранении: ${error.message}`);
   } finally {
     btnSave.disabled = false;
     btnSave.textContent = 'Сохранить';

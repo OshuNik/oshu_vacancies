@@ -89,7 +89,7 @@ async function loadFavorites() {
                     <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
                     <details>
                         <summary>Показать полный текст</summary>
-                        <p>${vacancy.text_highlighted_webapp || 'Нет данных'}</p>
+                        <p>${vacancy.text_highlighted || 'Нет данных'}</p>
                     </details>
                 </div>
                 <div class="card-footer">

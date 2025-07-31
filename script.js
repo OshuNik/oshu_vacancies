@@ -1,6 +1,3 @@
-// =======================================================================
-// 5. Обновлённый JavaScript (script.js)
-// =======================================================================
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -34,13 +31,16 @@ function formatTimestamp(isoString) {
     });
 }
 
-// --- ДОБАВЛЯЕМ КАСТОМНУЮ КНОПКУ "ИЗОБРАЖЕНИЕ" ---
+// ФУНКЦИЯ ДЛЯ ОТОБРАЖЕНИЯ ПОЛНОГО ТЕКСТА (с меткой "Изображение")
 function getVacancyHtml(vacancy) {
+    // Если есть картинка (по логике: если в text_highlighted есть [ Изображение ] либо has_image)
     let html = '';
-    if (vacancy.has_image && vacancy.message_link) {
-        html += `<a href="${vacancy.message_link}" class="image-label" target="_blank" rel="noopener noreferrer">Изображение</a><br>`;
+    // 1. Метка "Изображение" если есть message_link и в text_highlighted есть "[ Изображение ]"
+    if (vacancy.text_highlighted && vacancy.text_highlighted.includes('[ Изображение ]')) {
+        html += `<a href="${vacancy.message_link}" class="image-label" target="_blank">[ Изображение ]</a><br>`;
     }
-    html += vacancy.text_highlighted || vacancy.text_original || '';
+    // 2. Сам текст с выделениями
+    html += (vacancy.text_highlighted || 'Нет данных');
     return html;
 }
 
@@ -136,7 +136,7 @@ function renderVacancies(container, vacancies, categoryName) {
                 <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
                 <details>
                     <summary>Показать полный текст</summary>
-                    <p>${getVacancyHtml(vacancy)}</p>
+                    <div>${getVacancyHtml(vacancy)}</div>
                 </details>
             </div>
             <div class="card-footer">

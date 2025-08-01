@@ -6,13 +6,14 @@ const settingsTabButtons = document.querySelectorAll('.settings-tab-button');
 const settingsTabContents = document.querySelectorAll('.settings-tab-content');
 
 // --- ЭЛЕМЕНТЫ ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
-const GET_KEYWORDS_URL  = 'https://oshunik.ru/webhook/91f2c-bfad-42d6-90ba-2ca5473c7e7e';
+// ИСПРАВЛЕНИЕ ЗДЕСЬ: Возвращен правильный URL для загрузки ключевых слов
+const GET_KEYWORDS_URL  = 'https://oshunik.ru/webhook/91f2562c-bfad-42d6-90ba-2ca5473c7e7e'; 
 const SAVE_KEYWORDS_URL = 'https://oshunik.ru/webhook/8a21566c-baf5-47e1-a84c-b96b464d3713';
 const keywordsInput   = document.getElementById('keywords-input');
 const keywordsDisplay = document.getElementById('current-keywords-display');
 const saveBtn = document.getElementById('save-button');
 
-// --- ЭЛЕМЕНТЫ ДЛЯ КАНАЛОВ ---
+// --- ЭЛЕМЕНТЫ И URL ДЛЯ КАНАЛОВ ---
 const GET_CHANNELS_URL = 'https://oshunik.ru/webhook/channels';
 const SAVE_CHANNELS_URL = 'https://oshunik.ru/webhook/channels-save';
 const LOAD_DEFAULTS_URL = 'https://oshunik.ru/webhook/channels/load-defaults';
@@ -23,30 +24,34 @@ const channelInput = document.getElementById('channel-input');
 const channelsListContainer = document.getElementById('channels-list');
 
 // --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК ---
-settingsTabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-        settingsTabButtons.forEach(btn => btn.classList.remove('active'));
-        settingsTabContents.forEach(content => content.classList.remove('active'));
-        button.classList.add('active');
-        document.getElementById(button.dataset.target).classList.add('active');
+if (settingsTabButtons.length > 0) {
+    settingsTabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            settingsTabButtons.forEach(btn => btn.classList.remove('active'));
+            settingsTabContents.forEach(content => content.classList.remove('active'));
+
+            button.classList.add('active');
+            const targetContent = document.getElementById(button.dataset.target);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+        });
     });
-});
+}
+
 
 // --- ЛОГИКА ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
 async function loadKeywords() {
+  if (!keywordsDisplay) return;
   saveBtn.disabled = true;
   try {
     const response = await fetch(GET_KEYWORDS_URL);
+    if (!response.ok) throw new Error('Network response was not ok');
     const data = await response.json();
     let keywords = '';
 
-    if (data && data.length > 0) {
-        if (data[0].keywords) {
-            keywords = data[0].keywords;
-        } 
-        else if (data[0].json && data[0].json.keywords) {
-            keywords = data[0].json.keywords;
-        }
+    if (data && data.length > 0 && data[0].keywords !== undefined) {
+        keywords = data[0].keywords;
     }
     
     keywordsInput.value = keywords;
@@ -61,6 +66,7 @@ async function loadKeywords() {
 }
 
 async function saveKeywords() {
+  if (!keywordsInput) return;
   const kws = keywordsInput.value.trim();
   saveBtn.disabled = true;
   
@@ -86,7 +92,6 @@ async function saveKeywords() {
 }
 
 // --- ЛОГИКА ДЛЯ КАНАЛОВ ---
-
 function renderChannel(channel) {
     const channelItem = document.createElement('div');
     channelItem.className = 'channel-item';
@@ -101,7 +106,8 @@ function renderChannel(channel) {
 
     const channelIdLink = document.createElement('a');
     channelIdLink.className = 'channel-item-id';
-    channelIdLink.textContent = channel.id.startsWith('http') ? new URL(channel.id).pathname.substring(1) : channel.id;
+    const cleanId = channel.id.startsWith('http') ? new URL(channel.id).pathname.substring(1) : channel.id;
+    channelIdLink.textContent = cleanId.startsWith('@') ? cleanId : `@${cleanId}`;
     channelIdLink.href = channel.id.startsWith('http') ? channel.id : `https://t.me/${channel.id.substring(1)}`;
     channelIdLink.target = '_blank';
 
@@ -133,21 +139,26 @@ async function loadChannels() {
     if (!channelsListContainer) return;
     channelsListContainer.innerHTML = '<p>Загрузка каналов...</p>';
     try {
-        const response = await fetch(GET_CHANNELS_URL);
+        const response = await fetch(GET_CHANNELS_URL + '?cache_buster=' + new Date().getTime());
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
+        
         channelsListContainer.innerHTML = '';
         if (data && data.length > 0) {
             data.forEach(item => {
+                const channelData = item.json || item;
                 renderChannel({
-                    id: item.json.channel_id,
-                    title: item.json.channel_title,
-                    enabled: item.json.is_enabled === 'TRUE'
+                    id: channelData.channel_id,
+                    title: channelData.channel_title,
+                    enabled: channelData.is_enabled === 'TRUE' || channelData.is_enabled === true
                 });
             });
+        } else {
+             channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
         }
     } catch (error) {
         console.error('Ошибка загрузки каналов:', error);
-        channelsListContainer.innerHTML = '<p>Не удалось загрузить каналы.</p>';
+        channelsListContainer.innerHTML = '<p class="empty-list">Не удалось загрузить каналы.</p>';
     }
 }
 
@@ -176,6 +187,7 @@ async function saveChannels() {
         }
     } catch (error) {
         console.error('Ошибка сохранения каналов:', error);
+        tg.showAlert('Ошибка сохранения каналов');
     } finally {
         saveBtn.disabled = false;
     }
@@ -185,6 +197,10 @@ if (addChannelBtn) {
     addChannelBtn.addEventListener('click', () => {
         const channelId = channelInput.value.trim();
         if (channelId) {
+            if (channelsListContainer.querySelector(`[data-channel-id="${channelId}"]`)) {
+                tg.showAlert('Этот канал уже есть в списке.');
+                return;
+            }
             renderChannel({ id: channelId, title: channelId, enabled: true });
             channelInput.value = '';
         }
@@ -196,9 +212,10 @@ if (loadDefaultsBtn) {
         loadDefaultsBtn.disabled = true;
         try {
             await fetch(LOAD_DEFAULTS_URL, { method: 'POST' });
-            await loadChannels(); // Reload the list
+            await loadChannels();
         } catch (error) {
             console.error('Ошибка загрузки стандартных каналов:', error);
+            tg.showAlert('Ошибка загрузки стандартных каналов');
         } finally {
             loadDefaultsBtn.disabled = false;
         }

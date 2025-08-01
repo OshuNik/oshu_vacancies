@@ -117,7 +117,6 @@ async function updateStatus(event, vacancyId, newStatus) {
     }
 }
 
-// New function to animate clearing cards
 function animateClearCategory() {
     const activeList = document.querySelector('.vacancy-list.active');
     if (!activeList) return;
@@ -125,15 +124,13 @@ function animateClearCategory() {
     const cards = activeList.querySelectorAll('.vacancy-card');
     if (cards.length === 0) return;
 
-    // Animate all cards simultaneously
     cards.forEach((card, index) => {
         setTimeout(() => {
             card.style.opacity = '0';
             card.style.transform = 'scale(0.95)';
-        }, index * 50); // Stagger the animation slightly
+        }, index * 50);
     });
 
-    // After the fade-out, start the collapse
     setTimeout(() => {
         cards.forEach(card => {
             card.style.height = '0';
@@ -144,14 +141,11 @@ function animateClearCategory() {
             card.style.borderWidth = '0';
         });
 
-        // Update the count to zero
-        const activeTab = document.querySelector('.tab-button.active');
         const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
         if (categoryKey) {
             counts[categoryKey].textContent = '(0)';
         }
 
-        // After the collapse animation, clear the list
         setTimeout(() => {
             activeList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
         }, 300);
@@ -173,7 +167,6 @@ async function clearCategory(categoryName) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ category: categoryName })
             });
-            // Instead of reloading, start the animation
             animateClearCategory();
         } catch (error) {
             console.error('Ошибка очистки категории:', error);
@@ -280,41 +273,50 @@ async function loadVacancies() {
 // --- EVENT LISTENERS ---
 tabButtons.forEach(button => {
     let pressTimer = null;
-    let isLongPress = false;
+    let longPressTriggered = false;
 
-    function startPress(e) {
-        e.preventDefault();
-        isLongPress = false;
+    const startPress = (e) => {
+        longPressTriggered = false;
         pressTimer = window.setTimeout(() => {
-            isLongPress = true;
+            longPressTriggered = true;
             const categoryName = button.dataset.categoryName;
             clearCategory(categoryName);
         }, 800);
-    }
+    };
 
-    function cancelPress() {
+    const cancelPress = (e) => {
         clearTimeout(pressTimer);
-    }
-    
-    button.addEventListener('mousedown', startPress);
-    button.addEventListener('mouseup', cancelPress);
-    button.addEventListener('mouseleave', cancelPress);
-    
-    button.addEventListener('touchstart', startPress, { passive: false });
-    button.addEventListener('touchend', cancelPress);
-    button.addEventListener('touchcancel', cancelPress);
-
-    button.addEventListener('click', (e) => {
-        if (isLongPress) {
+        // Если был долгий тап, мы должны остановить дальнейшее "всплытие" события, чтобы не сработал click
+        if (longPressTriggered) {
             e.preventDefault();
+        }
+    };
+
+    const handleClick = () => {
+        // Если был долгий тап, не выполняем обычный клик
+        if (longPressTriggered) {
             return;
         }
+        // Логика обычного клика (переключение вкладок)
         tabButtons.forEach(btn => btn.classList.remove('active'));
         vacancyLists.forEach(list => list.classList.remove('active'));
         button.classList.add('active');
         document.getElementById(button.dataset.target).classList.add('active');
         filterVacancies();
-    });
+    };
+
+    // Слушатели для мыши
+    button.addEventListener('mousedown', startPress);
+    button.addEventListener('mouseup', cancelPress);
+    button.addEventListener('mouseleave', cancelPress);
+
+    // Слушатели для сенсорных экранов
+    button.addEventListener('touchstart', startPress, { passive: true });
+    button.addEventListener('touchend', cancelPress);
+    button.addEventListener('touchcancel', cancelPress);
+
+    // Обычный клик
+    button.addEventListener('click', handleClick);
 });
 
 searchInput.addEventListener('input', filterVacancies);

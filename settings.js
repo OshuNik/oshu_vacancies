@@ -38,7 +38,6 @@ if (settingsTabButtons.length > 0) {
     });
 }
 
-
 // --- ЛОГИКА ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
 async function loadKeywords() {
   if (!keywordsDisplay) return;
@@ -91,7 +90,6 @@ async function saveKeywords() {
 }
 
 // --- ЛОГИКА ДЛЯ КАНАЛОВ ---
-
 function renderChannel(channel) {
     const channelItem = document.createElement('div');
     channelItem.className = 'channel-item';
@@ -143,15 +141,11 @@ async function loadChannels() {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         
-        // --- БЛОК ОТЛАДКИ ---
-        console.log("Данные, полученные от сервера:", data);
-        alert("Получено " + data.length + " каналов. Проверьте консоль для деталей.");
-        // --- КОНЕЦ БЛОКА ОТЛАДКИ ---
-
         channelsListContainer.innerHTML = '';
         if (data && data.length > 0) {
             data.forEach(item => {
-                const channelData = item.json;
+                // ИСПРАВЛЕНИЕ: Убираем .json, так как данные приходят напрямую
+                const channelData = item; 
                 if (channelData && channelData.channel_id) {
                     renderChannel({
                         id: channelData.channel_id,
@@ -165,11 +159,9 @@ async function loadChannels() {
         }
     } catch (error) {
         console.error('Ошибка загрузки каналов:', error);
-        alert('Произошла ошибка: ' + error.message);
         channelsListContainer.innerHTML = '<p class="empty-list">Не удалось загрузить каналы.</p>';
     }
 }
-
 
 async function saveChannels() {
     const channelItems = channelsListContainer.querySelectorAll('.channel-item');

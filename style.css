@@ -374,3 +374,27 @@ body {
     background-color: var(--accent-red);
     color: var(--text-color);
 }
+
+/* --- Search Bar Styles --- */
+.search-container {
+    padding: 0 0 15px 0;
+}
+
+.search-input {
+    width: 100%;
+    padding: 12px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 15px;
+    color: var(--text-color);
+    background-color: var(--card-color);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+    box-sizing: border-box; /* Important for correct width */
+    -webkit-appearance: none; /* Removes default iOS styling */
+}
+
+.search-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}

@@ -19,7 +19,6 @@ body {
     background-color: var(--background-color);
     color: var(--text-color);
     margin: 0;
-    /* Изменено: увеличен нижний отступ, чтобы контент не заезжал под вкладки */
     padding: 15px 15px 120px 15px; 
 }
 
@@ -149,12 +148,11 @@ body {
     right: 0;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    background-color: transparent;
+    background-color: var(--background-color); /* Изменено с transparent */
     padding: 0 10px;
-    /* Изменено: увеличен нижний отступ для безопасности */
     padding-bottom: calc(5px + env(safe-area-inset-bottom)); 
     z-index: 10;
-    border-top: none;
+    border-top: var(--border-width) solid var(--border-color); /* Добавлена граница сверху */
 }
 .tab-button {
     font-family: 'Roboto Mono', monospace;
@@ -184,7 +182,7 @@ body {
     opacity: 0.8;
 }
 .tab-button.active {
-    top: 0;
+    top: -2px; /* Поднимаем активную вкладку чуть выше */
     padding-top: 12px;
     padding-bottom: 12px;
     color: var(--text-color);

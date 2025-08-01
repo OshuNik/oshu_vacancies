@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
 
 :root {
-    --background-color: #d2d2d2; /* Сделали фон чуть темнее для контраста */
+    --background-color: #333333; /* Darker base for the pattern */
     --card-color: #FFFFFF;
     --text-color: #000000;
     --hint-color: #666666;
@@ -17,10 +17,10 @@
 body {
     font-family: 'Roboto Mono', monospace;
     background-color: var(--background-color);
-    /* --- НОВЫЙ ПИКСЕЛЬНЫЙ ФОН --- */
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAAXNSR0IArs4c6QAAABJJREFUGFdjZGBg+M+ABgpwSgQAcxYBAQ3m0NMAAAAASUVORK5CYII=');
+    /* --- NEW PIXEL BACKGROUND --- */
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAAXNSR0IArs4c6QAAADBJREFUGFdjZGBg+M+ACf+xAAgyMDEg/A8jC5AAmAgyAJKB5d/A8P+jA/kHAFNlGZ1XzXEiAAAAAElFTkSuQmCC');
     background-repeat: repeat;
-    /* --- КОНЕЦ --- */
+    /* --- END --- */
     color: var(--text-color);
     margin: 0;
     padding: 15px 15px 120px 15px; 

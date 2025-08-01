@@ -70,7 +70,7 @@ function filterVacancies() {
     }
 }
 
-// --- API FUNCTIONS ---
+// --- API FUNCTIONS & ANIMATIONS ---
 
 async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
@@ -117,10 +117,51 @@ async function updateStatus(event, vacancyId, newStatus) {
     }
 }
 
+// New function to animate clearing cards
+function animateClearCategory() {
+    const activeList = document.querySelector('.vacancy-list.active');
+    if (!activeList) return;
+
+    const cards = activeList.querySelectorAll('.vacancy-card');
+    if (cards.length === 0) return;
+
+    // Animate all cards simultaneously
+    cards.forEach((card, index) => {
+        setTimeout(() => {
+            card.style.opacity = '0';
+            card.style.transform = 'scale(0.95)';
+        }, index * 50); // Stagger the animation slightly
+    });
+
+    // After the fade-out, start the collapse
+    setTimeout(() => {
+        cards.forEach(card => {
+            card.style.height = '0';
+            card.style.paddingTop = '0';
+            card.style.paddingBottom = '0';
+            card.style.marginTop = '0';
+            card.style.marginBottom = '0';
+            card.style.borderWidth = '0';
+        });
+
+        // Update the count to zero
+        const activeTab = document.querySelector('.tab-button.active');
+        const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
+        if (categoryKey) {
+            counts[categoryKey].textContent = '(0)';
+        }
+
+        // After the collapse animation, clear the list
+        setTimeout(() => {
+            activeList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+        }, 300);
+
+    }, 300 + cards.length * 50);
+}
+
 async function clearCategory(categoryName) {
     if (!categoryName) return;
 
-    // Vibrate to indicate a long press was successful
     if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
     }
@@ -132,13 +173,15 @@ async function clearCategory(categoryName) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ category: categoryName })
             });
-            loadVacancies();
+            // Instead of reloading, start the animation
+            animateClearCategory();
         } catch (error) {
             console.error('Ошибка очистки категории:', error);
             tg.showAlert('Не удалось очистить категорию.');
         }
     }
 }
+
 
 function renderVacancies(container, vacancies) {
     if (!container) return;
@@ -235,41 +278,37 @@ async function loadVacancies() {
 }
 
 // --- EVENT LISTENERS ---
-
-// --- Updated logic for long press on tabs ---
 tabButtons.forEach(button => {
     let pressTimer = null;
     let isLongPress = false;
 
-    function startPress() {
+    function startPress(e) {
+        e.preventDefault();
         isLongPress = false;
         pressTimer = window.setTimeout(() => {
             isLongPress = true;
             const categoryName = button.dataset.categoryName;
             clearCategory(categoryName);
-        }, 800); // 800ms for a long press
+        }, 800);
     }
 
     function cancelPress() {
         clearTimeout(pressTimer);
     }
-
-    // Add listeners for both mouse and touch events
+    
     button.addEventListener('mousedown', startPress);
     button.addEventListener('mouseup', cancelPress);
     button.addEventListener('mouseleave', cancelPress);
     
-    button.addEventListener('touchstart', startPress);
+    button.addEventListener('touchstart', startPress, { passive: false });
     button.addEventListener('touchend', cancelPress);
     button.addEventListener('touchcancel', cancelPress);
 
     button.addEventListener('click', (e) => {
-        // If a long press just happened, prevent the click action
         if (isLongPress) {
             e.preventDefault();
             return;
         }
-        // Normal click action for switching tabs
         tabButtons.forEach(btn => btn.classList.remove('active'));
         vacancyLists.forEach(list => list.classList.remove('active'));
         button.classList.add('active');

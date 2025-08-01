@@ -18,10 +18,48 @@ const counts = {
 const tabButtons = document.querySelectorAll('.tab-button');
 const vacancyLists = document.querySelectorAll('.vacancy-list');
 const refreshBtn = document.getElementById('refresh-button');
+const searchInput = document.getElementById('search-input'); // New
 
 const loader = document.getElementById('loader');
 const progressBar = document.getElementById('progress-bar');
 const vacanciesContent = document.getElementById('vacancies-content');
+
+// --- New Search Function ---
+function filterVacancies() {
+    const query = searchInput.value.toLowerCase();
+    const activeList = document.querySelector('.vacancy-list.active');
+    if (!activeList) return;
+
+    const cards = activeList.querySelectorAll('.vacancy-card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+        const cardText = card.textContent.toLowerCase();
+        if (cardText.includes(query)) {
+            card.style.display = '';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    // Handle "nothing found" message
+    let emptyMessage = activeList.querySelector('.empty-list');
+    if (visibleCount === 0 && cards.length > 0) {
+        if (!emptyMessage) {
+            emptyMessage = document.createElement('p');
+            emptyMessage.className = 'empty-list';
+            activeList.appendChild(emptyMessage);
+        }
+        emptyMessage.textContent = '-- Ничего не найдено --';
+        emptyMessage.style.display = 'block';
+    } else if (emptyMessage) {
+        emptyMessage.style.display = 'none';
+    }
+}
+
+searchInput.addEventListener('input', filterVacancies);
+// --- End of New Search Function ---
 
 function formatTimestamp(isoString) {
     if (!isoString) return '';
@@ -45,12 +83,10 @@ async function updateStatus(event, vacancyId, newStatus) {
             body: JSON.stringify({ id: vacancyId, newStatus: newStatus })
         });
 
-        // Phase 1: Fade out the card
         cardElement.style.opacity = '0';
         cardElement.style.transform = 'scale(0.95)';
 
         setTimeout(() => {
-            // Phase 2: Collapse the card's height and margins to create a smooth slide
             cardElement.style.height = '0';
             cardElement.style.paddingTop = '0';
             cardElement.style.paddingBottom = '0';
@@ -58,25 +94,22 @@ async function updateStatus(event, vacancyId, newStatus) {
             cardElement.style.marginBottom = '0';
             cardElement.style.borderWidth = '0';
 
-            // Update the count
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
             countSpan.textContent = `(${(currentCount - 1)})`;
 
-            // Wait for the collapse animation to finish, then remove the element
             setTimeout(() => {
                 cardElement.remove();
                 if (parentList.children.length === 0) {
                     parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
                 }
-            }, 300); // This duration should match the transition in CSS
+            }, 300);
 
-        }, 300); // This duration is for the fade-out
+        }, 300);
 
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
         tg.showAlert('Не удалось обновить статус.');
-        // In case of error, restore the card's appearance
         cardElement.style.opacity = '1';
         cardElement.style.transform = 'scale(1)';
     }
@@ -215,6 +248,8 @@ async function loadVacancies() {
         renderVacancies(containers.maybe, maybeVacancies, 'МОЖЕТ БЫТЬ');
         renderVacancies(containers.other, otherVacancies, 'НЕ ТВОЁ');
 
+        filterVacancies(); // Apply filter after loading
+
     } catch (error) {
         console.error('Ошибка загрузки:', error);
         loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
@@ -234,6 +269,7 @@ tabButtons.forEach(button => {
         button.classList.add('active');
         const targetListId = button.dataset.target;
         document.getElementById(targetListId).classList.add('active');
+        filterVacancies(); // Apply filter when changing tabs
     });
 });
 

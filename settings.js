@@ -1,24 +1,25 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// --- ELEMENTS FOR TABS ---
+// --- ЭЛЕМЕНТЫ ДЛЯ ВКЛАДОК ---
 const settingsTabButtons = document.querySelectorAll('.settings-tab-button');
 const settingsTabContents = document.querySelectorAll('.settings-tab-content');
 
-// --- ELEMENTS FOR KEYWORDS ---
-const GET_KEYWORDS_URL  = 'https://oshunik.ru/webhook/91f2c-bfad-42d6-90ba-2ca5473c7e7e';
+// --- ЭЛЕМЕНТЫ ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
+// ИЗМЕНЕНИЕ ЗДЕСЬ: Обновлен ID вебхука на правильный
+const GET_KEYWORDS_URL  = 'https://oshunik.ru/webhook/91f2562c-bfad-42d6-90ba-2ca5473c7e7e';
 const SAVE_KEYWORDS_URL = 'https://oshunik.ru/webhook/8a21566c-baf5-47e1-a84c-b96b464d3713';
 const keywordsInput   = document.getElementById('keywords-input');
 const keywordsDisplay = document.getElementById('current-keywords-display');
 const saveBtn = document.getElementById('save-button');
 
-// --- ELEMENTS FOR CHANNELS ---
+// --- ЭЛЕМЕНТЫ ДЛЯ КАНАЛОВ ---
 const loadDefaultsBtn = document.getElementById('load-defaults-btn');
 const addChannelBtn = document.getElementById('add-channel-btn');
 const channelInput = document.getElementById('channel-input');
 const channelsListContainer = document.getElementById('channels-list');
 
-// --- TAB SWITCHING LOGIC ---
+// --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК ---
 if (settingsTabButtons.length > 0) {
     settingsTabButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -34,7 +35,8 @@ if (settingsTabButtons.length > 0) {
     });
 }
 
-// --- LOGIC FOR KEYWORDS ---
+
+// --- ЛОГИКА ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
 async function loadKeywords() {
   if (!keywordsDisplay) return;
   saveBtn.disabled = true;
@@ -44,7 +46,6 @@ async function loadKeywords() {
     const data = await response.json();
     let keywords = '';
 
-    // Corrected data access logic
     if (data && data.length > 0 && data[0].keywords !== undefined) {
         keywords = data[0].keywords;
     }
@@ -86,7 +87,7 @@ async function saveKeywords() {
   }
 }
 
-// --- LOGIC FOR CHANNELS ---
+// --- ЛОГИКА ДЛЯ КАНАЛОВ ---
 function renderChannel(channel) {
     const channelItem = document.createElement('div');
     channelItem.className = 'channel-item';
@@ -150,14 +151,14 @@ if (addChannelBtn) {
     });
 }
 
-// --- GENERAL SAVE HANDLER ---
+// --- ОБЩИЙ ОБРАБОТЧИК СОХРАНЕНИЯ ---
 if (saveBtn) {
     saveBtn.addEventListener('click', () => {
         const activeTab = document.querySelector('.settings-tab-content.active');
         if (activeTab.id === 'tab-keywords') {
             saveKeywords();
         } else if (activeTab.id === 'tab-channels') {
-            console.log('Saving channels...');
+            console.log('Сохранение каналов...');
             if (tg.showPopup) {
                 tg.showPopup({ message: 'Функция сохранения каналов в разработке' });
             } else {
@@ -167,7 +168,7 @@ if (saveBtn) {
     });
 }
 
-// --- INITIAL LOAD ---
+// --- НАЧАЛЬНАЯ ЗАГРУЗКА ---
 if (document.getElementById('tab-keywords')) {
     loadKeywords();
 }

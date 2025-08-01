@@ -22,6 +22,7 @@ const vacancyLists = document.querySelectorAll('.vacancy-list');
 const refreshBtn = document.getElementById('refresh-button');
 const searchInput = document.getElementById('search-input');
 const loader = document.getElementById('loader');
+const progressBar = document.getElementById('progress-bar');
 const vacanciesContent = document.getElementById('vacancies-content');
 
 // Elements to hide during load
@@ -192,18 +193,26 @@ function renderVacancies(container, vacancies) {
 
 async function loadVacancies() {
     // Show loader and hide everything else
-    loader.classList.remove('hidden');
     vacanciesContent.classList.add('hidden');
     headerActions.classList.add('hidden');
     searchContainer.classList.add('hidden');
     categoryTabs.classList.add('hidden');
     clearCategoryBtn.classList.add('hidden');
     refreshBtn.classList.add('hidden');
+    
+    // Reset and show the loader
+    progressBar.style.width = '1%';
+    loader.classList.remove('hidden');
+
+    // Start the animation *after* the loader is visible
+    setTimeout(() => { progressBar.style.width = '40%'; }, 100);
+    setTimeout(() => { progressBar.style.width = '70%'; }, 500);
 
     try {
         const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const items = await response.json();
+        progressBar.style.width = '100%';
 
         items.sort((a, b) => new Date((b.json || b).timestamp) - new Date((a.json || a).timestamp));
 
@@ -225,14 +234,16 @@ async function loadVacancies() {
         console.error('Ошибка загрузки:', error);
         loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
     } finally {
-        // Hide loader and show everything else
-        loader.classList.add('hidden');
-        vacanciesContent.classList.remove('hidden');
-        headerActions.classList.remove('hidden');
-        searchContainer.classList.remove('hidden');
-        categoryTabs.classList.remove('hidden');
-        refreshBtn.classList.remove('hidden');
-        updateClearButtonVisibility();
+        setTimeout(() => {
+            // Hide loader and show everything else
+            loader.classList.add('hidden');
+            vacanciesContent.classList.remove('hidden');
+            headerActions.classList.remove('hidden');
+            searchContainer.classList.remove('hidden');
+            categoryTabs.classList.remove('hidden');
+            refreshBtn.classList.remove('hidden');
+            updateClearButtonVisibility();
+        }, 500); // Delay to show the full progress bar
     }
 }
 

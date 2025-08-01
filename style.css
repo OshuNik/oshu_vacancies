@@ -19,10 +19,10 @@ body {
     background-color: var(--background-color);
     color: var(--text-color);
     margin: 0;
-    padding: 15px 15px 120px 15px; 
+    padding: 15px 15px 120px 15px;
 }
 
-/* --- Шапка --- */
+/* --- Header --- */
 .header {
     padding-bottom: 25px;
     text-align: center;
@@ -63,7 +63,45 @@ body {
     box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
 }
 
-/* --- Карточка Вакансии --- */
+/* --- Global Actions (Clear All button) --- */
+.global-actions {
+    display: flex;
+    justify-content: flex-end;
+    padding-bottom: 10px;
+}
+.global-actions .clear-button {
+    background-color: var(--card-color);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+    font-weight: 700;
+}
+.global-actions .clear-button:active {
+    transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
+    box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
+}
+
+/* --- Search Bar --- */
+.search-container {
+    padding: 0 0 15px 0;
+}
+.search-input {
+    width: 100%;
+    padding: 12px;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 15px;
+    color: var(--text-color);
+    background-color: var(--card-color);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 8px;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+    box-sizing: border-box;
+    -webkit-appearance: none;
+}
+.search-input:focus {
+    outline: none;
+    border-color: var(--accent-blue);
+}
+
+/* --- Vacancy Card --- */
 .vacancy-card {
     background-color: var(--card-color);
     border: var(--border-width) solid var(--border-color);
@@ -140,7 +178,7 @@ body {
     color: var(--hint-color);
 }
 
-/* --- Нижняя панель и Списки --- */
+/* --- Bottom Tabs --- */
 .category-tabs {
     position: fixed;
     bottom: 0;
@@ -198,7 +236,7 @@ body {
     background-color: var(--accent-red);
 }
 
-/* --- Остальные элементы интерфейса --- */
+/* --- Other UI Elements --- */
 .vacancy-list { display: none; }
 .vacancy-list.active { display: block; }
 .empty-list { text-align: center; color: var(--hint-color); padding: 30px 0; }
@@ -270,7 +308,7 @@ body {
     color: var(--hint-color);
 }
 
-/* --- Страница Настроек --- */
+/* --- Settings Page --- */
 .settings-form { display: flex; flex-direction: column; gap: 15px; }
 .settings-form label { font-weight: 700; }
 .settings-form textarea {
@@ -361,7 +399,7 @@ body {
     transform: translateY(-50%);
 }
 
-/* --- Раскраска заголовков карточек --- */
+/* --- Card Header Colors --- */
 .vacancy-card.category-main .card-header h3 {
     background-color: var(--accent-green);
     color: var(--text-color);
@@ -373,28 +411,4 @@ body {
 .vacancy-card.category-other .card-header h3 {
     background-color: var(--accent-red);
     color: var(--text-color);
-}
-
-/* --- Search Bar Styles --- */
-.search-container {
-    padding: 0 0 15px 0;
-}
-
-.search-input {
-    width: 100%;
-    padding: 12px;
-    font-family: 'Roboto Mono', monospace;
-    font-size: 15px;
-    color: var(--text-color);
-    background-color: var(--card-color);
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
-    box-sizing: border-box; /* Important for correct width */
-    -webkit-appearance: none; /* Removes default iOS styling */
-}
-
-.search-input:focus {
-    outline: none;
-    border-color: var(--accent-blue);
 }

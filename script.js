@@ -33,6 +33,8 @@ function formatTimestamp(isoString) {
 
 async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
+    if (!cardElement) return;
+
     const parentList = cardElement.parentElement;
     const categoryKey = Object.keys(containers).find(key => containers[key] === parentList);
 
@@ -42,21 +44,41 @@ async function updateStatus(event, vacancyId, newStatus) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id: vacancyId, newStatus: newStatus })
         });
-        cardElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
+
+        // Phase 1: Fade out the card
         cardElement.style.opacity = '0';
         cardElement.style.transform = 'scale(0.95)';
+
         setTimeout(() => {
-            cardElement.remove();
+            // Phase 2: Collapse the card's height and margins to create a smooth slide
+            cardElement.style.height = '0';
+            cardElement.style.paddingTop = '0';
+            cardElement.style.paddingBottom = '0';
+            cardElement.style.marginTop = '0';
+            cardElement.style.marginBottom = '0';
+            cardElement.style.borderWidth = '0';
+
+            // Update the count
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
             countSpan.textContent = `(${(currentCount - 1)})`;
-            if (parentList.children.length === 0) {
-                parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
-            }
-        }, 300);
+
+            // Wait for the collapse animation to finish, then remove the element
+            setTimeout(() => {
+                cardElement.remove();
+                if (parentList.children.length === 0) {
+                    parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+                }
+            }, 300); // This duration should match the transition in CSS
+
+        }, 300); // This duration is for the fade-out
+
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
         tg.showAlert('Не удалось обновить статус.');
+        // In case of error, restore the card's appearance
+        cardElement.style.opacity = '1';
+        cardElement.style.transform = 'scale(1)';
     }
 }
 
@@ -105,7 +127,6 @@ function renderVacancies(container, vacancies, categoryName) {
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
 
-        // Add class to the card based on the category
         if (vacancy.category === 'ТОЧНО ТВОЁ') {
             card.classList.add('category-main');
         } else if (vacancy.category === 'МОЖЕТ БЫТЬ') {

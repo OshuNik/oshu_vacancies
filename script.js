@@ -30,7 +30,29 @@ const headerActions = document.getElementById('header-actions');
 const searchContainer = document.getElementById('search-container');
 const categoryTabs = document.getElementById('category-tabs');
 
+// Custom Confirm Dialog Elements
+const confirmOverlay = document.getElementById('custom-confirm-overlay');
+const confirmText = document.getElementById('custom-confirm-text');
+const confirmOkBtn = document.getElementById('confirm-btn-ok');
+const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
+
+
 // --- HELPER FUNCTIONS ---
+
+function showCustomConfirm(message, callback) {
+    confirmText.textContent = message;
+    confirmOverlay.classList.remove('hidden');
+
+    confirmOkBtn.onclick = () => {
+        confirmOverlay.classList.add('hidden');
+        callback(true);
+    };
+
+    confirmCancelBtn.onclick = () => {
+        confirmOverlay.classList.add('hidden');
+        callback(false);
+    };
+}
 
 function formatTimestamp(isoString) {
     if (!isoString) return '';
@@ -156,25 +178,26 @@ function animateClearCategory() {
 async function clearCategory(categoryName) {
     if (!categoryName) return;
 
-    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+    if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
     }
 
-    if (window.confirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`)) {
-        try {
-            await fetch(CLEAR_CATEGORY_API_URL, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ category: categoryName })
-            });
-            animateClearCategory();
-        } catch (error) {
-            console.error('Ошибка очистки категории:', error);
-            tg.showAlert('Не удалось очистить категорию.');
+    showCustomConfirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`, async (isConfirmed) => {
+        if (isConfirmed) {
+            try {
+                await fetch(CLEAR_CATEGORY_API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ category: categoryName })
+                });
+                animateClearCategory();
+            } catch (error) {
+                console.error('Ошибка очистки категории:', error);
+                tg.showAlert('Не удалось очистить категорию.');
+            }
         }
-    }
+    });
 }
-
 
 function renderVacancies(container, vacancies) {
     if (!container) return;
@@ -286,18 +309,15 @@ tabButtons.forEach(button => {
 
     const cancelPress = (e) => {
         clearTimeout(pressTimer);
-        // Если был долгий тап, мы должны остановить дальнейшее "всплытие" события, чтобы не сработал click
         if (longPressTriggered) {
             e.preventDefault();
         }
     };
 
     const handleClick = () => {
-        // Если был долгий тап, не выполняем обычный клик
         if (longPressTriggered) {
             return;
         }
-        // Логика обычного клика (переключение вкладок)
         tabButtons.forEach(btn => btn.classList.remove('active'));
         vacancyLists.forEach(list => list.classList.remove('active'));
         button.classList.add('active');
@@ -305,17 +325,14 @@ tabButtons.forEach(button => {
         filterVacancies();
     };
 
-    // Слушатели для мыши
     button.addEventListener('mousedown', startPress);
     button.addEventListener('mouseup', cancelPress);
     button.addEventListener('mouseleave', cancelPress);
-
-    // Слушатели для сенсорных экранов
+    
     button.addEventListener('touchstart', startPress, { passive: true });
     button.addEventListener('touchend', cancelPress);
     button.addEventListener('touchcancel', cancelPress);
 
-    // Обычный клик
     button.addEventListener('click', handleClick);
 });
 

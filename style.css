@@ -19,7 +19,8 @@ body {
     background-color: var(--background-color);
     color: var(--text-color);
     margin: 0;
-    padding: 15px 15px 100px 15px;
+    /* Изменено: увеличен нижний отступ, чтобы контент не заезжал под вкладки */
+    padding: 15px 15px 120px 15px; 
 }
 
 /* --- Шапка --- */
@@ -72,9 +73,8 @@ body {
     margin-bottom: 20px;
     position: relative;
     box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
-    /* Add this line for the new animations */
     transition: all 0.3s ease-out;
-    overflow: hidden; /* This is important for the height collapse effect */
+    overflow: hidden;
 }
 .card-header {
     margin-bottom: 12px;
@@ -151,7 +151,8 @@ body {
     grid-template-columns: repeat(3, 1fr);
     background-color: transparent;
     padding: 0 10px;
-    padding-bottom: env(safe-area-inset-bottom);
+    /* Изменено: увеличен нижний отступ для безопасности */
+    padding-bottom: calc(5px + env(safe-area-inset-bottom)); 
     z-index: 10;
     border-top: none;
 }
@@ -382,5 +383,5 @@ body {
 }
 .vacancy-card.category-other .card-header h3 {
     background-color: var(--accent-red);
-    color: var(--text-color); /* Изменено с --card-color на --text-color */
+    color: var(--text-color);
 }

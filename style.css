@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
 
 :root {
-    --background-color: #2a2144; 
+    --background-color: #F0F0F0;
     --card-color: #FFFFFF;
     --text-color: #000000;
     --hint-color: #666666;
@@ -17,10 +17,6 @@
 body {
     font-family: 'Roboto Mono', monospace;
     background-color: var(--background-color);
-    /* --- НОВЫЙ, БОЛЕЕ ЗАМЕТНЫЙ ФОН --- */
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAADIAAAAyBAMAAADsEZWCAAAAD1BMVEUAAABChfRChfRChfRChfSHnC3aAAAAAXRSTlMAQObYZgAAAIFJREFUOMtjYBgFo2AUjIJRMApGwSgYBaNgFIyCUTAKRsEoGAWjYBSMglEw unregulated/iY202c4y59v9AI/Lz7D8b+rN5w/s/4D8P+p//8/vP/1/s/7H+z/s//H+z/s/2H5n4082c4y59v9AJ/Lz7D8b+rN5w/s/4D8P+p//8/vP/1/s/7H+z/s//H+z/s/2H5n4082c4y59v9AJ/Lz7D8b+rN5w/s/4D8P+p//8/vP/1/s/7H+z/s//H+z/s/2H5n4082c4y59v9AJ/Lz7D8b+rN5w/s/4D8P+p//8/vP/1/s/7H+z/s//H+z/s/2H5n4082c4y59v9AJ/Lz7D8b+rN5w/s/4D8P+p//8/vP/1/s/7H+z/s//H+z/s/2H5n4082SgYBaNgFIyCUTAKRsEoGAWjYBSMglEwMAMAa80p7wX+x+UAAAAASUVORK5CYII=');
-    background-repeat: repeat;
-    /* --- КОНЕЦ --- */
     color: var(--text-color);
     margin: 0;
     padding: 15px 15px 120px 15px; 

@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
 
 :root {
-    --background-color: #333333; /* Darker base for the pattern */
+    --background-color: #2a2144; /* Dark purple base for the new background */
     --card-color: #FFFFFF;
     --text-color: #000000;
     --hint-color: #666666;
@@ -17,8 +17,8 @@
 body {
     font-family: 'Roboto Mono', monospace;
     background-color: var(--background-color);
-    /* --- NEW PIXEL BACKGROUND --- */
-    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAYAAADED76LAAAAAXNSR0IArs4c6QAAADBJREFUGFdjZGBg+M+ACf+xAAgyMDEg/A8jC5AAmAgyAJKB5d/A8P+jA/kHAFNlGZ1XzXEiAAAAAElFTkSuQmCC');
+    /* --- NEW RETROWAVE PIXEL BACKGROUND --- */
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQBAMAAADt3eJSAAAAD1BMVEUAAABChfRChfRChfRChfSHnC3aAAAAAXRSTlMAQObYZgAAAElJREFUGBkFwVECACAEBNDAxHc3/8+AEEiGCSg6fO02b5Ea1g1u9iB5I4o3VFTJj/AGg+BvWaYZf4C2AFrwA28Aefo2XwYg1gHyAStfL4a8iLdFAAAAAElFTkSuQmCC');
     background-repeat: repeat;
     /* --- END --- */
     color: var(--text-color);
@@ -93,7 +93,7 @@ body {
     border: var(--border-width) solid var(--border-color);
     display: inline-block;
     border-radius: 4px;
-    letter-spacing: 1px;
+    letter-spacing: 1.5px;
 }
 .card-body p {
     margin: 12px 0 10px;

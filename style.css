@@ -63,22 +63,6 @@ body {
     box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
 }
 
-/* --- Global Actions (Clear All button) --- */
-.global-actions {
-    display: flex;
-    justify-content: flex-end;
-    padding-bottom: 10px;
-}
-.global-actions .clear-button {
-    background-color: var(--card-color);
-    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
-    font-weight: 700;
-}
-.global-actions .clear-button:active {
-    transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
-    box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
-}
-
 /* --- Search Bar --- */
 .search-container {
     padding: 0 0 15px 0;
@@ -240,25 +224,6 @@ body {
 .vacancy-list { display: none; }
 .vacancy-list.active { display: block; }
 .empty-list { text-align: center; color: var(--hint-color); padding: 30px 0; }
-.list-header {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 10px;
-}
-.clear-button {
-  background-color: transparent;
-  color: var(--hint-color);
-  font-size: 0.8rem;
-  font-weight: normal;
-  padding: 5px 10px;
-  width: auto;
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-}
-.clear-button:hover {
-  background-color: var(--card-color);
-  color: var(--text-color);
-}
 .refresh-button {
     position: fixed;
     bottom: 90px;

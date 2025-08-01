@@ -1,25 +1,24 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// --- ЭЛЕМЕНТЫ ДЛЯ ВКЛАДОК ---
+// --- ELEMENTS FOR TABS ---
 const settingsTabButtons = document.querySelectorAll('.settings-tab-button');
 const settingsTabContents = document.querySelectorAll('.settings-tab-content');
 
-// --- ЭЛЕМЕНТЫ ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
+// --- ELEMENTS FOR KEYWORDS ---
 const GET_KEYWORDS_URL  = 'https://oshunik.ru/webhook/91f2c-bfad-42d6-90ba-2ca5473c7e7e';
 const SAVE_KEYWORDS_URL = 'https://oshunik.ru/webhook/8a21566c-baf5-47e1-a84c-b96b464d3713';
 const keywordsInput   = document.getElementById('keywords-input');
 const keywordsDisplay = document.getElementById('current-keywords-display');
 const saveBtn = document.getElementById('save-button');
 
-// --- ЭЛЕМЕНТЫ ДЛЯ КАНАЛОВ ---
+// --- ELEMENTS FOR CHANNELS ---
 const loadDefaultsBtn = document.getElementById('load-defaults-btn');
 const addChannelBtn = document.getElementById('add-channel-btn');
 const channelInput = document.getElementById('channel-input');
 const channelsListContainer = document.getElementById('channels-list');
 
-
-// --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК ---
+// --- TAB SWITCHING LOGIC ---
 if (settingsTabButtons.length > 0) {
     settingsTabButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -35,8 +34,7 @@ if (settingsTabButtons.length > 0) {
     });
 }
 
-
-// --- ЛОГИКА ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
+// --- LOGIC FOR KEYWORDS ---
 async function loadKeywords() {
   if (!keywordsDisplay) return;
   saveBtn.disabled = true;
@@ -46,13 +44,9 @@ async function loadKeywords() {
     const data = await response.json();
     let keywords = '';
 
-    if (data && data.length > 0) {
-        if (data[0].keywords !== undefined) {
-            keywords = data[0].keywords;
-        } 
-        else if (data[0].json && data[0].json.keywords !== undefined) {
-            keywords = data[0].json.keywords;
-        }
+    // Corrected data access logic
+    if (data && data.length > 0 && data[0].keywords !== undefined) {
+        keywords = data[0].keywords;
     }
     
     keywordsInput.value = keywords;
@@ -92,16 +86,30 @@ async function saveKeywords() {
   }
 }
 
-// --- ЛОГИКА ДЛЯ КАНАЛОВ (пока визуальная часть) ---
+// --- LOGIC FOR CHANNELS ---
 function renderChannel(channel) {
     const channelItem = document.createElement('div');
     channelItem.className = 'channel-item';
     channelItem.dataset.channelId = channel.id;
 
+    const channelInfo = document.createElement('div');
+    channelInfo.className = 'channel-item-info';
+
+    const channelTitle = document.createElement('span');
+    channelTitle.className = 'channel-item-title';
+    channelTitle.textContent = channel.title || channel.id;
+
+    const channelIdLink = document.createElement('a');
+    channelIdLink.className = 'channel-item-id';
+    channelIdLink.textContent = channel.id.startsWith('http') ? new URL(channel.id).pathname.substring(1) : channel.id;
+    channelIdLink.href = channel.id.startsWith('http') ? channel.id : `https://t.me/${channel.id.substring(1)}`;
+    channelIdLink.target = '_blank';
+
+    channelInfo.appendChild(channelTitle);
+    channelInfo.appendChild(channelIdLink);
+
     channelItem.innerHTML = `
-        <span class="channel-item-name">${channel.id}</span>
         <div class="channel-item-toggle">
-            <span class="toggle-label">${channel.enabled ? 'Вкл' : 'Выкл'}</span>
             <label class="toggle-switch">
                 <input type="checkbox" ${channel.enabled ? 'checked' : ''}>
                 <span class="toggle-slider"></span>
@@ -111,14 +119,11 @@ function renderChannel(channel) {
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
     `;
+    
+    channelItem.prepend(channelInfo);
 
     channelItem.querySelector('.channel-item-delete').addEventListener('click', () => {
         channelItem.remove();
-    });
-
-    const toggleInput = channelItem.querySelector('input[type="checkbox"]');
-    toggleInput.addEventListener('change', () => {
-        channelItem.querySelector('.toggle-label').textContent = toggleInput.checked ? 'Вкл' : 'Выкл';
     });
     
     channelsListContainer.appendChild(channelItem);
@@ -128,9 +133,9 @@ function loadChannels() {
     if (!channelsListContainer) return;
     channelsListContainer.innerHTML = '';
     const fakeChannels = [
-        { id: '@gamedevjob', enabled: true },
-        { id: 'https://t.me/cidjin', enabled: true },
-        { id: '@motionhunter', enabled: false }
+        { id: '@gamedevjob', title: 'Gamedev Job', enabled: true },
+        { id: 'https://t.me/cidjin', title: 'CG-канал #сиджин', enabled: true },
+        { id: '@motionhunter', title: 'Motion Hunter', enabled: false }
     ];
     fakeChannels.forEach(renderChannel);
 }
@@ -139,20 +144,20 @@ if (addChannelBtn) {
     addChannelBtn.addEventListener('click', () => {
         const channelId = channelInput.value.trim();
         if (channelId) {
-            renderChannel({ id: channelId, enabled: true });
+            renderChannel({ id: channelId, title: channelId, enabled: true });
             channelInput.value = '';
         }
     });
 }
 
-// --- ОБЩИЙ ОБРАБОТЧИК СОХРАНЕНИЯ ---
+// --- GENERAL SAVE HANDLER ---
 if (saveBtn) {
     saveBtn.addEventListener('click', () => {
         const activeTab = document.querySelector('.settings-tab-content.active');
         if (activeTab.id === 'tab-keywords') {
             saveKeywords();
         } else if (activeTab.id === 'tab-channels') {
-            console.log('Сохранение каналов...');
+            console.log('Saving channels...');
             if (tg.showPopup) {
                 tg.showPopup({ message: 'Функция сохранения каналов в разработке' });
             } else {
@@ -162,8 +167,7 @@ if (saveBtn) {
     });
 }
 
-
-// --- НАЧАЛЬНАЯ ЗАГРУЗКА ---
+// --- INITIAL LOAD ---
 if (document.getElementById('tab-keywords')) {
     loadKeywords();
 }

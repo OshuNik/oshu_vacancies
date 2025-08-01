@@ -245,22 +245,32 @@ function renderVacancies(container, vacancies) {
 }
 
 async function loadVacancies() {
+    // Show loader and hide everything else
     vacanciesContent.classList.add('hidden');
     headerActions.classList.add('hidden');
     searchContainer.classList.add('hidden');
     categoryTabs.classList.add('hidden');
     refreshBtn.classList.add('hidden');
     
+    // Reset and show the loader
     progressBar.style.width = '1%';
     loader.classList.remove('hidden');
 
+    // Start the animation *after* the loader is visible
     setTimeout(() => { progressBar.style.width = '40%'; }, 100);
     setTimeout(() => { progressBar.style.width = '70%'; }, 500);
 
     try {
         const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const items = await response.json();
+        
+        // Robust JSON parsing
+        const responseText = await response.text();
+        if (!responseText) {
+             throw new Error('Empty response from server');
+        }
+        const items = JSON.parse(responseText);
+
         progressBar.style.width = '100%';
 
         items.sort((a, b) => new Date((b.json || b).timestamp) - new Date((a.json || a).timestamp));
@@ -284,13 +294,14 @@ async function loadVacancies() {
         loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
     } finally {
         setTimeout(() => {
+            // Hide loader and show everything else
             loader.classList.add('hidden');
             vacanciesContent.classList.remove('hidden');
             headerActions.classList.remove('hidden');
             searchContainer.classList.remove('hidden');
             categoryTabs.classList.remove('hidden');
             refreshBtn.classList.remove('hidden');
-        }, 500);
+        }, 500); // Delay to show the full progress bar
     }
 }
 

@@ -6,8 +6,7 @@ const settingsTabButtons = document.querySelectorAll('.settings-tab-button');
 const settingsTabContents = document.querySelectorAll('.settings-tab-content');
 
 // --- ЭЛЕМЕНТЫ ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
-// ИСПРАВЛЕНИЕ ЗДЕСЬ: Возвращен правильный URL для загрузки ключевых слов
-const GET_KEYWORDS_URL  = 'https://oshunik.ru/webhook/91f2562c-bfad-42d6-90ba-2ca5473c7e7e'; 
+const GET_KEYWORDS_URL  = 'https://oshunik.ru/webhook/91f2562c-bfad-42d6-90ba-2ca5473c7e7e';
 const SAVE_KEYWORDS_URL = 'https://oshunik.ru/webhook/8a21566c-baf5-47e1-a84c-b96b464d3713';
 const keywordsInput   = document.getElementById('keywords-input');
 const keywordsDisplay = document.getElementById('current-keywords-display');
@@ -38,7 +37,6 @@ if (settingsTabButtons.length > 0) {
         });
     });
 }
-
 
 // --- ЛОГИКА ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
 async function loadKeywords() {
@@ -92,6 +90,7 @@ async function saveKeywords() {
 }
 
 // --- ЛОГИКА ДЛЯ КАНАЛОВ ---
+
 function renderChannel(channel) {
     const channelItem = document.createElement('div');
     channelItem.className = 'channel-item';
@@ -108,7 +107,7 @@ function renderChannel(channel) {
     channelIdLink.className = 'channel-item-id';
     const cleanId = channel.id.startsWith('http') ? new URL(channel.id).pathname.substring(1) : channel.id;
     channelIdLink.textContent = cleanId.startsWith('@') ? cleanId : `@${cleanId}`;
-    channelIdLink.href = channel.id.startsWith('http') ? channel.id : `https://t.me/${channel.id.substring(1)}`;
+    channelIdLink.href = channel.id.startsWith('http') ? channel.id : `https://t.me/${channel.id.replace('@', '')}`;
     channelIdLink.target = '_blank';
 
     channelInfo.appendChild(channelTitle);
@@ -146,11 +145,12 @@ async function loadChannels() {
         channelsListContainer.innerHTML = '';
         if (data && data.length > 0) {
             data.forEach(item => {
-                const channelData = item.json || item;
+                // ИСПРАВЛЕНИЕ ЗДЕСЬ: Читаем данные из item.json, как показывает ваш скриншот n8n
+                const channelData = item.json;
                 renderChannel({
                     id: channelData.channel_id,
                     title: channelData.channel_title,
-                    enabled: channelData.is_enabled === 'TRUE' || channelData.is_enabled === true
+                    enabled: channelData.is_enabled === 'TRUE'
                 });
             });
         } else {
@@ -167,9 +167,9 @@ async function saveChannels() {
     const channelsToSave = [];
     channelItems.forEach(item => {
         channelsToSave.push({
-            id: item.dataset.channelId,
-            title: item.querySelector('.channel-item-title').textContent,
-            enabled: item.querySelector('input[type="checkbox"]').checked
+            channel_id: item.dataset.channelId,
+            channel_title: item.querySelector('.channel-item-title').textContent,
+            is_enabled: item.querySelector('input[type="checkbox"]').checked
         });
     });
 

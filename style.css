@@ -391,20 +391,34 @@ body {
     border: var(--border-width) solid var(--border-color);
     border-radius: 8px;
 }
-.channel-item-name {
+/* --- ИСПРАВЛЕНИЕ ФОРМАТИРОВАНИЯ --- */
+.channel-item-info {
     flex-grow: 1;
+    display: flex;
+    flex-direction: column; /* Ставит title и id друг под другом */
+    min-width: 0;
+}
+.channel-item-title {
     font-weight: 700;
+    font-size: 15px;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
+.channel-item-id {
+    font-size: 13px;
+    color: var(--hint-color);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.channel-item-id:hover {
+    text-decoration: underline;
+}
 .channel-item-toggle {
     display: flex;
     align-items: center;
-}
-.channel-item-toggle .toggle-label {
-    font-size: 12px;
-    margin-right: 8px;
 }
 .toggle-switch {
     position: relative;

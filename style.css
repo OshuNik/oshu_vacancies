@@ -1,7 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
 
 :root {
-    --background-color: #F0F0F0;
+    --background-color: #d2d2d2; /* Сделали фон чуть темнее для контраста */
     --card-color: #FFFFFF;
     --text-color: #000000;
     --hint-color: #666666;
@@ -17,6 +17,10 @@
 body {
     font-family: 'Roboto Mono', monospace;
     background-color: var(--background-color);
+    /* --- НОВЫЙ ПИКСЕЛЬНЫЙ ФОН --- */
+    background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAYAAACp8Z5+AAAAAXNSR0IArs4c6QAAABJJREFUGFdjZGBg+M+ABgpwSgQAcxYBAQ3m0NMAAAAASUVORK5CYII=');
+    background-repeat: repeat;
+    /* --- КОНЕЦ --- */
     color: var(--text-color);
     margin: 0;
     padding: 15px 15px 120px 15px; 
@@ -170,7 +174,7 @@ body {
     align-items: center;
     justify-content: center;
     position: relative;
-    top: 10px; /* Сдвигаем неактивные вкладки вниз */
+    top: 10px;
     box-shadow: none;
 }
 .tab-label {
@@ -182,9 +186,9 @@ body {
     opacity: 0.8;
 }
 .tab-button.active {
-    top: 0; /* Поднимаем активную вкладку */
+    top: 0;
     padding-top: 12px;
-    padding-bottom: 12px; /* Увеличиваем высоту, чтобы закрыть зазор */
+    padding-bottom: 12px;
     color: var(--text-color);
     box-shadow: var(--shadow-offset) 0px 0px var(--border-color);
 }

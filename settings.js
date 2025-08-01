@@ -38,6 +38,7 @@ if (settingsTabButtons.length > 0) {
     });
 }
 
+
 // --- ЛОГИКА ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
 async function loadKeywords() {
   if (!keywordsDisplay) return;
@@ -142,25 +143,33 @@ async function loadChannels() {
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
         const data = await response.json();
         
+        // --- БЛОК ОТЛАДКИ ---
+        console.log("Данные, полученные от сервера:", data);
+        alert("Получено " + data.length + " каналов. Проверьте консоль для деталей.");
+        // --- КОНЕЦ БЛОКА ОТЛАДКИ ---
+
         channelsListContainer.innerHTML = '';
         if (data && data.length > 0) {
             data.forEach(item => {
-                // ИСПРАВЛЕНИЕ ЗДЕСЬ: Читаем данные из item.json, как показывает ваш скриншот n8n
                 const channelData = item.json;
-                renderChannel({
-                    id: channelData.channel_id,
-                    title: channelData.channel_title,
-                    enabled: channelData.is_enabled === 'TRUE'
-                });
+                if (channelData && channelData.channel_id) {
+                    renderChannel({
+                        id: channelData.channel_id,
+                        title: channelData.channel_title,
+                        enabled: channelData.is_enabled === 'TRUE'
+                    });
+                }
             });
         } else {
              channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
         }
     } catch (error) {
         console.error('Ошибка загрузки каналов:', error);
+        alert('Произошла ошибка: ' + error.message);
         channelsListContainer.innerHTML = '<p class="empty-list">Не удалось загрузить каналы.</p>';
     }
 }
+
 
 async function saveChannels() {
     const channelItems = channelsListContainer.querySelectorAll('.channel-item');

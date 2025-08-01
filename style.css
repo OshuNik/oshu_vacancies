@@ -72,6 +72,9 @@ body {
     margin-bottom: 20px;
     position: relative;
     box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+    /* Add this line for the new animations */
+    transition: all 0.3s ease-out;
+    overflow: hidden; /* This is important for the height collapse effect */
 }
 .card-header {
     margin-bottom: 12px;

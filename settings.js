@@ -6,48 +6,47 @@ const settingsTabButtons = document.querySelectorAll('.settings-tab-button');
 const settingsTabContents = document.querySelectorAll('.settings-tab-content');
 
 // --- ЭЛЕМЕНТЫ ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
-// ИЗМЕНЕНИЕ ЗДЕСЬ: Обновлен ID вебхука на правильный
-const GET_KEYWORDS_URL  = 'https://oshunik.ru/webhook/91f2562c-bfad-42d6-90ba-2ca5473c7e7e';
+const GET_KEYWORDS_URL  = 'https://oshunik.ru/webhook/91f2c-bfad-42d6-90ba-2ca5473c7e7e';
 const SAVE_KEYWORDS_URL = 'https://oshunik.ru/webhook/8a21566c-baf5-47e1-a84c-b96b464d3713';
 const keywordsInput   = document.getElementById('keywords-input');
 const keywordsDisplay = document.getElementById('current-keywords-display');
 const saveBtn = document.getElementById('save-button');
 
 // --- ЭЛЕМЕНТЫ ДЛЯ КАНАЛОВ ---
+const GET_CHANNELS_URL = 'https://oshunik.ru/webhook/channels';
+const SAVE_CHANNELS_URL = 'https://oshunik.ru/webhook/channels-save';
+const LOAD_DEFAULTS_URL = 'https://oshunik.ru/webhook/channels/load-defaults';
+
 const loadDefaultsBtn = document.getElementById('load-defaults-btn');
 const addChannelBtn = document.getElementById('add-channel-btn');
 const channelInput = document.getElementById('channel-input');
 const channelsListContainer = document.getElementById('channels-list');
 
 // --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК ---
-if (settingsTabButtons.length > 0) {
-    settingsTabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            settingsTabButtons.forEach(btn => btn.classList.remove('active'));
-            settingsTabContents.forEach(content => content.classList.remove('active'));
-
-            button.classList.add('active');
-            const targetContent = document.getElementById(button.dataset.target);
-            if (targetContent) {
-                targetContent.classList.add('active');
-            }
-        });
+settingsTabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        settingsTabButtons.forEach(btn => btn.classList.remove('active'));
+        settingsTabContents.forEach(content => content.classList.remove('active'));
+        button.classList.add('active');
+        document.getElementById(button.dataset.target).classList.add('active');
     });
-}
-
+});
 
 // --- ЛОГИКА ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
 async function loadKeywords() {
-  if (!keywordsDisplay) return;
   saveBtn.disabled = true;
   try {
     const response = await fetch(GET_KEYWORDS_URL);
-    if (!response.ok) throw new Error('Network response was not ok');
     const data = await response.json();
     let keywords = '';
 
-    if (data && data.length > 0 && data[0].keywords !== undefined) {
-        keywords = data[0].keywords;
+    if (data && data.length > 0) {
+        if (data[0].keywords) {
+            keywords = data[0].keywords;
+        } 
+        else if (data[0].json && data[0].json.keywords) {
+            keywords = data[0].json.keywords;
+        }
     }
     
     keywordsInput.value = keywords;
@@ -62,7 +61,6 @@ async function loadKeywords() {
 }
 
 async function saveKeywords() {
-  if (!keywordsInput) return;
   const kws = keywordsInput.value.trim();
   saveBtn.disabled = true;
   
@@ -88,6 +86,7 @@ async function saveKeywords() {
 }
 
 // --- ЛОГИКА ДЛЯ КАНАЛОВ ---
+
 function renderChannel(channel) {
     const channelItem = document.createElement('div');
     channelItem.className = 'channel-item';
@@ -130,15 +129,56 @@ function renderChannel(channel) {
     channelsListContainer.appendChild(channelItem);
 }
 
-function loadChannels() {
+async function loadChannels() {
     if (!channelsListContainer) return;
-    channelsListContainer.innerHTML = '';
-    const fakeChannels = [
-        { id: '@gamedevjob', title: 'Gamedev Job', enabled: true },
-        { id: 'https://t.me/cidjin', title: 'CG-канал #сиджин', enabled: true },
-        { id: '@motionhunter', title: 'Motion Hunter', enabled: false }
-    ];
-    fakeChannels.forEach(renderChannel);
+    channelsListContainer.innerHTML = '<p>Загрузка каналов...</p>';
+    try {
+        const response = await fetch(GET_CHANNELS_URL);
+        const data = await response.json();
+        channelsListContainer.innerHTML = '';
+        if (data && data.length > 0) {
+            data.forEach(item => {
+                renderChannel({
+                    id: item.json.channel_id,
+                    title: item.json.channel_title,
+                    enabled: item.json.is_enabled === 'TRUE'
+                });
+            });
+        }
+    } catch (error) {
+        console.error('Ошибка загрузки каналов:', error);
+        channelsListContainer.innerHTML = '<p>Не удалось загрузить каналы.</p>';
+    }
+}
+
+async function saveChannels() {
+    const channelItems = channelsListContainer.querySelectorAll('.channel-item');
+    const channelsToSave = [];
+    channelItems.forEach(item => {
+        channelsToSave.push({
+            id: item.dataset.channelId,
+            title: item.querySelector('.channel-item-title').textContent,
+            enabled: item.querySelector('input[type="checkbox"]').checked
+        });
+    });
+
+    saveBtn.disabled = true;
+    try {
+        await fetch(SAVE_CHANNELS_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(channelsToSave)
+        });
+        if (tg.showPopup) {
+            tg.showPopup({ message: 'Список каналов сохранен' });
+        } else {
+            tg.showAlert('Список каналов сохранен');
+        }
+    } catch (error) {
+        console.error('Ошибка сохранения каналов:', error);
+    } finally {
+        saveBtn.disabled = false;
+    }
 }
 
 if (addChannelBtn) {
@@ -151,6 +191,20 @@ if (addChannelBtn) {
     });
 }
 
+if (loadDefaultsBtn) {
+    loadDefaultsBtn.addEventListener('click', async () => {
+        loadDefaultsBtn.disabled = true;
+        try {
+            await fetch(LOAD_DEFAULTS_URL, { method: 'POST' });
+            await loadChannels(); // Reload the list
+        } catch (error) {
+            console.error('Ошибка загрузки стандартных каналов:', error);
+        } finally {
+            loadDefaultsBtn.disabled = false;
+        }
+    });
+}
+
 // --- ОБЩИЙ ОБРАБОТЧИК СОХРАНЕНИЯ ---
 if (saveBtn) {
     saveBtn.addEventListener('click', () => {
@@ -158,15 +212,11 @@ if (saveBtn) {
         if (activeTab.id === 'tab-keywords') {
             saveKeywords();
         } else if (activeTab.id === 'tab-channels') {
-            console.log('Сохранение каналов...');
-            if (tg.showPopup) {
-                tg.showPopup({ message: 'Функция сохранения каналов в разработке' });
-            } else {
-                tg.showAlert('Функция сохранения каналов в разработке');
-            }
+            saveChannels();
         }
     });
 }
+
 
 // --- НАЧАЛЬНАЯ ЗАГРУЗКА ---
 if (document.getElementById('tab-keywords')) {

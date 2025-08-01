@@ -22,7 +22,7 @@ body {
     padding: 15px 15px 120px 15px;
 }
 
-/* --- Header --- */
+/* --- Шапка --- */
 .header {
     padding-bottom: 25px;
     text-align: center;
@@ -228,8 +228,8 @@ body {
 }
 
 /* --- Other UI Elements --- */
-.vacancy-list { display: none; }
-.vacancy-list.active { display: block; }
+.vacancy-list, .settings-tab-content { display: none; }
+.vacancy-list.active, .settings-tab-content.active { display: block; }
 .empty-list { text-align: center; color: var(--hint-color); padding: 30px 0; }
 .refresh-button {
     position: fixed;
@@ -281,17 +281,40 @@ body {
 }
 
 /* --- Settings Page --- */
+.settings-tabs {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 20px;
+}
+.settings-tab-button {
+    flex-grow: 1;
+    font-family: 'Roboto Mono', monospace;
+    background: var(--card-color);
+    color: var(--hint-color);
+    border: var(--border-width) solid var(--border-color);
+    padding: 10px 5px;
+    font-size: 14px;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+.settings-tab-button.active {
+    background-color: var(--accent-blue);
+    color: var(--card-color);
+    box-shadow: 2px 2px 0px var(--border-color);
+}
 .settings-form { display: flex; flex-direction: column; gap: 15px; }
-.settings-form label { font-weight: 700; }
-.settings-form textarea {
+.settings-form label { font-weight: 700; margin-top: 10px; }
+.settings-form textarea, .settings-form input[type="text"] {
     font-family: 'Roboto Mono', monospace;
     font-size: 15px;
     padding: 10px;
     border-radius: 8px;
     border: var(--border-width) solid var(--border-color);
     background-color: var(--card-color);
-    min-height: 100px;
     resize: vertical;
+    box-sizing: border-box;
 }
 .current-keywords-container {
     background-color: var(--card-color);
@@ -314,6 +337,126 @@ body {
     color: var(--hint-color);
     line-height: 1.6;
     word-break: break-word;
+}
+.button-load-defaults {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    background-color: var(--card-color);
+    color: var(--text-color);
+    border: var(--border-width) solid var(--border-color);
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+    transition: transform 0.1s, box-shadow 0.1s;
+    margin-bottom: 15px;
+}
+.button-load-defaults:active {
+    transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
+    box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
+}
+.add-channel-form {
+    display: flex;
+    gap: 5px;
+}
+.add-channel-form input {
+    flex-grow: 1;
+    min-width: 0;
+}
+.add-channel-form button {
+    font-family: 'Press Start 2P';
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+    background-color: var(--accent-green);
+    color: var(--card-color);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.channels-list {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.channel-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background-color: var(--card-color);
+    padding: 10px;
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 8px;
+}
+.channel-item-name {
+    flex-grow: 1;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.channel-item-toggle {
+    display: flex;
+    align-items: center;
+}
+.channel-item-toggle .toggle-label {
+    font-size: 12px;
+    margin-right: 8px;
+}
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #ccc;
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 24px;
+    transition: .2s;
+}
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 2px;
+    bottom: 2px;
+    background-color: white;
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 50%;
+    transition: .2s;
+}
+input:checked + .toggle-slider {
+    background-color: var(--accent-green);
+}
+input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+.channel-item-delete {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+.channel-item-delete svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--accent-red);
 }
 .image-link-button {
     display: block;
@@ -399,7 +542,6 @@ body {
     z-index: 200;
     padding: 15px;
 }
-
 .custom-confirm-box {
     background-color: var(--card-color);
     border: var(--border-width) solid var(--border-color);
@@ -410,19 +552,16 @@ body {
     max-width: 320px;
     text-align: center;
 }
-
 .custom-confirm-box p {
     font-size: 16px;
     line-height: 1.6;
     margin: 0 0 20px 0;
 }
-
 .custom-confirm-actions {
     display: flex;
     justify-content: center;
     gap: 10px;
 }
-
 .custom-confirm-button {
     font-family: 'Roboto Mono', monospace;
     font-size: 14px;
@@ -436,12 +575,10 @@ body {
     box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
     transition: transform 0.1s, box-shadow 0.1s;
 }
-
 .custom-confirm-button:active {
     transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
     box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
 }
-
 .custom-confirm-button.ok {
     background-color: var(--accent-red);
     color: var(--card-color);

@@ -22,7 +22,7 @@ body {
     padding: 15px 15px 120px 15px;
 }
 
-/* --- Header --- */
+/* --- Шапка --- */
 .header {
     padding-bottom: 25px;
     text-align: center;
@@ -194,6 +194,14 @@ body {
     position: relative;
     top: 10px;
     box-shadow: none;
+    
+    /* --- НОВЫЕ СВОЙСТВА ДЛЯ МОБИЛЬНЫХ УСТРОЙСТВ --- */
+    -webkit-user-select: none; /* Safari/Chrome */
+    -moz-user-select: none;    /* Firefox */
+    -ms-user-select: none;     /* IE10+ */
+    user-select: none;         /* Стандартное свойство */
+    -webkit-touch-callout: none; /* Отключить меню (копировать/вставить/увеличить) в iOS */
+    -webkit-tap-highlight-color: transparent; /* Убрать подсветку при нажатии */
 }
 .tab-label {
     font-size: 13px;

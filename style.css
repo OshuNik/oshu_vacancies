@@ -379,5 +379,5 @@ body {
 }
 .vacancy-card.category-other .card-header h3 {
     background-color: var(--accent-red);
-    color: var(--card-color); /* Белый текст для контраста */
+    color: var(--text-color); /* Изменено с --card-color на --text-color */
 }

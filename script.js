@@ -1,7 +1,3 @@
-// =======================================================================
-// 5. Обновлённый JavaScript (script.js) для oshu://work
-// =======================================================================
-
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -87,7 +83,6 @@ async function clearCategory(event, categoryName) {
     }
 }
 
-// === ГЛАВНАЯ ФУНКЦИЯ ОТОБРАЖЕНИЯ ВАКАНСИЙ ===
 function renderVacancies(container, vacancies, categoryName) {
     if (!container) return;
     container.innerHTML = '';
@@ -110,7 +105,15 @@ function renderVacancies(container, vacancies, categoryName) {
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
 
-        // Сборка details с новым div
+        // Add class to the card based on the category
+        if (vacancy.category === 'ТОЧНО ТВОЁ') {
+            card.classList.add('category-main');
+        } else if (vacancy.category === 'МОЖЕТ БЫТЬ') {
+            card.classList.add('category-maybe');
+        } else {
+            card.classList.add('category-other');
+        }
+
         let detailsHTML = '';
         if (vacancy.text_highlighted) {
             detailsHTML = `

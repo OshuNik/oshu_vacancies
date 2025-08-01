@@ -199,6 +199,7 @@ async function clearCategory(categoryName) {
     });
 }
 
+
 function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = '';

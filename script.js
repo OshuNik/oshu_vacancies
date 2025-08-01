@@ -29,7 +29,6 @@ const vacanciesContent = document.getElementById('vacancies-content');
 const headerActions = document.getElementById('header-actions');
 const searchContainer = document.getElementById('search-container');
 const categoryTabs = document.getElementById('category-tabs');
-const clearCategoryBtn = document.getElementById('clear-category-btn');
 
 // --- HELPER FUNCTIONS ---
 
@@ -37,15 +36,6 @@ function formatTimestamp(isoString) {
     if (!isoString) return '';
     const date = new Date(isoString);
     return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
-
-function updateClearButtonVisibility() {
-    const activeList = document.querySelector('.vacancy-list.active');
-    if (activeList && activeList.querySelector('.vacancy-card')) {
-        clearCategoryBtn.classList.remove('hidden');
-    } else {
-        clearCategoryBtn.classList.add('hidden');
-    }
 }
 
 function filterVacancies() {
@@ -78,7 +68,6 @@ function filterVacancies() {
     } else if (emptyMessage) {
         emptyMessage.style.display = 'none';
     }
-    updateClearButtonVisibility();
 }
 
 // --- API FUNCTIONS ---
@@ -117,7 +106,6 @@ async function updateStatus(event, vacancyId, newStatus) {
                 if (parentList.children.length === 0) {
                     parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
                 }
-                updateClearButtonVisibility();
             }, 300);
         }, 300);
 
@@ -129,7 +117,7 @@ async function updateStatus(event, vacancyId, newStatus) {
     }
 }
 
-async function clearCategory(event, categoryName) {
+async function clearCategory(categoryName) {
     if (!categoryName) return;
 
     if (window.confirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`)) {
@@ -192,19 +180,15 @@ function renderVacancies(container, vacancies) {
 }
 
 async function loadVacancies() {
-    // Show loader and hide everything else
     vacanciesContent.classList.add('hidden');
     headerActions.classList.add('hidden');
     searchContainer.classList.add('hidden');
     categoryTabs.classList.add('hidden');
-    clearCategoryBtn.classList.add('hidden');
     refreshBtn.classList.add('hidden');
     
-    // Reset and show the loader
     progressBar.style.width = '1%';
     loader.classList.remove('hidden');
 
-    // Start the animation *after* the loader is visible
     setTimeout(() => { progressBar.style.width = '40%'; }, 100);
     setTimeout(() => { progressBar.style.width = '70%'; }, 500);
 
@@ -235,32 +219,40 @@ async function loadVacancies() {
         loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
     } finally {
         setTimeout(() => {
-            // Hide loader and show everything else
             loader.classList.add('hidden');
             vacanciesContent.classList.remove('hidden');
             headerActions.classList.remove('hidden');
             searchContainer.classList.remove('hidden');
             categoryTabs.classList.remove('hidden');
             refreshBtn.classList.remove('hidden');
-            updateClearButtonVisibility();
-        }, 500); // Delay to show the full progress bar
+        }, 500);
     }
 }
 
 // --- EVENT LISTENERS ---
 
-clearCategoryBtn.addEventListener('click', (event) => {
-    const activeTab = document.querySelector('.tab-button.active');
-    if (activeTab) {
-        const categoryName = activeTab.dataset.categoryName;
-        clearCategory(event, categoryName);
-    }
-});
-
 searchInput.addEventListener('input', filterVacancies);
 
 tabButtons.forEach(button => {
+    let pressTimer;
+
+    button.addEventListener('mousedown', () => {
+        pressTimer = window.setTimeout(() => {
+            const categoryName = button.dataset.categoryName;
+            clearCategory(categoryName);
+        }, 1000); // 1 second for long press
+    });
+
+    button.addEventListener('mouseup', () => {
+        clearTimeout(pressTimer);
+    });
+
+    button.addEventListener('mouseleave', () => {
+        clearTimeout(pressTimer);
+    });
+
     button.addEventListener('click', () => {
+        clearTimeout(pressTimer);
         tabButtons.forEach(btn => btn.classList.remove('active'));
         vacancyLists.forEach(list => list.classList.remove('active'));
         button.classList.add('active');

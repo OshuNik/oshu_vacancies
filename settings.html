@@ -21,15 +21,36 @@
     </div>
   </header>
 
+  <div class="settings-tabs">
+    <button class="settings-tab-button active" data-target="tab-keywords">Ключевые слова</button>
+    <button class="settings-tab-button" data-target="tab-channels">Каналы</button>
+  </div>
+
   <main class="content">
-    <div class="current-keywords-container">
-      <p class="current-keywords-label">Текущие ключевые слова:</p>
-      <p id="current-keywords-display" class="current-keywords-list">Загрузка...</p>
+    <div id="tab-keywords" class="settings-tab-content active">
+      <div class="current-keywords-container">
+        <p class="current-keywords-label">Текущие ключевые слова:</p>
+        <p id="current-keywords-display" class="current-keywords-list">Загрузка...</p>
+      </div>
+      <div class="settings-form">
+        <label for="keywords-input">Изменить список (через запятую):</label>
+        <textarea id="keywords-input" rows="5" placeholder="монтаж, рилс, анимация..."></textarea>
+      </div>
     </div>
 
-    <div class="settings-form">
-      <label for="keywords-input">Изменить список (через запятую):</label>
-      <textarea id="keywords-input" rows="5" placeholder="монтаж, рилс, анимация..."></textarea>
+    <div id="tab-channels" class="settings-tab-content">
+      <div class="settings-form">
+        <button id="load-defaults-btn" class="button-load-defaults">Загрузить стандартные каналы</button>
+        
+        <label for="channel-input">Добавить новый канал:</label>
+        <div class="add-channel-form">
+          <input type="text" id="channel-input" placeholder="@username или https://t.me/...">
+          <button id="add-channel-btn">+</button>
+        </div>
+        
+        <div id="channels-list" class="channels-list">
+          </div>
+      </div>
     </div>
   </main>
 

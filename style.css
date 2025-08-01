@@ -8,7 +8,6 @@
     --border-width: 2px;
     --border-color: #000000;
     --shadow-offset: 4px;
-    /* Обновляем цвета-акценты */
     --accent-red: #FF5C5C;
     --accent-yellow: #FFD93D;
     --accent-green: #6BCB77;
@@ -40,6 +39,7 @@ body {
     align-items: center;
     gap: 10px;
     justify-content: center;
+    position: relative;
 }
 .header-settings .header-actions {
     justify-content: space-between;
@@ -138,8 +138,7 @@ body {
     color: var(--hint-color);
 }
 
-
-/* === НОВЫЕ СТИЛИ ДЛЯ ВКЛАДОК КАТЕГОРИЙ === */
+/* --- Нижняя панель и Списки --- */
 .category-tabs {
     position: fixed;
     bottom: 0;
@@ -147,30 +146,29 @@ body {
     right: 0;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    background-color: transparent; /* Убираем фон у контейнера */
-    padding: 0 10px; /* Боковые отступы */
+    background-color: transparent;
+    padding: 0 10px;
     padding-bottom: env(safe-area-inset-bottom);
     z-index: 10;
-    border-top: none; /* Убираем верхнюю границу */
+    border-top: none;
 }
 .tab-button {
     font-family: 'Roboto Mono', monospace;
-    background: #e0e0e0; /* Фон неактивной вкладки */
+    background: #e0e0e0;
     color: var(--hint-color);
     border: var(--border-width) solid var(--border-color);
-    border-bottom: none; /* Убираем нижнюю границу */
+    border-bottom: none;
     padding: 8px 5px;
-    font-size: 14px;
     font-weight: 700;
     border-radius: 8px 8px 0 0;
     cursor: pointer;
     transition: all 0.2s ease-out;
     display: flex;
-    flex-direction: column; /* Ставим элементы друг под другом */
+    flex-direction: column;
     align-items: center;
     justify-content: center;
     position: relative;
-    top: 10px; /* Сдвигаем неактивные вкладки вниз */
+    top: 10px;
     box-shadow: none;
 }
 .tab-label {
@@ -178,20 +176,16 @@ body {
 }
 .tab-count {
     font-size: 11px;
-    margin-top: 4px; /* Отступ между текстом и счётчиком */
+    margin-top: 4px;
     opacity: 0.8;
 }
-
-/* Стили для активной вкладки */
 .tab-button.active {
-    top: 0; /* Поднимаем активную вкладку */
+    top: 0;
     padding-top: 12px;
     padding-bottom: 12px;
     color: var(--text-color);
-    box-shadow: var(--shadow-offset) 0px 0px var(--border-color); /* Тень только сбоку */
+    box-shadow: var(--shadow-offset) 0px 0px var(--border-color);
 }
-
-/* Цвета для активных вкладок */
 .tab-button.main.active {
     background-color: var(--accent-green);
 }
@@ -201,10 +195,6 @@ body {
 .tab-button.other.active {
     background-color: var(--accent-red);
 }
-
-
-/* === КОНЕЦ НОВЫХ СТИЛЕЙ === */
-
 .vacancy-list { display: none; }
 .vacancy-list.active { display: block; }
 .empty-list { text-align: center; color: var(--hint-color); padding: 30px 0; }
@@ -228,6 +218,8 @@ body {
   color: var(--text-color);
   border-color: var(--text-color);
 }
+
+/* --- Кнопка "Обновить" --- */
 .refresh-button {
     position: fixed;
     bottom: 90px;
@@ -250,6 +242,8 @@ body {
     box-shadow: 0px 0px 0px var(--border-color);
 }
 .refresh-button svg { width: 28px; height: 28px; stroke: #fff; stroke-width: 3px; }
+
+/* --- Стили для индикатора загрузки --- */
 .hidden {
     display: none !important;
 }
@@ -276,6 +270,8 @@ body {
     margin-top: 15px;
     color: var(--hint-color);
 }
+
+/* --- Страница Настроек --- */
 .settings-form { display: flex; flex-direction: column; gap: 15px; }
 .settings-form label { font-weight: 700; }
 .settings-form textarea {
@@ -288,6 +284,8 @@ body {
     min-height: 100px;
     resize: vertical;
 }
+
+/* --- Стили для отображения текущих ключевых слов --- */
 .current-keywords-container {
     background-color: var(--card-color);
     border: var(--border-width) solid var(--border-color);
@@ -310,6 +308,8 @@ body {
     line-height: 1.6;
     word-break: break-word;
 }
+
+/* --- Кнопка "Изображение" --- */
 .image-link-button {
     display: block;
     box-sizing: border-box;
@@ -331,6 +331,8 @@ body {
     transform: translate(var(--shadow-offset), var(--shadow-offset));
     box-shadow: 0px 0px 0px var(--accent-blue);
 }
+
+/* --- Стили для иконки-кнопки в шапке --- */
 .header-icon-btn {
     background-color: var(--card-color);
     border: var(--border-width) solid var(--border-color);
@@ -364,4 +366,18 @@ body {
     right: 0;
     top: 50%;
     transform: translateY(-50%);
+}
+
+/* --- Раскраска заголовков карточек --- */
+.vacancy-card.category-main .card-header h3 {
+    background-color: var(--accent-green);
+    color: var(--text-color);
+}
+.vacancy-card.category-maybe .card-header h3 {
+    background-color: var(--accent-yellow);
+    color: var(--text-color);
+}
+.vacancy-card.category-other .card-header h3 {
+    background-color: var(--accent-red);
+    color: var(--card-color); /* Белый текст для контраста */
 }

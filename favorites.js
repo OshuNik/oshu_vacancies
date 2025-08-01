@@ -1,5 +1,3 @@
-/* 6. Обновлённый JavaScript для избранного (favorites.js) */
-/* ======================================================================= */
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -7,6 +5,43 @@ const GET_FAVORITES_API_URL = 'https://oshunik.ru/webhook/9dcaefca-5f63-4668-936
 const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
 
 const container = document.getElementById('favorites-list');
+const searchInputFav = document.getElementById('search-input-fav'); // New
+
+// --- New Search Function ---
+function filterFavorites() {
+    const query = searchInputFav.value.toLowerCase();
+    const cards = container.querySelectorAll('.vacancy-card');
+    let visibleCount = 0;
+
+    cards.forEach(card => {
+        const cardText = card.textContent.toLowerCase();
+        if (cardText.includes(query)) {
+            card.style.display = '';
+            visibleCount++;
+        } else {
+            card.style.display = 'none';
+        }
+    });
+
+    let emptyMessage = container.querySelector('.empty-list');
+    if (visibleCount === 0 && cards.length > 0) {
+        if (!emptyMessage) {
+            emptyMessage = document.createElement('p');
+            emptyMessage.className = 'empty-list';
+            container.appendChild(emptyMessage);
+        }
+        emptyMessage.textContent = '-- Ничего не найдено --';
+        emptyMessage.style.display = 'block';
+    } else if (emptyMessage) {
+        // If there are results, but the message is still "nothing found", hide it
+        if (emptyMessage.textContent.includes('найдено')) {
+            emptyMessage.style.display = 'none';
+        }
+    }
+}
+
+searchInputFav.addEventListener('input', filterFavorites);
+// --- End of New Search Function ---
 
 function formatTimestamp(isoString) {
     if (!isoString) return '';
@@ -16,7 +51,6 @@ function formatTimestamp(isoString) {
     });
 }
 
-// ИЗМЕНЕНИЕ: Функция теперь не перезагружает страницу
 async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
     
@@ -31,7 +65,6 @@ async function updateStatus(event, vacancyId, newStatus) {
         cardElement.style.transform = 'scale(0.95)';
         setTimeout(() => {
             cardElement.remove();
-            // Проверяем, не стал ли список пустым
             if (container.children.length === 0) {
                  container.innerHTML = '<p class="empty-list">-- В избранном пусто --</p>';
             }
@@ -48,17 +81,13 @@ async function loadFavorites() {
 
     try {
         const response = await fetch(GET_FAVORITES_API_URL + '?cache_buster=' + new Date().getTime());
-        
-        // Сначала получаем ответ как текст
         const responseText = await response.text();
 
-        // Проверяем, пустой ли текст. Если да, то список пуст.
         if (!responseText) {
             container.innerHTML = '<p class="empty-list">-- В избранном пусто --</p>';
             return;
         }
 
-        // Если текст есть, преобразуем его в JSON
         const items = JSON.parse(responseText);
         
         if (items && items.length > 0) {
@@ -109,6 +138,7 @@ async function loadFavorites() {
             `;
             container.appendChild(card);
         }
+        filterFavorites(); // Apply filter after loading
 
     } catch (error) {
         console.error('Ошибка загрузки избранного:', error);

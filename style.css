@@ -148,30 +148,28 @@ body {
     right: 0;
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    background-color: transparent; /* Changed back to transparent */
-    padding: 0 10px;
-    padding-bottom: calc(5px + env(safe-area-inset-bottom)); 
+    background-color: var(--background-color);
+    padding: 5px 10px;
+    padding-bottom: calc(5px + env(safe-area-inset-bottom));
     z-index: 10;
-    border-top: none; /* No top border on the container */
+    border-top: var(--border-width) solid var(--border-color);
+    gap: 8px; /* Add a gap between the buttons */
 }
 .tab-button {
     font-family: 'Roboto Mono', monospace;
-    background: #e0e0e0;
+    background: var(--card-color);
     color: var(--hint-color);
     border: var(--border-width) solid var(--border-color);
-    border-bottom: none;
     padding: 8px 5px;
     font-weight: 700;
-    border-radius: 8px 8px 0 0;
+    border-radius: 8px; /* Apply rounded corners to all states */
     cursor: pointer;
     transition: all 0.2s ease-out;
     display: flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
-    position: relative;
-    top: 10px;
-    box-shadow: none;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
 }
 .tab-label {
     font-size: 13px;
@@ -182,11 +180,9 @@ body {
     opacity: 0.8;
 }
 .tab-button.active {
-    top: -2px; /* Pull the active tab up to overlap */
-    padding-top: 12px;
-    padding-bottom: 12px;
     color: var(--text-color);
-    box-shadow: var(--shadow-offset) 0px 0px var(--border-color);
+    transform: scale(1.05); /* Make the active tab slightly larger */
+    box-shadow: calc(var(--shadow-offset) * 1.5) calc(var(--shadow-offset) * 1.5) 0px var(--border-color);
 }
 .tab-button.main.active {
     background-color: var(--accent-green);

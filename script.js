@@ -120,6 +120,11 @@ async function updateStatus(event, vacancyId, newStatus) {
 async function clearCategory(categoryName) {
     if (!categoryName) return;
 
+    // Vibrate to indicate a long press was successful
+    if (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.HapticFeedback) {
+        window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
+    }
+
     if (window.confirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`)) {
         try {
             await fetch(CLEAR_CATEGORY_API_URL, {
@@ -231,28 +236,40 @@ async function loadVacancies() {
 
 // --- EVENT LISTENERS ---
 
-searchInput.addEventListener('input', filterVacancies);
-
+// --- Updated logic for long press on tabs ---
 tabButtons.forEach(button => {
-    let pressTimer;
+    let pressTimer = null;
+    let isLongPress = false;
 
-    button.addEventListener('mousedown', () => {
+    function startPress() {
+        isLongPress = false;
         pressTimer = window.setTimeout(() => {
+            isLongPress = true;
             const categoryName = button.dataset.categoryName;
             clearCategory(categoryName);
-        }, 1000); // 1 second for long press
-    });
+        }, 800); // 800ms for a long press
+    }
 
-    button.addEventListener('mouseup', () => {
+    function cancelPress() {
         clearTimeout(pressTimer);
-    });
+    }
 
-    button.addEventListener('mouseleave', () => {
-        clearTimeout(pressTimer);
-    });
+    // Add listeners for both mouse and touch events
+    button.addEventListener('mousedown', startPress);
+    button.addEventListener('mouseup', cancelPress);
+    button.addEventListener('mouseleave', cancelPress);
+    
+    button.addEventListener('touchstart', startPress);
+    button.addEventListener('touchend', cancelPress);
+    button.addEventListener('touchcancel', cancelPress);
 
-    button.addEventListener('click', () => {
-        clearTimeout(pressTimer);
+    button.addEventListener('click', (e) => {
+        // If a long press just happened, prevent the click action
+        if (isLongPress) {
+            e.preventDefault();
+            return;
+        }
+        // Normal click action for switching tabs
         tabButtons.forEach(btn => btn.classList.remove('active'));
         vacancyLists.forEach(list => list.classList.remove('active'));
         button.classList.add('active');
@@ -261,6 +278,7 @@ tabButtons.forEach(button => {
     });
 });
 
+searchInput.addEventListener('input', filterVacancies);
 refreshBtn.addEventListener('click', loadVacancies);
 
 // Initial load

@@ -136,9 +136,12 @@ function renderChannel(channel) {
 }
 
 function displayChannels(data) {
+    console.log('[DEBUG] 6. Функция displayChannels получила данные:', data);
     channelsListContainer.innerHTML = '';
     if (data && data.length > 0) {
-        data.forEach(item => {
+        console.log(`[DEBUG] 7. В данных ${data.length} элементов. Начинаю отрисовку...`);
+        data.forEach((item, index) => {
+            console.log(`[DEBUG] 8. Обрабатываю элемент с индексом ${index}:`, item);
             const channelData = item.json ? item.json : item;
             if (channelData && channelData.channel_id) {
                 renderChannel({
@@ -146,31 +149,45 @@ function displayChannels(data) {
                     title: channelData.channel_title,
                     enabled: channelData.is_enabled === 'TRUE'
                 });
+            } else {
+                console.warn(`[DEBUG] 9. ПРОПУСКАЮ элемент с индексом ${index}, т.к. в нем нет channel_id.`, channelData);
             }
         });
     } else {
+         console.log('[DEBUG] 10. Данные пустые или некорректные. Отображаю сообщение "-- Список каналов пуст --".');
          channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
     }
 }
 
 async function loadChannels() {
+    console.log('[DEBUG] 1. Запускаю функцию loadChannels...');
     if (!channelsListContainer) return;
     channelsListContainer.innerHTML = '<p>Загрузка каналов...</p>';
     try {
         const response = await fetch(GET_CHANNELS_URL + '?cache_buster=' + new Date().getTime());
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        console.log('[DEBUG] 2. Получил ответ от fetch:', response);
+
+        if (!response.ok) {
+            console.error(`[DEBUG] Ошибка сети! Статус: ${response.status}`);
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
 
         const responseText = await response.text();
+        console.log('[DEBUG] 3. Сырой текст ответа от сервера:', responseText);
+
         if (!responseText) {
+            console.warn('[DEBUG] Ответ от сервера пустой.');
             displayChannels([]);
             return;
         }
 
         const data = JSON.parse(responseText);
+        console.log('[DEBUG] 4. Ответ после JSON.parse:', data);
+        
         displayChannels(data);
 
     } catch (error) {
-        console.error('Ошибка загрузки каналов:', error);
+        console.error('[DEBUG] 5. Произошла ошибка в блоке loadChannels:', error);
         channelsListContainer.innerHTML = '<p class="empty-list">Не удалось загрузить каналы.</p>';
     }
 }

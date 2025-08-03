@@ -267,7 +267,10 @@ async function loadVacancies() {
         // Robust JSON parsing
         const responseText = await response.text();
         if (!responseText) {
-             throw new Error('Empty response from server');
+            renderVacancies(containers.main, []);
+            renderVacancies(containers.maybe, []);
+            renderVacancies(containers.other, []);
+            return;
         }
         const items = JSON.parse(responseText);
 

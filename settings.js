@@ -139,9 +139,7 @@ function displayChannels(data) {
     channelsListContainer.innerHTML = '';
     if (data && data.length > 0) {
         data.forEach(item => {
-            // ✅ ИСПРАВЛЕНИЕ:
-            // Эта строка теперь работает с любым форматом данных
-            const channelData = item.json ? item.json : item; 
+            const channelData = item.json ? item.json : item;
             if (channelData && channelData.channel_id) {
                 renderChannel({
                     id: channelData.channel_id,
@@ -230,8 +228,6 @@ if (loadDefaultsBtn) {
             const response = await fetch(LOAD_DEFAULTS_URL, { method: 'POST' });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             
-            // ✅ ИСПРАВЛЕНИЕ: Вместо того чтобы пытаться отобразить ответ,
-            // просто вызываем нашу главную функцию загрузки списка заново.
             await loadChannels();
 
         } catch (error) {
@@ -263,4 +259,3 @@ if (document.getElementById('tab-keywords')) {
 if (document.getElementById('tab-channels')) {
     loadChannels();
 }
-

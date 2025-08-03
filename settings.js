@@ -52,10 +52,10 @@ async function loadKeywords() {
     if (data && data.length > 0 && data[0].keywords !== undefined) {
         keywords = data[0].keywords;
     }
-    
+
     keywordsInput.value = keywords;
-    keywordsDisplay.textContent = keywords || '-- не заданы --'; 
-    
+    keywordsDisplay.textContent = keywords || '-- не заданы --';
+
   } catch (error) {
     console.error('Ошибка загрузки ключевых слов:', error);
     keywordsDisplay.textContent = 'Ошибка загрузки';
@@ -68,15 +68,15 @@ async function saveKeywords() {
   if (!keywordsInput) return;
   const kws = keywordsInput.value.trim();
   saveBtn.disabled = true;
-  
+
   try {
     await fetch(SAVE_KEYWORDS_URL, {
       method:'POST',
       headers:{'Content-Type':'application/json'},
       body:JSON.stringify({ keywords:kws })
     });
-    
-    keywordsDisplay.textContent = kws || '-- не заданы --'; 
+
+    keywordsDisplay.textContent = kws || '-- не заданы --';
     if (tg.showPopup) {
         tg.showPopup({ message: 'Ключевые слова сохранены' });
     } else {
@@ -125,13 +125,13 @@ function renderChannel(channel) {
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
         </button>
     `;
-    
+
     channelItem.prepend(channelInfo);
 
     channelItem.querySelector('.channel-item-delete').addEventListener('click', () => {
         channelItem.remove();
     });
-    
+
     channelsListContainer.appendChild(channelItem);
 }
 
@@ -159,14 +159,13 @@ async function loadChannels() {
     try {
         const response = await fetch(GET_CHANNELS_URL + '?cache_buster=' + new Date().getTime());
         if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        // Надежная проверка ответа
+
         const responseText = await response.text();
         if (!responseText) {
-            displayChannels([]); // Передаем пустой массив, если ответ пустой
+            displayChannels([]);
             return;
         }
-        
+
         const data = JSON.parse(responseText);
         displayChannels(data);
 
@@ -228,8 +227,11 @@ if (loadDefaultsBtn) {
         try {
             const response = await fetch(LOAD_DEFAULTS_URL, { method: 'POST' });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const newChannels = await response.json();
-            displayChannels(newChannels);
+            
+            // ✅ ИСПРАВЛЕНИЕ: Вместо того чтобы пытаться отобразить ответ,
+            // просто вызываем нашу главную функцию загрузки списка заново.
+            await loadChannels();
+
         } catch (error) {
             console.error('Ошибка загрузки стандартных каналов:', error);
             tg.showAlert('Ошибка загрузки стандартных каналов');

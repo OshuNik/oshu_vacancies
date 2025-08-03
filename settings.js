@@ -1,3 +1,5 @@
+alert('ЗАГРУЖЕНА НОВАЯ ВЕРСИЯ СКРИПТА!');
+
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -183,7 +185,7 @@ async function loadChannels() {
 
         const data = JSON.parse(responseText);
         console.log('[DEBUG] 4. Ответ после JSON.parse:', data);
-        
+
         displayChannels(data);
 
     } catch (error) {
@@ -231,6 +233,10 @@ if (addChannelBtn) {
                 tg.showAlert('Этот канал уже есть в списке.');
                 return;
             }
+            const emptyMsg = channelsListContainer.querySelector('.empty-list');
+            if (emptyMsg) {
+                channelsListContainer.innerHTML = '';
+            }
             renderChannel({ id: channelId, title: channelId, enabled: true });
             channelInput.value = '';
         }
@@ -244,7 +250,7 @@ if (loadDefaultsBtn) {
         try {
             const response = await fetch(LOAD_DEFAULTS_URL, { method: 'POST' });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            
+
             await loadChannels();
 
         } catch (error) {

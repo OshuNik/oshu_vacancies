@@ -139,7 +139,9 @@ function displayChannels(data) {
     channelsListContainer.innerHTML = '';
     if (data && data.length > 0) {
         data.forEach(item => {
-            const channelData = item.json;
+            // ✅ ИСПРАВЛЕНИЕ:
+            // Эта строка теперь работает с любым форматом данных
+            const channelData = item.json ? item.json : item; 
             if (channelData && channelData.channel_id) {
                 renderChannel({
                     id: channelData.channel_id,
@@ -261,3 +263,4 @@ if (document.getElementById('tab-keywords')) {
 if (document.getElementById('tab-channels')) {
     loadChannels();
 }
+

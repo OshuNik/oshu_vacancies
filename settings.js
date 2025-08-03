@@ -1,5 +1,3 @@
-alert('ЗАГРУЖЕНА НОВАЯ ВЕРСИЯ СКРИПТА!');
-
 const tg = window.Telegram.WebApp;
 tg.expand();
 
@@ -18,267 +16,103 @@ const saveBtn = document.getElementById('save-button');
 const GET_CHANNELS_URL = 'https://oshunik.ru/webhook/channels';
 const SAVE_CHANNELS_URL = 'https://oshunik.ru/webhook/channels-save';
 const LOAD_DEFAULTS_URL = 'https://oshunik.ru/webhook/channels/load-defaults';
+const ADD_CHANNEL_URL = 'https://oshunik.ru/webhook/channels/add'; // ✅ Новый URL
+const DELETE_ALL_URL = 'https://oshunik.ru/webhook/channels/delete-all'; // ✅ Новый URL
 
 const loadDefaultsBtn = document.getElementById('load-defaults-btn');
 const addChannelBtn = document.getElementById('add-channel-btn');
 const channelInput = document.getElementById('channel-input');
 const channelsListContainer = document.getElementById('channels-list');
+const deleteAllBtn = document.getElementById('delete-all-btn'); // ✅ Новая кнопка
 
 // --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК ---
-if (settingsTabButtons.length > 0) {
-    settingsTabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            settingsTabButtons.forEach(btn => btn.classList.remove('active'));
-            settingsTabContents.forEach(content => content.classList.remove('active'));
-
-            button.classList.add('active');
-            const targetContent = document.getElementById(button.dataset.target);
-            if (targetContent) {
-                targetContent.classList.add('active');
-            }
-        });
-    });
-}
-
+// ... (этот блок без изменений) ...
 
 // --- ЛОГИКА ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
-async function loadKeywords() {
-  if (!keywordsDisplay) return;
-  saveBtn.disabled = true;
-  try {
-    const response = await fetch(GET_KEYWORDS_URL);
-    if (!response.ok) throw new Error('Network response was not ok');
-    const data = await response.json();
-    let keywords = '';
-
-    if (data && data.length > 0 && data[0].keywords !== undefined) {
-        keywords = data[0].keywords;
-    }
-
-    keywordsInput.value = keywords;
-    keywordsDisplay.textContent = keywords || '-- не заданы --';
-
-  } catch (error) {
-    console.error('Ошибка загрузки ключевых слов:', error);
-    keywordsDisplay.textContent = 'Ошибка загрузки';
-  } finally {
-    saveBtn.disabled = false;
-  }
-}
-
-async function saveKeywords() {
-  if (!keywordsInput) return;
-  const kws = keywordsInput.value.trim();
-  saveBtn.disabled = true;
-
-  try {
-    await fetch(SAVE_KEYWORDS_URL, {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ keywords:kws })
-    });
-
-    keywordsDisplay.textContent = kws || '-- не заданы --';
-    if (tg.showPopup) {
-        tg.showPopup({ message: 'Ключевые слова сохранены' });
-    } else {
-        tg.showAlert('Ключевые слова сохранены');
-    }
-
-  } catch (error) {
-    console.error('Ошибка при сохранении ключевых слов:', error);
-  } finally {
-    saveBtn.disabled = false;
-  }
-}
+// ... (этот блок без изменений) ...
 
 // --- ЛОГИКА ДЛЯ КАНАЛОВ ---
 
 function renderChannel(channel) {
-    const channelItem = document.createElement('div');
-    channelItem.className = 'channel-item';
-    channelItem.dataset.channelId = channel.id;
-
-    const channelInfo = document.createElement('div');
-    channelInfo.className = 'channel-item-info';
-
-    const channelTitle = document.createElement('span');
-    channelTitle.className = 'channel-item-title';
-    channelTitle.textContent = channel.title || channel.id;
-
-    const channelIdLink = document.createElement('a');
-    channelIdLink.className = 'channel-item-id';
-    const cleanId = channel.id.startsWith('http') ? new URL(channel.id).pathname.substring(1) : channel.id;
-    channelIdLink.textContent = cleanId.startsWith('@') ? cleanId : `@${cleanId}`;
-    channelIdLink.href = channel.id.startsWith('http') ? channel.id : `https://t.me/${channel.id.replace('@', '')}`;
-    channelIdLink.target = '_blank';
-
-    channelInfo.appendChild(channelTitle);
-    channelInfo.appendChild(channelIdLink);
-
-    channelItem.innerHTML = `
-        <div class="channel-item-toggle">
-            <label class="toggle-switch">
-                <input type="checkbox" ${channel.enabled ? 'checked' : ''}>
-                <span class="toggle-slider"></span>
-            </label>
-        </div>
-        <button class="channel-item-delete">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-    `;
-
-    channelItem.prepend(channelInfo);
-
-    channelItem.querySelector('.channel-item-delete').addEventListener('click', () => {
-        channelItem.remove();
-    });
-
-    channelsListContainer.appendChild(channelItem);
+    // ... (эта функция без изменений) ...
 }
 
 function displayChannels(data) {
-    console.log('[DEBUG] 6. Функция displayChannels получила данные:', data);
-    channelsListContainer.innerHTML = '';
-    if (data && data.length > 0) {
-        console.log(`[DEBUG] 7. В данных ${data.length} элементов. Начинаю отрисовку...`);
-        data.forEach((item, index) => {
-            console.log(`[DEBUG] 8. Обрабатываю элемент с индексом ${index}:`, item);
-            const channelData = item.json ? item.json : item;
-            if (channelData && channelData.channel_id) {
-                renderChannel({
-                    id: channelData.channel_id,
-                    title: channelData.channel_title,
-                    enabled: channelData.is_enabled === 'TRUE'
-                });
-            } else {
-                console.warn(`[DEBUG] 9. ПРОПУСКАЮ элемент с индексом ${index}, т.к. в нем нет channel_id.`, channelData);
-            }
-        });
-    } else {
-         console.log('[DEBUG] 10. Данные пустые или некорректные. Отображаю сообщение "-- Список каналов пуст --".');
-         channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
-    }
+    // ... (эта функция без изменений) ...
 }
 
 async function loadChannels() {
-    console.log('[DEBUG] 1. Запускаю функцию loadChannels...');
-    if (!channelsListContainer) return;
-    channelsListContainer.innerHTML = '<p>Загрузка каналов...</p>';
-    try {
-        const response = await fetch(GET_CHANNELS_URL + '?cache_buster=' + new Date().getTime());
-        console.log('[DEBUG] 2. Получил ответ от fetch:', response);
-
-        if (!response.ok) {
-            console.error(`[DEBUG] Ошибка сети! Статус: ${response.status}`);
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const responseText = await response.text();
-        console.log('[DEBUG] 3. Сырой текст ответа от сервера:', responseText);
-
-        if (!responseText) {
-            console.warn('[DEBUG] Ответ от сервера пустой.');
-            displayChannels([]);
-            return;
-        }
-
-        const data = JSON.parse(responseText);
-        console.log('[DEBUG] 4. Ответ после JSON.parse:', data);
-
-        displayChannels(data);
-
-    } catch (error) {
-        console.error('[DEBUG] 5. Произошла ошибка в блоке loadChannels:', error);
-        channelsListContainer.innerHTML = '<p class="empty-list">Не удалось загрузить каналы.</p>';
-    }
+    // ... (эта функция без изменений) ...
 }
 
 async function saveChannels() {
-    const channelItems = channelsListContainer.querySelectorAll('.channel-item');
-    const channelsToSave = [];
-    channelItems.forEach(item => {
-        channelsToSave.push({
-            channel_id: item.dataset.channelId,
-            channel_title: item.querySelector('.channel-item-title').textContent,
-            is_enabled: item.querySelector('input[type="checkbox"]').checked
-        });
-    });
-
-    saveBtn.disabled = true;
-    try {
-        await fetch(SAVE_CHANNELS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(channelsToSave)
-        });
-        if (tg.showPopup) {
-            tg.showPopup({ message: 'Список каналов сохранен' });
-        } else {
-            tg.showAlert('Список каналов сохранен');
-        }
-    } catch (error) {
-        console.error('Ошибка сохранения каналов:', error);
-        tg.showAlert('Ошибка сохранения каналов');
-    } finally {
-        saveBtn.disabled = false;
-    }
+    // ... (эта функция без изменений) ...
 }
 
+// ✅ ИЗМЕНЕНИЕ 3: Логика добавления канала теперь сохраняет его на сервере
 if (addChannelBtn) {
-    addChannelBtn.addEventListener('click', () => {
+    addChannelBtn.addEventListener('click', async () => {
         const channelId = channelInput.value.trim();
-        if (channelId) {
-            if (channelsListContainer.querySelector(`[data-channel-id="${channelId}"]`)) {
-                tg.showAlert('Этот канал уже есть в списке.');
-                return;
-            }
+        if (!channelId) return;
+
+        if (channelsListContainer.querySelector(`[data-channel-id="${channelId}"]`)) {
+            tg.showAlert('Этот канал уже есть в списке.');
+            return;
+        }
+
+        try {
+            const response = await fetch(ADD_CHANNEL_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel_id: channelId })
+            });
+
+            if (!response.ok) throw new Error('Не удалось добавить канал');
+            
+            // Если все успешно, добавляем в UI
             const emptyMsg = channelsListContainer.querySelector('.empty-list');
             if (emptyMsg) {
                 channelsListContainer.innerHTML = '';
             }
             renderChannel({ id: channelId, title: channelId, enabled: true });
             channelInput.value = '';
+
+        } catch (error) {
+            console.error('Ошибка добавления канала:', error);
+            tg.showAlert(error.message);
         }
     });
 }
 
 if (loadDefaultsBtn) {
-    loadDefaultsBtn.addEventListener('click', async () => {
-        loadDefaultsBtn.disabled = true;
-        channelsListContainer.innerHTML = '<p>Загрузка стандартных каналов...</p>';
-        try {
-            const response = await fetch(LOAD_DEFAULTS_URL, { method: 'POST' });
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    // ... (этот блок без изменений) ...
+}
 
-            await loadChannels();
+// ✅ ИЗМЕНЕНИЕ 2: Логика удаления всех каналов
+if (deleteAllBtn) {
+    deleteAllBtn.addEventListener('click', async () => {
+        if (!confirm('Вы уверены, что хотите удалить все каналы? Это действие необратимо.')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(DELETE_ALL_URL, { method: 'POST' });
+            if (!response.ok) throw new Error('Не удалось удалить каналы');
+            
+            // Если все успешно, очищаем UI
+            channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
+            tg.showAlert('Все каналы удалены.');
 
         } catch (error) {
-            console.error('Ошибка загрузки стандартных каналов:', error);
-            tg.showAlert('Ошибка загрузки стандартных каналов');
-            channelsListContainer.innerHTML = '<p class="empty-list">Ошибка.</p>';
-        } finally {
-            loadDefaultsBtn.disabled = false;
+            console.error('Ошибка удаления каналов:', error);
+            tg.showAlert(error.message);
         }
     });
 }
+
 
 // --- ОБЩИЙ ОБРАБОТЧИК СОХРАНЕНИЯ ---
-if (saveBtn) {
-    saveBtn.addEventListener('click', () => {
-        const activeTab = document.querySelector('.settings-tab-content.active');
-        if (activeTab.id === 'tab-keywords') {
-            saveKeywords();
-        } else if (activeTab.id === 'tab-channels') {
-            saveChannels();
-        }
-    });
-}
+// ... (этот блок без изменений) ...
 
 // --- НАЧАЛЬНАЯ ЗАГРУЗКА ---
-if (document.getElementById('tab-keywords')) {
-    loadKeywords();
-}
-if (document.getElementById('tab-channels')) {
-    loadChannels();
-}
+// ... (этот блок без изменений) ...

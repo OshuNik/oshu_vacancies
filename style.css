@@ -596,3 +596,23 @@ input:checked + .toggle-slider:before {
     background-color: var(--accent-red);
     color: var(--card-color);
 }
+
+.button-delete {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    background-color: var(--card-color);
+    color: var(--accent-red);
+    border: var(--border-width) solid var(--accent-red);
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--accent-red);
+    transition: transform 0.1s, box-shadow 0.1s;
+    margin-top: 25px; /* Добавим отступ сверху */
+}
+
+.button-delete:active {
+    transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
+    box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--accent-red);
+}

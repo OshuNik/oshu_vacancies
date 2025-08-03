@@ -391,11 +391,10 @@ body {
     border: var(--border-width) solid var(--border-color);
     border-radius: 8px;
 }
-/* --- ИСПРАВЛЕНИЕ ФОРМАТИРОВАНИЯ --- */
 .channel-item-info {
     flex-grow: 1;
     display: flex;
-    flex-direction: column; /* Ставит title и id друг под другом */
+    flex-direction: column;
     min-width: 0;
 }
 .channel-item-title {

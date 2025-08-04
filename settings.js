@@ -13,7 +13,6 @@ const keywordsDisplay = document.getElementById('current-keywords-display');
 const saveBtn = document.getElementById('save-button');
 
 // --- ЭЛЕМЕНТЫ И URL ДЛЯ КАНАЛОВ ---
-// Правильно!
 const GET_CHANNELS_URL = 'https://oshunik.ru/webhook/channels/get-list';
 const SAVE_CHANNELS_URL = 'https://oshunik.ru/webhook/channels-save';
 const LOAD_DEFAULTS_URL = 'https://oshunik.ru/webhook/channels/load-defaults';
@@ -26,20 +25,23 @@ const channelInput = document.getElementById('channel-input');
 const channelsListContainer = document.getElementById('channels-list');
 const deleteAllBtn = document.getElementById('delete-all-btn');
 
-// --- ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ---
+// --- ЛОГИКА ПЕРЕКЛЮЧЕНИЯ ВКЛАДОК ---
 if (settingsTabButtons.length > 0) {
     settingsTabButtons.forEach(button => {
         button.addEventListener('click', () => {
             settingsTabButtons.forEach(btn => btn.classList.remove('active'));
             settingsTabContents.forEach(content => content.classList.remove('active'));
+
             button.classList.add('active');
             const targetContent = document.getElementById(button.dataset.target);
-            if (targetContent) targetContent.classList.add('active');
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
         });
     });
 }
 
-// --- КЛЮЧЕВЫЕ СЛОВА ---
+// --- ЛОГИКА ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
 async function loadKeywords() {
     if (!keywordsDisplay) return;
     saveBtn.disabled = true;
@@ -67,13 +69,18 @@ async function saveKeywords() {
     saveBtn.disabled = true;
     try {
         await fetch(SAVE_KEYWORDS_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ keywords: kws })
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ keywords:kws })
         });
+
         keywordsDisplay.textContent = kws || '-- не заданы --';
-        if (tg.showPopup) tg.showPopup({ message: 'Ключевые слова сохранены' });
-        else tg.showAlert('Ключевые слова сохранены');
+        if (tg.showPopup) {
+            tg.showPopup({ message: 'Ключевые слова сохранены' });
+        } else {
+            tg.showAlert('Ключевые слова сохранены');
+        }
+
     } catch (error) {
         console.error('Ошибка при сохранении ключевых слов:', error);
     } finally {
@@ -81,7 +88,7 @@ async function saveKeywords() {
     }
 }
 
-// --- КАНАЛЫ ---
+// --- ЛОГИКА ДЛЯ КАНАЛОВ ---
 function renderChannel(channel) {
     const channelItem = document.createElement('div');
     channelItem.className = 'channel-item';
@@ -118,7 +125,7 @@ function renderChannel(channel) {
 
     channelItem.prepend(channelInfo);
 
-    // Кнопка удаления отдельного канала (не удаляет на сервере, только из списка)
+    // Удаление одного канала (локально, не с сервера)
     channelItem.querySelector('.channel-item-delete').addEventListener('click', () => {
         channelItem.remove();
     });
@@ -128,20 +135,17 @@ function renderChannel(channel) {
 
 function displayChannels(data) {
     channelsListContainer.innerHTML = '';
-    // Уникализация по channel_id
-    const unique = {};
     if (data && data.length > 0) {
         data.forEach(item => {
             const channelData = item.json ? item.json : item;
             if (channelData && channelData.channel_id) {
-                unique[channelData.channel_id] = {
+                renderChannel({
                     id: channelData.channel_id,
                     title: channelData.channel_title,
                     enabled: channelData.is_enabled === 'TRUE'
-                };
+                });
             }
         });
-        Object.values(unique).forEach(renderChannel);
     } else {
         channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
     }
@@ -168,19 +172,13 @@ async function loadChannels() {
 
 async function saveChannels() {
     const channelItems = channelsListContainer.querySelectorAll('.channel-item');
-    // Уникализируем по channel_id
-    const seen = {};
     const channelsToSave = [];
     channelItems.forEach(item => {
-        const id = item.dataset.channelId;
-        if (!seen[id]) {
-            seen[id] = true;
-            channelsToSave.push({
-                channel_id: id,
-                channel_title: item.querySelector('.channel-item-title').textContent,
-                is_enabled: item.querySelector('input[type="checkbox"]').checked
-            });
-        }
+        channelsToSave.push({
+            channel_id: item.dataset.channelId,
+            channel_title: item.querySelector('.channel-item-title').textContent,
+            is_enabled: item.querySelector('input[type="checkbox"]').checked
+        });
     });
 
     saveBtn.disabled = true;
@@ -190,8 +188,11 @@ async function saveChannels() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(channelsToSave)
         });
-        if (tg.showPopup) tg.showPopup({ message: 'Список каналов сохранен' });
-        else tg.showAlert('Список каналов сохранен');
+        if (tg.showPopup) {
+            tg.showPopup({ message: 'Список каналов сохранен' });
+        } else {
+            tg.showAlert('Список каналов сохранен');
+        }
     } catch (error) {
         console.error('Ошибка сохранения каналов:', error);
         tg.showAlert('Ошибка сохранения каналов');
@@ -200,11 +201,13 @@ async function saveChannels() {
     }
 }
 
+// --- ДОБАВЛЕНИЕ КАНАЛА ---
 if (addChannelBtn) {
     addChannelBtn.addEventListener('click', async () => {
         const channelId = channelInput.value.trim();
         if (!channelId) return;
-        // Если канал уже есть — не добавляем
+
+        // Проверка на дубликаты
         if (channelsListContainer.querySelector(`[data-channel-id="${channelId}"]`)) {
             tg.showAlert('Этот канал уже есть в списке.');
             return;
@@ -217,9 +220,7 @@ if (addChannelBtn) {
                 body: JSON.stringify({ channel_id: channelId })
             });
             if (!response.ok) throw new Error('Не удалось добавить канал на сервере');
-            const emptyMsg = channelsListContainer.querySelector('.empty-list');
-            if (emptyMsg) channelsListContainer.innerHTML = '';
-            renderChannel({ id: channelId, title: channelId, enabled: true });
+            await loadChannels();
             channelInput.value = '';
         } catch (error) {
             console.error('Ошибка добавления канала:', error);
@@ -230,6 +231,7 @@ if (addChannelBtn) {
     });
 }
 
+// --- ЗАГРУЗКА СТАНДАРТНЫХ КАНАЛОВ ---
 if (loadDefaultsBtn) {
     loadDefaultsBtn.addEventListener('click', async () => {
         loadDefaultsBtn.disabled = true;
@@ -248,19 +250,25 @@ if (loadDefaultsBtn) {
     });
 }
 
+// --- УДАЛЕНИЕ ВСЕХ КАНАЛОВ ---
 if (deleteAllBtn) {
     deleteAllBtn.addEventListener('click', async () => {
-        if (!confirm('Вы уверены, что хотите удалить все каналы? Это действие необратимо.')) return;
+        if (!confirm('Вы уверены, что хотите удалить все каналы? Это действие необратимо.')) {
+            return;
+        }
         deleteAllBtn.disabled = true;
         try {
             const response = await fetch(DELETE_ALL_URL, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' }
+                headers: { 'Content-Type': 'application/json' },
             });
             if (!response.ok) throw new Error('Не удалось удалить каналы на сервере');
-            channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
-            if (tg.showPopup) tg.showPopup({ message: 'Все каналы удалены' });
-            else tg.showAlert('Все каналы удалены.');
+            await loadChannels(); // Обновить список
+            if (tg.showPopup) {
+                tg.showPopup({ message: 'Все каналы удалены' });
+            } else {
+                tg.showAlert('Все каналы удалены.');
+            }
         } catch (error) {
             console.error('Ошибка удаления каналов:', error);
             tg.showAlert(error.message);
@@ -274,12 +282,18 @@ if (deleteAllBtn) {
 if (saveBtn) {
     saveBtn.addEventListener('click', () => {
         const activeTab = document.querySelector('.settings-tab-content.active');
-        if (activeTab.id === 'tab-keywords') saveKeywords();
-        else if (activeTab.id === 'tab-channels') saveChannels();
+        if (activeTab.id === 'tab-keywords') {
+            saveKeywords();
+        } else if (activeTab.id === 'tab-channels') {
+            saveChannels();
+        }
     });
 }
 
 // --- НАЧАЛЬНАЯ ЗАГРУЗКА ---
-if (document.getElementById('tab-keywords')) loadKeywords();
-if (document.getElementById('tab-channels')) loadChannels();
-
+if (document.getElementById('tab-keywords')) {
+    loadKeywords();
+}
+if (document.getElementById('tab-channels')) {
+    loadChannels();
+}

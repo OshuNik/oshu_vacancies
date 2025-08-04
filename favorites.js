@@ -1,13 +1,16 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-const GET_FAVORITES_API_URL = 'https://oshunik.ru/webhook/9dcaefca-5f63-4668-9364-965c4ace49d2'; 
-const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
+// --- НАСТРОЙКА SUPABASE ---
+// Вставьте сюда ваши данные из вашего проекта Supabase
+const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
+// --- КОНЕЦ НАСТРОЙКИ ---
 
 const container = document.getElementById('favorites-list');
-const searchInputFav = document.getElementById('search-input-fav'); // New
+const searchInputFav = document.getElementById('search-input-fav');
 
-// --- New Search Function ---
+// --- Функция поиска (без изменений) ---
 function filterFavorites() {
     const query = searchInputFav.value.toLowerCase();
     const cards = container.querySelectorAll('.vacancy-card');
@@ -32,17 +35,14 @@ function filterFavorites() {
         }
         emptyMessage.textContent = '-- Ничего не найдено --';
         emptyMessage.style.display = 'block';
-    } else if (emptyMessage) {
-        // If there are results, but the message is still "nothing found", hide it
-        if (emptyMessage.textContent.includes('найдено')) {
-            emptyMessage.style.display = 'none';
-        }
+    } else if (emptyMessage && emptyMessage.textContent.includes('найдено')) {
+        emptyMessage.style.display = 'none';
     }
 }
 
 searchInputFav.addEventListener('input', filterFavorites);
-// --- End of New Search Function ---
 
+// --- Вспомогательная функция (без изменений) ---
 function formatTimestamp(isoString) {
     if (!isoString) return '';
     const date = new Date(isoString);
@@ -51,15 +51,23 @@ function formatTimestamp(isoString) {
     });
 }
 
+// --- ОБНОВЛЕННАЯ ФУНКЦИЯ ---
+// Теперь удаление из избранного (смена статуса на 'new') происходит через Supabase
 async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
     
     try {
-        await fetch(UPDATE_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: vacancyId, newStatus: newStatus })
+        await fetch(`${SUPABASE_URL}/rest/v1/vacancies?id=eq.${vacancyId}`, {
+            method: 'PATCH',
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ status: newStatus })
         });
+
+        // Анимация исчезновения
         cardElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
         cardElement.style.opacity = '0';
         cardElement.style.transform = 'scale(0.95)';
@@ -75,29 +83,28 @@ async function updateStatus(event, vacancyId, newStatus) {
     }
 }
 
+// --- ОБНОВЛЕННАЯ ФУНКЦИЯ ---
+// Теперь загрузка избранного происходит из Supabase
 async function loadFavorites() {
     if (!container) return;
     container.innerHTML = '<p class="empty-list">Загрузка...</p>';
 
     try {
-        const response = await fetch(GET_FAVORITES_API_URL + '?cache_buster=' + new Date().getTime());
-        const responseText = await response.text();
-
-        if (!responseText) {
-            container.innerHTML = '<p class="empty-list">-- В избранном пусто --</p>';
-            return;
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?status=eq.favorite&select=*`, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+        });
+        
+        if (!response.ok) {
+            throw new Error(`Ошибка сети: ${response.statusText}`);
         }
 
-        const items = JSON.parse(responseText);
+        const items = await response.json();
         
         if (items && items.length > 0) {
-            items.sort((a, b) => {
-                const timeA = (a.json || a).timestamp;
-                const timeB = (b.json || b).timestamp;
-                if (!timeA) return 1;
-                if (!timeB) return -1;
-                return new Date(timeB) - new Date(timeA);
-            });
+            items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         }
         
         container.innerHTML = '';
@@ -107,7 +114,8 @@ async function loadFavorites() {
         }
 
         for (const item of items) {
-            const vacancy = item.json ? item.json : item;
+            // Код отрисовки карточки остается без изменений
+            const vacancy = item;
             if (!vacancy.id) continue;
 
             const card = document.createElement('div');
@@ -138,7 +146,7 @@ async function loadFavorites() {
             `;
             container.appendChild(card);
         }
-        filterFavorites(); // Apply filter after loading
+        filterFavorites();
 
     } catch (error) {
         console.error('Ошибка загрузки избранного:', error);
@@ -146,4 +154,5 @@ async function loadFavorites() {
     }
 }
 
+// Initial load
 loadFavorites();

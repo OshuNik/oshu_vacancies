@@ -111,7 +111,9 @@ function renderChannel(channel) {
     channelInfo.appendChild(channelTitle);
     channelInfo.appendChild(channelIdLink);
 
-    channelItem.innerHTML = `
+    // Временный контейнер для безопасной вставки HTML
+    const tempContainer = document.createElement('div');
+    tempContainer.innerHTML = `
         <div class="channel-item-toggle">
             <label class="toggle-switch">
                 <input type="checkbox" ${channel.enabled ? 'checked' : ''}>
@@ -123,6 +125,11 @@ function renderChannel(channel) {
         </button>
     `;
 
+    // Добавляем дочерние элементы из временного контейнера
+    while(tempContainer.firstChild) {
+        channelItem.appendChild(tempContainer.firstChild);
+    }
+    
     channelItem.prepend(channelInfo);
 
     // Удаление одного канала (локально, не с сервера)
@@ -136,16 +143,18 @@ function renderChannel(channel) {
 function displayChannels(data) {
     channelsListContainer.innerHTML = '';
     if (data && data.length > 0) {
+        const uniqueChannels = {};
         data.forEach(item => {
             const channelData = item.json ? item.json : item;
             if (channelData && channelData.channel_id) {
-                renderChannel({
+                 uniqueChannels[channelData.channel_id] = {
                     id: channelData.channel_id,
                     title: channelData.channel_title,
                     enabled: channelData.is_enabled === 'TRUE'
-                });
+                };
             }
         });
+        Object.values(uniqueChannels).forEach(renderChannel);
     } else {
         channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
     }
@@ -212,16 +221,24 @@ if (addChannelBtn) {
             tg.showAlert('Этот канал уже есть в списке.');
             return;
         }
+        
         addChannelBtn.disabled = true;
+        
         try {
             const response = await fetch(ADD_CHANNEL_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ channel_id: channelId })
             });
-            if (!response.ok) throw new Error('Не удалось добавить канал на сервере');
-            await loadChannels();
+            if (!response.ok) throw new Error('Не удалось добавить канал на сервере. Проверьте правильность ссылки или ID.');
+            
+            // Очищаем сообщение о пустом списке, если оно есть
+            const emptyMsg = channelsListContainer.querySelector('.empty-list');
+            if (emptyMsg) emptyMsg.remove();
+            
+            renderChannel({ id: channelId, title: channelId, enabled: true });
             channelInput.value = '';
+
         } catch (error) {
             console.error('Ошибка добавления канала:', error);
             tg.showAlert(error.message);
@@ -239,11 +256,11 @@ if (loadDefaultsBtn) {
         try {
             const response = await fetch(LOAD_DEFAULTS_URL, { method: 'POST' });
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            await loadChannels();
+            await loadChannels(); // Перезагружаем список каналов с сервера
         } catch (error) {
             console.error('Ошибка загрузки стандартных каналов:', error);
             tg.showAlert('Ошибка загрузки стандартных каналов');
-            channelsListContainer.innerHTML = '<p class="empty-list">Ошибка.</p>';
+            await loadChannels(); // В случае ошибки все равно пытаемся загрузить исходный список
         } finally {
             loadDefaultsBtn.disabled = false;
         }
@@ -256,27 +273,37 @@ if (deleteAllBtn) {
         if (!confirm('Вы уверены, что хотите удалить все каналы? Это действие необратимо.')) {
             return;
         }
+        
         deleteAllBtn.disabled = true;
+        
         try {
             const response = await fetch(DELETE_ALL_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
             });
-            if (!response.ok) throw new Error('Не удалось удалить каналы на сервере');
-            await loadChannels(); // Обновить список
+
+            if (!response.ok) {
+                throw new Error(`Сервер ответил с ошибкой: ${response.status}`);
+            }
+
+            // Если запрос прошел успешно, очищаем список на экране
+            channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
+            
             if (tg.showPopup) {
                 tg.showPopup({ message: 'Все каналы удалены' });
             } else {
                 tg.showAlert('Все каналы удалены.');
             }
+
         } catch (error) {
-            console.error('Ошибка удаления каналов:', error);
-            tg.showAlert(error.message);
+            console.error('Ошибка при удалении каналов:', error);
+            tg.showAlert(`Произошла ошибка: ${error.message}`);
         } finally {
             deleteAllBtn.disabled = false;
         }
     });
 }
+
 
 // --- ОБЩИЙ ОБРАБОТЧИК СОХРАНЕНИЯ ---
 if (saveBtn) {

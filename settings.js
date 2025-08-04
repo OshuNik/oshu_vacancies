@@ -13,7 +13,8 @@ const keywordsDisplay = document.getElementById('current-keywords-display');
 const saveBtn = document.getElementById('save-button');
 
 // --- ЭЛЕМЕНТЫ И URL ДЛЯ КАНАЛОВ ---
-const GET_CHANNELS_URL = 'https://oshunik.ru/webhook/channels';
+// Правильно!
+const GET_CHANNELS_URL = 'https://oshunik.ru/webhook/channels/get-list';
 const SAVE_CHANNELS_URL = 'https://oshunik.ru/webhook/channels-save';
 const LOAD_DEFAULTS_URL = 'https://oshunik.ru/webhook/channels/load-defaults';
 const ADD_CHANNEL_URL = 'https://oshunik.ru/webhook/channels/add';
@@ -281,3 +282,4 @@ if (saveBtn) {
 // --- НАЧАЛЬНАЯ ЗАГРУЗКА ---
 if (document.getElementById('tab-keywords')) loadKeywords();
 if (document.getElementById('tab-channels')) loadChannels();
+

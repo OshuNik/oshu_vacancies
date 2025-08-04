@@ -1,6 +1,13 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
+// --- КОНСТАНТЫ ДЛЯ КЛЮЧЕВЫХ СЛОВ ---
+const GET_KEYWORDS_URL  = 'https://oshunik.ru/webhook/91f2562c-bfad-42d6-90ba-2ca5473c7e7e';
+const SAVE_KEYWORDS_URL = 'https://oshunik.ru/webhook/8a21566c-baf5-47e1-a84c-b96b464d3713';
+const keywordsInput     = document.getElementById('keywords-input');
+const keywordsDisplay   = document.getElementById('current-keywords-display');
+const saveBtn           = document.getElementById('save-button');
+
 // --- КОНСТАНТЫ ДЛЯ КАНАЛОВ ---
 const GET_CHANNELS_URL   = 'https://oshunik.ru/webhook/channels/get-list';
 const SAVE_CHANNELS_URL  = 'https://oshunik.ru/webhook/channels-save';
@@ -13,7 +20,69 @@ const addChannelBtn           = document.getElementById('add-channel-btn');
 const channelInput            = document.getElementById('channel-input');
 const channelsListContainer   = document.getElementById('channels-list');
 const deleteAllBtn            = document.getElementById('delete-all-btn');
-const saveBtn                 = document.getElementById('save-button');
+
+// --- ПЕРЕКЛЮЧЕНИЕ ВКЛАДОК ---
+const settingsTabButtons = document.querySelectorAll('.settings-tab-button');
+const settingsTabContents = document.querySelectorAll('.settings-tab-content');
+
+if (settingsTabButtons.length > 0) {
+    settingsTabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            settingsTabButtons.forEach(btn => btn.classList.remove('active'));
+            settingsTabContents.forEach(content => content.classList.remove('active'));
+            button.classList.add('active');
+            const targetContent = document.getElementById(button.dataset.target);
+            if (targetContent) {
+                targetContent.classList.add('active');
+            }
+        });
+    });
+}
+
+// --- КЛЮЧЕВЫЕ СЛОВА ---
+async function loadKeywords() {
+    if (!keywordsDisplay) return;
+    saveBtn.disabled = true;
+    try {
+        const response = await fetch(GET_KEYWORDS_URL);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        let keywords = '';
+        if (data && data.length > 0 && data[0].keywords !== undefined) {
+            keywords = data[0].keywords;
+        }
+        keywordsInput.value = keywords;
+        keywordsDisplay.textContent = keywords || '-- не заданы --';
+    } catch (error) {
+        console.error('Ошибка загрузки ключевых слов:', error);
+        keywordsDisplay.textContent = 'Ошибка загрузки';
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
+
+async function saveKeywords() {
+    if (!keywordsInput) return;
+    const kws = keywordsInput.value.trim();
+    saveBtn.disabled = true;
+    try {
+        await fetch(SAVE_KEYWORDS_URL, {
+            method:'POST',
+            headers:{'Content-Type':'application/json'},
+            body:JSON.stringify({ keywords:kws })
+        });
+        keywordsDisplay.textContent = kws || '-- не заданы --';
+        if (tg.showPopup) {
+            tg.showPopup({ message: 'Ключевые слова сохранены' });
+        } else {
+            tg.showAlert('Ключевые слова сохранены');
+        }
+    } catch (error) {
+        console.error('Ошибка при сохранении ключевых слов:', error);
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
 
 // --- РЕНДЕР КАНАЛА ---
 function renderChannel(channel) {
@@ -63,7 +132,6 @@ function renderChannel(channel) {
 // --- ВЫВОД СПИСКА КАНАЛОВ ---
 function displayChannels(data) {
     channelsListContainer.innerHTML = '';
-    // фильтр уникальных каналов по channel_id
     const unique = {};
     if (Array.isArray(data) && data.length > 0) {
         data.forEach(item => {
@@ -131,7 +199,6 @@ if (addChannelBtn) {
     addChannelBtn.addEventListener('click', async () => {
         const channelId = channelInput.value.trim();
         if (!channelId) return;
-        // Проверка на дубли
         if (channelsListContainer.querySelector(`[data-channel-id="${channelId}"]`)) {
             tg.showAlert('Этот канал уже есть в списке.');
             return;
@@ -207,13 +274,18 @@ if (deleteAllBtn) {
 if (saveBtn) {
     saveBtn.addEventListener('click', () => {
         const activeTab = document.querySelector('.settings-tab-content.active');
-        if (activeTab && activeTab.id === 'tab-channels') {
+        if (activeTab && activeTab.id === 'tab-keywords') {
+            saveKeywords();
+        } else if (activeTab && activeTab.id === 'tab-channels') {
             saveChannels();
         }
     });
 }
 
 // --- АВТОЗАГРУЗКА ---
+if (document.getElementById('tab-keywords')) {
+    loadKeywords();
+}
 if (document.getElementById('tab-channels')) {
     loadChannels();
 }

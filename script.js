@@ -1,10 +1,12 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// API URLs
-const GET_API_URL = 'https://oshunik.ru/webhook/3807c00b-ec11-402e-b054-ba0b3faad50b';
-const UPDATE_API_URL = 'https://oshunik.ru/webhook/cf41ba34-60ed-4f3d-8d13-ec85de6297e2';
-const CLEAR_CATEGORY_API_URL = 'https://oshunik.ru/webhook/d5a617c6-34db-45f2-a8a5-c88b091923d5';
+// --- НАСТРОЙКА SUPABASE ---
+// Вставьте сюда ваши данные из Supabase -> Settings -> API
+const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
+// --- КОНЕЦ НАСТРОЙКИ ---
+
 
 // Page Elements
 const containers = {
@@ -24,13 +26,9 @@ const searchInput = document.getElementById('search-input');
 const loader = document.getElementById('loader');
 const progressBar = document.getElementById('progress-bar');
 const vacanciesContent = document.getElementById('vacancies-content');
-
-// Elements to hide during load
 const headerActions = document.getElementById('header-actions');
 const searchContainer = document.getElementById('search-container');
 const categoryTabs = document.getElementById('category-tabs');
-
-// Custom Confirm Dialog Elements
 const confirmOverlay = document.getElementById('custom-confirm-overlay');
 const confirmText = document.getElementById('custom-confirm-text');
 const confirmOkBtn = document.getElementById('confirm-btn-ok');
@@ -42,12 +40,10 @@ const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 function showCustomConfirm(message, callback) {
     confirmText.textContent = message;
     confirmOverlay.classList.remove('hidden');
-
     confirmOkBtn.onclick = () => {
         confirmOverlay.classList.add('hidden');
         callback(true);
     };
-
     confirmCancelBtn.onclick = () => {
         confirmOverlay.classList.add('hidden');
         callback(false);
@@ -64,10 +60,8 @@ function filterVacancies() {
     const query = searchInput.value.toLowerCase();
     const activeList = document.querySelector('.vacancy-list.active');
     if (!activeList) return;
-
     const cards = activeList.querySelectorAll('.vacancy-card');
     let visibleCount = 0;
-
     cards.forEach(card => {
         const cardText = card.textContent.toLowerCase();
         if (cardText.includes(query)) {
@@ -77,7 +71,6 @@ function filterVacancies() {
             card.style.display = 'none';
         }
     });
-
     let emptyMessage = activeList.querySelector('.empty-list');
     if (visibleCount === 0 && cards.length > 0) {
         if (!emptyMessage) {
@@ -102,15 +95,21 @@ async function updateStatus(event, vacancyId, newStatus) {
     const categoryKey = Object.keys(containers).find(key => containers[key] === parentList);
 
     try {
-        await fetch(UPDATE_API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: vacancyId, newStatus: newStatus })
+        // Обновляем статус вакансии в базе данных Supabase
+        await fetch(`${SUPABASE_URL}/rest/v1/vacancies?id=eq.${vacancyId}`, {
+            method: 'PATCH', // Используем PATCH для частичного обновления
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal'
+            },
+            body: JSON.stringify({ status: newStatus })
         });
 
+        // Анимация исчезновения карточки (остается без изменений)
         cardElement.style.opacity = '0';
         cardElement.style.transform = 'scale(0.95)';
-
         setTimeout(() => {
             cardElement.style.height = '0';
             cardElement.style.paddingTop = '0';
@@ -118,11 +117,9 @@ async function updateStatus(event, vacancyId, newStatus) {
             cardElement.style.marginTop = '0';
             cardElement.style.marginBottom = '0';
             cardElement.style.borderWidth = '0';
-
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
             countSpan.textContent = `(${(currentCount - 1)})`;
-
             setTimeout(() => {
                 cardElement.remove();
                 if (parentList.children.length === 0) {
@@ -142,17 +139,14 @@ async function updateStatus(event, vacancyId, newStatus) {
 function animateClearCategory() {
     const activeList = document.querySelector('.vacancy-list.active');
     if (!activeList) return;
-
     const cards = activeList.querySelectorAll('.vacancy-card');
     if (cards.length === 0) return;
-
     cards.forEach((card, index) => {
         setTimeout(() => {
             card.style.opacity = '0';
             card.style.transform = 'scale(0.95)';
         }, index * 50);
     });
-
     setTimeout(() => {
         cards.forEach(card => {
             card.style.height = '0';
@@ -162,33 +156,34 @@ function animateClearCategory() {
             card.style.marginBottom = '0';
             card.style.borderWidth = '0';
         });
-
         const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
         if (categoryKey) {
             counts[categoryKey].textContent = '(0)';
         }
-
         setTimeout(() => {
             activeList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
         }, 300);
-
     }, 300 + cards.length * 50);
 }
 
 async function clearCategory(categoryName) {
     if (!categoryName) return;
-
     if (window.Telegram?.WebApp?.HapticFeedback) {
         window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
     }
-
     showCustomConfirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`, async (isConfirmed) => {
         if (isConfirmed) {
             try {
-                await fetch(CLEAR_CATEGORY_API_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ category: categoryName })
+                // Находим все "новые" вакансии в этой категории и меняем их статус на "deleted"
+                await fetch(`${SUPABASE_URL}/rest/v1/vacancies?category=eq.${categoryName}&status=eq.new`, {
+                    method: 'PATCH',
+                    headers: {
+                        'apikey': SUPABASE_ANON_KEY,
+                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        'Content-Type': 'application/json',
+                        'Prefer': 'return=minimal'
+                    },
+                    body: JSON.stringify({ status: 'deleted' })
                 });
                 animateClearCategory();
             } catch (error) {
@@ -199,34 +194,27 @@ async function clearCategory(categoryName) {
     });
 }
 
-
 function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = '';
-
     if (!vacancies || vacancies.length === 0) {
         container.innerHTML = '<p class="empty-list">-- Пусто --</p>';
         return;
     }
-
     for (const item of vacancies) {
-        const vacancy = item.json ? item.json : item;
+        const vacancy = item.json ? item.json : item; // На всякий случай оставляем проверку
         if (!vacancy.id) continue;
-
         const card = document.createElement('div');
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
-
         if (vacancy.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
         else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
         else card.classList.add('category-other');
-
         let detailsHTML = vacancy.text_highlighted ? `
 <details>
     <summary>Показать полный текст</summary>
     <div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div>
 </details>` : '';
-
         card.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
@@ -245,63 +233,48 @@ function renderVacancies(container, vacancies) {
 }
 
 async function loadVacancies() {
-    // Show loader and hide everything else
     vacanciesContent.classList.add('hidden');
     headerActions.classList.add('hidden');
     searchContainer.classList.add('hidden');
     categoryTabs.classList.add('hidden');
     refreshBtn.classList.add('hidden');
-    
-    // Reset and show the loader
     progressBar.style.width = '1%';
     loader.classList.remove('hidden');
-
-    // Start the animation *after* the loader is visible
     setTimeout(() => { progressBar.style.width = '40%'; }, 100);
     setTimeout(() => { progressBar.style.width = '70%'; }, 500);
-
     try {
-        const response = await fetch(GET_API_URL + '?cache_buster=' + new Date().getTime());
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        
-        // Robust JSON parsing
-        const responseText = await response.text();
-        if (!responseText) {
-             throw new Error('Empty response from server');
-        }
-        const items = JSON.parse(responseText);
-
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?status=eq.new&select=*`, {
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+            }
+        });
+        if (!response.ok) throw new Error(`Ошибка сети: ${response.statusText}`);
+        const items = await response.json();
         progressBar.style.width = '100%';
-
-        items.sort((a, b) => new Date((b.json || b).timestamp) - new Date((a.json || a).timestamp));
-
-        const mainVacancies = items.filter(item => (item.json || item).category === 'ТОЧНО ТВОЁ');
-        const maybeVacancies = items.filter(item => (item.json || item).category === 'МОЖЕТ БЫТЬ');
-        const otherVacancies = items.filter(item => !['ТОЧНО ТВОЁ', 'МОЖЕТ БЫТЬ'].includes((item.json || item).category));
-
+        items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        const mainVacancies = items.filter(item => item.category === 'ТОЧНО ТВОЁ');
+        const maybeVacancies = items.filter(item => item.category === 'МОЖЕТ БЫТЬ');
+        const otherVacancies = items.filter(item => !['ТОЧНО ТВОЁ', 'МОЖЕТ БЫТЬ'].includes(item.category));
         counts.main.textContent = `(${mainVacancies.length})`;
         counts.maybe.textContent = `(${maybeVacancies.length})`;
         counts.other.textContent = `(${otherVacancies.length})`;
-
         renderVacancies(containers.main, mainVacancies);
         renderVacancies(containers.maybe, maybeVacancies);
         renderVacancies(containers.other, otherVacancies);
-
         filterVacancies();
-
     } catch (error) {
         console.error('Ошибка загрузки:', error);
         loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
     } finally {
         setTimeout(() => {
-            // Hide loader and show everything else
             loader.classList.add('hidden');
             vacanciesContent.classList.remove('hidden');
             headerActions.classList.remove('hidden');
             searchContainer.classList.remove('hidden');
             categoryTabs.classList.remove('hidden');
             refreshBtn.classList.remove('hidden');
-        }, 500); // Delay to show the full progress bar
+        }, 500);
     }
 }
 
@@ -309,7 +282,6 @@ async function loadVacancies() {
 tabButtons.forEach(button => {
     let pressTimer = null;
     let longPressTriggered = false;
-
     const startPress = (e) => {
         longPressTriggered = false;
         pressTimer = window.setTimeout(() => {
@@ -318,14 +290,12 @@ tabButtons.forEach(button => {
             clearCategory(categoryName);
         }, 800);
     };
-
     const cancelPress = (e) => {
         clearTimeout(pressTimer);
         if (longPressTriggered) {
             e.preventDefault();
         }
     };
-
     const handleClick = () => {
         if (longPressTriggered) {
             return;
@@ -336,15 +306,12 @@ tabButtons.forEach(button => {
         document.getElementById(button.dataset.target).classList.add('active');
         filterVacancies();
     };
-
     button.addEventListener('mousedown', startPress);
     button.addEventListener('mouseup', cancelPress);
     button.addEventListener('mouseleave', cancelPress);
-    
     button.addEventListener('touchstart', startPress, { passive: true });
     button.addEventListener('touchend', cancelPress);
     button.addEventListener('touchcancel', cancelPress);
-
     button.addEventListener('click', handleClick);
 });
 

@@ -224,22 +224,33 @@ if (loadDefaultsBtn) {
 // Удаление всех каналов (ИСПРАВЛЕННАЯ ВЕРСИЯ)
 if (deleteAllBtn) {
     deleteAllBtn.addEventListener('click', async () => {
+        // ВОЗВРАЩЕНО ПОДТВЕРЖДЕНИЕ, т.к. действие теперь необратимо
         if (!confirm('Вы уверены, что хотите удалить все каналы из базы данных? Это действие необратимо.')) {
             return;
         }
         deleteAllBtn.disabled = true;
         try {
-             // Физически удаляем все из таблицы `channels`
-            await fetch(`${SUPABASE_URL}/rest/v1/channels?select=*`, {
+             // ИСПРАВЛЕНИЕ: Используем правильный фильтр (id > 0) для удаления всех строк
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?id=gt.0`, {
                 method: 'DELETE',
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                headers: { 
+                    'apikey': SUPABASE_ANON_KEY, 
+                    'Authorization': `Bearer ${SUPABASE_ANON_KEY}` 
+                }
             });
+
+            if (!response.ok) {
+                // Если возникла ошибка, выводим ее
+                throw new Error(`Ошибка сервера: ${response.statusText}`);
+            }
+
             // Обновляем UI
             channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
             tg.showAlert('Все каналы удалены.');
+
         } catch (error) {
              console.error('Ошибка удаления каналов:', error);
-             tg.showAlert('Ошибка удаления каналов');
+             tg.showAlert(String(error));
         } finally {
             deleteAllBtn.disabled = false;
         }
@@ -265,3 +276,4 @@ if (document.getElementById('tab-keywords')) {
 if (document.getElementById('tab-channels')) {
     loadChannels();
 }
+

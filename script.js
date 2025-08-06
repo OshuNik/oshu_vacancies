@@ -31,9 +31,11 @@ const confirmOverlay = document.getElementById('custom-confirm-overlay');
 const confirmText = document.getElementById('custom-confirm-text');
 const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
+const emptyStateContainer = document.getElementById('empty-state-container');
 
 // --- HELPER FUNCTIONS ---
 function showCustomConfirm(message, callback) {
+    if (!confirmOverlay) return;
     confirmText.textContent = message;
     confirmOverlay.classList.remove('hidden');
     confirmOkBtn.onclick = () => {
@@ -53,9 +55,9 @@ function formatTimestamp(isoString) {
 }
 
 function filterVacancies() {
-    const query = searchInput.value.toLowerCase();
     const activeList = document.querySelector('.vacancy-list.active');
-    if (!activeList) return;
+    if (!activeList || !searchInput) return;
+    const query = searchInput.value.toLowerCase();
     const cards = activeList.querySelectorAll('.vacancy-card');
     let visibleCount = 0;
     cards.forEach(card => {
@@ -81,7 +83,7 @@ function filterVacancies() {
     }
 }
 
-// --- API FUNCTIONS & ANIMATIONS ---
+// --- API FUNCTIONS ---
 async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
     if (!cardElement) return;
@@ -97,12 +99,13 @@ async function updateStatus(event, vacancyId, newStatus) {
         cardElement.style.transform = 'scale(0.95)';
         setTimeout(() => {
             cardElement.remove();
-            if (parentList.children.length === 0) {
-                parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
-            }
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
             countSpan.textContent = `(${(currentCount - 1)})`;
+            // Перерисовываем, чтобы показать сообщение о пустой категории, если нужно
+            if (parentList.children.length === 0) {
+                renderVacancies(parentList, []);
+            }
         }, 300);
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
@@ -130,9 +133,9 @@ async function clearCategory(categoryName) {
                     body: JSON.stringify({ status: 'deleted' })
                 });
                 if (activeList) {
-                    activeList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
                     const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
                     if (categoryKey) counts[categoryKey].textContent = '(0)';
+                    renderVacancies(activeList, []);
                 }
             } catch (error) {
                 console.error('Ошибка очистки категории:', error);
@@ -145,10 +148,12 @@ async function clearCategory(categoryName) {
 function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = '';
+    
     if (!vacancies || vacancies.length === 0) {
-        container.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+        container.innerHTML = '<p class="empty-list">-- В этой категории пусто --</p>';
         return;
     }
+
     for (const item of vacancies) {
         const vacancy = item;
         const card = document.createElement('div');
@@ -182,85 +187,124 @@ function renderVacancies(container, vacancies) {
 }
 
 async function loadVacancies() {
-    vacanciesContent.classList.add('hidden');
-    headerActions.classList.add('hidden');
-    searchContainer.classList.add('hidden');
-    categoryTabs.classList.add('hidden');
-    refreshBtn.classList.add('hidden');
-    progressBar.style.width = '1%';
-    loader.classList.remove('hidden');
-    setTimeout(() => { progressBar.style.width = '40%'; }, 100);
-    setTimeout(() => { progressBar.style.width = '70%'; }, 500);
+    // Скрываем все перед загрузкой
+    if(vacanciesContent) vacanciesContent.classList.add('hidden');
+    if(emptyStateContainer) emptyStateContainer.classList.add('hidden');
+    if(headerActions) headerActions.classList.add('hidden');
+    if(searchContainer) searchContainer.classList.add('hidden');
+    if(categoryTabs) categoryTabs.classList.add('hidden');
+    if(refreshBtn) refreshBtn.classList.add('hidden');
+    if(loader) loader.classList.remove('hidden');
+    if(progressBar) progressBar.style.width = '1%';
+
+    setTimeout(() => { if(progressBar) progressBar.style.width = '40%'; }, 100);
+    setTimeout(() => { if(progressBar) progressBar.style.width = '70%'; }, 500);
+
     try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?status=eq.new&select=*`, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
         });
         if (!response.ok) throw new Error(`Ошибка сети: ${response.statusText}`);
+        
         const items = await response.json();
-        progressBar.style.width = '100%';
+        if(progressBar) progressBar.style.width = '100%';
         items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        if (items.length === 0) {
+            if(vacanciesContent) vacanciesContent.classList.add('hidden');
+            if(emptyStateContainer) emptyStateContainer.classList.remove('hidden');
+        } else {
+            if(vacanciesContent) vacanciesContent.classList.remove('hidden');
+            if(emptyStateContainer) emptyStateContainer.classList.add('hidden');
+        }
+
         const mainVacancies = items.filter(item => item.category === 'ТОЧНО ТВОЁ');
         const maybeVacancies = items.filter(item => item.category === 'МОЖЕТ БЫТЬ');
         const otherVacancies = items.filter(item => !['ТОЧНО ТВОЁ', 'МОЖЕТ БЫТЬ'].includes(item.category));
-        counts.main.textContent = `(${mainVacancies.length})`;
-        counts.maybe.textContent = `(${maybeVacancies.length})`;
-        counts.other.textContent = `(${otherVacancies.length})`;
+
+        if (counts.main) counts.main.textContent = `(${mainVacancies.length})`;
+        if (counts.maybe) counts.maybe.textContent = `(${maybeVacancies.length})`;
+        if (counts.other) counts.other.textContent = `(${otherVacancies.length})`;
+
         renderVacancies(containers.main, mainVacancies);
         renderVacancies(containers.maybe, maybeVacancies);
         renderVacancies(containers.other, otherVacancies);
+        
         filterVacancies();
+
     } catch (error) {
         console.error('Ошибка загрузки:', error);
-        loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
+        if(loader) loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
     } finally {
         setTimeout(() => {
-            loader.classList.add('hidden');
-            vacanciesContent.classList.remove('hidden');
-            headerActions.classList.remove('hidden');
-            searchContainer.classList.remove('hidden');
-            categoryTabs.classList.remove('hidden');
-            refreshBtn.classList.remove('hidden');
+            if(loader) loader.classList.add('hidden');
+            if(headerActions) headerActions.classList.remove('hidden');
+            if(searchContainer) searchContainer.classList.remove('hidden');
+            if(categoryTabs) categoryTabs.classList.remove('hidden');
+            if(refreshBtn) refreshBtn.classList.remove('hidden');
+            // Показываем контент только если есть вакансии
+            if (document.querySelectorAll('.vacancy-card').length > 0) {
+                if(vacanciesContent) vacanciesContent.classList.remove('hidden');
+            }
         }, 500);
     }
 }
 
 // --- EVENT LISTENERS ---
-tabButtons.forEach(button => {
-    let pressTimer = null;
-    let longPressTriggered = false;
-    const startPress = (e) => {
-        longPressTriggered = false;
-        pressTimer = window.setTimeout(() => {
-            longPressTriggered = true;
-            const categoryName = button.dataset.categoryName;
-            clearCategory(categoryName);
-        }, 800);
-    };
-    const cancelPress = (e) => {
-        clearTimeout(pressTimer);
-        if (longPressTriggered) {
-            e.preventDefault();
-        }
-    };
-    const handleClick = () => {
-        if (longPressTriggered) { return; }
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        vacancyLists.forEach(list => list.classList.remove('active'));
-        button.classList.add('active');
-        document.getElementById(button.dataset.target).classList.add('active');
-        filterVacancies();
-    };
-    button.addEventListener('mousedown', startPress);
-    button.addEventListener('mouseup', cancelPress);
-    button.addEventListener('mouseleave', cancelPress);
-    button.addEventListener('touchstart', startPress, { passive: true });
-    button.addEventListener('touchend', cancelPress);
-    button.addEventListener('touchcancel', cancelPress);
-    button.addEventListener('click', handleClick);
-});
+if (tabButtons) {
+    tabButtons.forEach(button => {
+        let pressTimer = null;
+        let longPressTriggered = false;
 
-searchInput.addEventListener('input', filterVacancies);
-refreshBtn.addEventListener('click', loadVacancies);
+        const startPress = (e) => {
+            longPressTriggered = false;
+            pressTimer = window.setTimeout(() => {
+                longPressTriggered = true;
+                const categoryName = button.dataset.categoryName;
+                clearCategory(categoryName);
+            }, 800);
+        };
+
+        const cancelPress = (e) => {
+            clearTimeout(pressTimer);
+            if (longPressTriggered) {
+                e.preventDefault();
+                e.stopPropagation();
+            }
+        };
+
+        const handleClick = (e) => {
+            if (longPressTriggered) return;
+            if (button.classList.contains('active')) return;
+            
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            if(vacancyLists) vacancyLists.forEach(list => list.classList.remove('active'));
+            
+            button.classList.add('active');
+            const targetList = document.getElementById(button.dataset.target);
+            if (targetList) {
+                targetList.classList.add('active');
+                // При переключении вкладки, если в ней нет карточек, но в других есть,
+                // показываем сообщение о пустой категории
+                if (targetList.children.length === 0 && document.querySelectorAll('.vacancy-card').length > 0) {
+                    renderVacancies(targetList, []);
+                }
+            }
+            filterVacancies();
+        };
+
+        button.addEventListener('mousedown', startPress);
+        button.addEventListener('mouseup', cancelPress);
+        button.addEventListener('mouseleave', cancelPress);
+        button.addEventListener('touchstart', startPress, { passive: true });
+        button.addEventListener('touchend', cancelPress);
+        button.addEventListener('touchcancel', cancelPress);
+        button.addEventListener('click', handleClick);
+    });
+}
+
+if (searchInput) searchInput.addEventListener('input', filterVacancies);
+if (refreshBtn) refreshBtn.addEventListener('click', loadVacancies);
 
 // Initial load
 loadVacancies();

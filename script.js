@@ -2,11 +2,9 @@ const tg = window.Telegram.WebApp;
 tg.expand();
 
 // --- НАСТРОЙКА SUPABASE ---
-// Вставьте сюда ваши данные из Supabase -> Settings -> API
 const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
 // --- КОНЕЦ НАСТРОЙКИ ---
-
 
 // Page Elements
 const containers = {
@@ -95,9 +93,8 @@ async function updateStatus(event, vacancyId, newStatus) {
     const categoryKey = Object.keys(containers).find(key => containers[key] === parentList);
 
     try {
-        // Обновляем статус вакансии в базе данных Supabase
         await fetch(`${SUPABASE_URL}/rest/v1/vacancies?id=eq.${vacancyId}`, {
-            method: 'PATCH', // Используем PATCH для частичного обновления
+            method: 'PATCH',
             headers: {
                 'apikey': SUPABASE_ANON_KEY,
                 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
@@ -107,7 +104,6 @@ async function updateStatus(event, vacancyId, newStatus) {
             body: JSON.stringify({ status: newStatus })
         });
 
-        // Анимация исчезновения карточки (остается без изменений)
         cardElement.style.opacity = '0';
         cardElement.style.transform = 'scale(0.95)';
         setTimeout(() => {
@@ -174,7 +170,6 @@ async function clearCategory(categoryName) {
     showCustomConfirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`, async (isConfirmed) => {
         if (isConfirmed) {
             try {
-                // Находим все "новые" вакансии в этой категории и меняем их статус на "deleted"
                 await fetch(`${SUPABASE_URL}/rest/v1/vacancies?category=eq.${categoryName}&status=eq.new`, {
                     method: 'PATCH',
                     headers: {
@@ -202,19 +197,27 @@ function renderVacancies(container, vacancies) {
         return;
     }
     for (const item of vacancies) {
-        const vacancy = item.json ? item.json : item; // На всякий случай оставляем проверку
+        const vacancy = item;
         if (!vacancy.id) continue;
+
+        // ИСПРАВЛЕНИЕ ФОРМАТИРОВАНИЯ
+        if (vacancy.text_highlighted) {
+            vacancy.text_highlighted = vacancy.text_highlighted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        }
+
         const card = document.createElement('div');
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
         if (vacancy.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
         else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
         else card.classList.add('category-other');
+        
         let detailsHTML = vacancy.text_highlighted ? `
 <details>
     <summary>Показать полный текст</summary>
     <div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div>
 </details>` : '';
+        
         card.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>

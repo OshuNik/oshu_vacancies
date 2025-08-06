@@ -31,7 +31,6 @@ const confirmOverlay = document.getElementById('custom-confirm-overlay');
 const confirmText = document.getElementById('custom-confirm-text');
 const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
-const emptyStateContainer = document.getElementById('empty-state-container');
 
 // --- HELPER FUNCTIONS ---
 function showCustomConfirm(message, callback) {
@@ -100,10 +99,12 @@ async function updateStatus(event, vacancyId, newStatus) {
         cardElement.style.transform = 'scale(0.95)';
         setTimeout(() => {
             cardElement.remove();
+            if (parentList.children.length === 0) {
+                parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+            }
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
             countSpan.textContent = `(${(currentCount - 1)})`;
-            renderVacancies(parentList, Array.from(parentList.querySelectorAll('.vacancy-card')));
         }, 300);
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
@@ -131,9 +132,9 @@ async function clearCategory(categoryName) {
                     body: JSON.stringify({ status: 'deleted' })
                 });
                 if (activeList) {
+                    activeList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
                     const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
                     if (categoryKey) counts[categoryKey].textContent = '(0)';
-                    renderVacancies(activeList, []);
                 }
             } catch (error) {
                 console.error('Ошибка очистки категории:', error);
@@ -146,12 +147,10 @@ async function clearCategory(categoryName) {
 function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = '';
-    
     if (!vacancies || vacancies.length === 0) {
-        container.innerHTML = '<p class="empty-list">-- В этой категории пусто --</p>';
+        container.innerHTML = '<p class="empty-list">-- Пусто --</p>';
         return;
     }
-
     for (const item of vacancies) {
         const vacancy = item;
         const card = document.createElement('div');
@@ -185,19 +184,19 @@ function renderVacancies(container, vacancies) {
 }
 
 async function loadVacancies() {
-    vacanciesContent.classList.add('hidden');
-    emptyStateContainer.classList.add('hidden');
-    headerActions.classList.add('hidden');
-    searchContainer.classList.add('hidden');
-    categoryTabs.classList.add('hidden');
-    refreshBtn.classList.add('hidden');
-    loader.classList.remove('hidden');
-    progressBar.style.width = '1%';
-
-    setTimeout(() => { progressBar.style.width = '40%'; }, 100);
-    setTimeout(() => { progressBar.style.width = '70%'; }, 500);
-
+    vacanciesContent.classList.remove('hidden');
+    headerActions.classList.remove('hidden');
+    searchContainer.classList.remove('hidden');
+    categoryTabs.classList.remove('hidden');
+    refreshBtn.classList.remove('hidden');
+    loader.classList.add('hidden');
+    
     try {
+        loader.classList.remove('hidden');
+        progressBar.style.width = '1%';
+        setTimeout(() => { progressBar.style.width = '40%'; }, 100);
+        setTimeout(() => { progressBar.style.width = '70%'; }, 500);
+
         const response = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?status=eq.new&select=*`, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
         });
@@ -206,14 +205,6 @@ async function loadVacancies() {
         const items = await response.json();
         progressBar.style.width = '100%';
         items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        
-        if (items.length === 0) {
-            vacanciesContent.classList.add('hidden');
-            emptyStateContainer.classList.remove('hidden');
-        } else {
-            vacanciesContent.classList.remove('hidden');
-            emptyStateContainer.classList.add('hidden');
-        }
 
         const mainVacancies = items.filter(item => item.category === 'ТОЧНО ТВОЁ');
         const maybeVacancies = items.filter(item => item.category === 'МОЖЕТ БЫТЬ');
@@ -227,6 +218,12 @@ async function loadVacancies() {
         renderVacancies(containers.maybe, maybeVacancies);
         renderVacancies(containers.other, otherVacancies);
         
+        if (items.length === 0) {
+             // If there are no vacancies at all, show a message in the active container
+            const activeList = document.querySelector('.vacancy-list.active');
+            if(activeList) activeList.innerHTML = '<p class="empty-list">-- Новых вакансий пока нет --</p>';
+        }
+
         filterVacancies();
 
     } catch (error) {
@@ -235,10 +232,6 @@ async function loadVacancies() {
     } finally {
         setTimeout(() => {
             loader.classList.add('hidden');
-            headerActions.classList.remove('hidden');
-            searchContainer.classList.remove('hidden');
-            categoryTabs.classList.remove('hidden');
-            refreshBtn.classList.remove('hidden');
         }, 500);
     }
 }
@@ -255,18 +248,6 @@ tabButtons.forEach(button => {
         const targetList = document.getElementById(button.dataset.target);
         if (targetList) {
             targetList.classList.add('active');
-            // Re-evaluate empty states when switching tabs
-            const totalCards = document.querySelectorAll('.vacancy-card').length;
-            if (totalCards > 0) {
-                emptyStateContainer.classList.add('hidden');
-                vacanciesContent.classList.remove('hidden');
-                if(targetList.children.length === 0) {
-                    targetList.innerHTML = '<p class="empty-list">-- В этой категории пусто --</p>';
-                }
-            } else {
-                emptyStateContainer.classList.remove('hidden');
-                vacanciesContent.classList.add('hidden');
-            }
         }
         filterVacancies();
     });

@@ -34,7 +34,6 @@ const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 
 // --- HELPER FUNCTIONS ---
 
-// НОВАЯ ФУНКЦИЯ: Генерирует HTML для котика
 function getEmptyStateHtml(message) {
     return `
     <div class="empty-state">
@@ -70,7 +69,6 @@ function formatTimestamp(isoString) {
     return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-// УПРОЩЕННАЯ ФУНКЦИЯ: Теперь только фильтрует
 function filterVacancies() {
     const query = searchInput.value.toLowerCase();
     const activeList = document.querySelector('.vacancy-list.active');
@@ -103,7 +101,6 @@ async function updateStatus(event, vacancyId, newStatus) {
         cardElement.style.transform = 'scale(0.95)';
         setTimeout(() => {
             cardElement.remove();
-            // ИЗМЕНЕНО: Если список опустел, показываем котика
             if (parentList.querySelectorAll('.vacancy-card').length === 0) {
                 parentList.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --");
             }
@@ -137,7 +134,6 @@ async function clearCategory(categoryName) {
                     body: JSON.stringify({ status: 'deleted' })
                 });
                 if (activeList) {
-                    // ИЗМЕНЕНО: Показываем котика после очистки
                     activeList.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --");
                     const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
                     if (categoryKey) counts[categoryKey].textContent = '(0)';
@@ -150,12 +146,10 @@ async function clearCategory(categoryName) {
     });
 }
 
-// ИЗМЕНЕНА ФУНКЦИЯ РЕНДЕРИНГА
 function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = '';
     
-    // Если список вакансий для этой категории пуст, показываем кота
     if (!vacancies || vacancies.length === 0) {
         container.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --");
         return;
@@ -193,13 +187,16 @@ function renderVacancies(container, vacancies) {
     }
 }
 
-// ОСНОВНАЯ ФУНКЦИЯ ЗАГРУЗКИ (ПЕРЕРАБОТАНА)
+// ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ (ИСПРАВЛЕНА)
 async function loadVacancies() {
+    // ЭТАП 1: Скрываем абсолютно все, кроме заголовка
+    headerActions.classList.add('hidden');
     vacanciesContent.classList.add('hidden');
     searchContainer.classList.add('hidden');
     categoryTabs.classList.add('hidden');
     refreshBtn.classList.add('hidden');
     
+    // ЭТАП 2: Показываем только загрузчик
     progressBar.style.width = '1%';
     loader.classList.remove('hidden');
     setTimeout(() => { progressBar.style.width = '40%'; }, 100);
@@ -214,14 +211,11 @@ async function loadVacancies() {
         const items = await response.json();
         progressBar.style.width = '100%';
 
-        // Очищаем все контейнеры перед заполнением
         Object.values(containers).forEach(container => container.innerHTML = '');
         
         if (items.length === 0) {
-            // Если вакансий НОЛЬ, показываем главного кота
             containers.main.innerHTML = getEmptyStateHtml("Новых вакансий нет");
         } else {
-            // Если вакансии есть, сортируем и рендерим
             items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             const mainVacancies = items.filter(item => item.category === 'ТОЧНО ТВОЁ');
             const maybeVacancies = items.filter(item => item.category === 'МОЖЕТ БЫТЬ');
@@ -234,18 +228,22 @@ async function loadVacancies() {
             renderVacancies(containers.main, mainVacancies);
             renderVacancies(containers.maybe, maybeVacancies);
             renderVacancies(containers.other, otherVacancies);
-            
-            searchContainer.classList.remove('hidden'); // Показываем поиск только если есть вакансии
         }
         
-        // Показываем основной интерфейс в любом случае
+        // ЭТАП 3: После обработки данных, показываем нужный интерфейс
         setTimeout(() => {
             loader.classList.add('hidden');
             vacanciesContent.classList.remove('hidden');
             headerActions.classList.remove('hidden');
             categoryTabs.classList.remove('hidden');
             refreshBtn.classList.remove('hidden');
-            filterVacancies(); // Применяем фильтр после отрисовки
+            
+            // Показываем поиск только если есть вакансии
+            if (items.length > 0) {
+                searchContainer.classList.remove('hidden');
+            }
+
+            filterVacancies();
         }, 500);
 
     } catch (error) {

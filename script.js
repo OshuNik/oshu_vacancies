@@ -31,6 +31,7 @@ const confirmOverlay = document.getElementById('custom-confirm-overlay');
 const confirmText = document.getElementById('custom-confirm-text');
 const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
+const emptyStateContainer = document.getElementById('empty-state-container');
 
 // --- HELPER FUNCTIONS ---
 function showCustomConfirm(message, callback) {
@@ -97,12 +98,12 @@ async function updateStatus(event, vacancyId, newStatus) {
         cardElement.style.transform = 'scale(0.95)';
         setTimeout(() => {
             cardElement.remove();
-            if (parentList.children.length === 0) {
-                parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
-            }
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
             countSpan.textContent = `(${(currentCount - 1)})`;
+            if (parentList.children.length === 0) {
+                renderVacancies(parentList, []); // Re-run render to show empty message for the tab
+            }
         }, 300);
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
@@ -130,9 +131,9 @@ async function clearCategory(categoryName) {
                     body: JSON.stringify({ status: 'deleted' })
                 });
                 if (activeList) {
-                    activeList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
                     const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
                     if (categoryKey) counts[categoryKey].textContent = '(0)';
+                    renderVacancies(activeList, []); // Re-run render to show empty message
                 }
             } catch (error) {
                 console.error('Ошибка очистки категории:', error);
@@ -145,10 +146,20 @@ async function clearCategory(categoryName) {
 function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = '';
-    if (!vacancies || vacancies.length === 0) {
-        container.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+    const hasVacancies = vacancies && vacancies.length > 0;
+    
+    // This function now only handles rendering cards.
+    // The logic for the main empty state is in loadVacancies.
+    if (!hasVacancies) {
+        if (container.classList.contains('active')) {
+            container.innerHTML = '<p class="empty-list">-- В этой категории пусто --</p>';
+        }
         return;
     }
+    
+    vacanciesContent.classList.remove('hidden');
+    emptyStateContainer.classList.add('hidden');
+
     for (const item of vacancies) {
         const vacancy = item;
         const card = document.createElement('div');
@@ -187,10 +198,13 @@ async function loadVacancies() {
     searchContainer.classList.add('hidden');
     categoryTabs.classList.add('hidden');
     refreshBtn.classList.add('hidden');
+    emptyStateContainer.classList.add('hidden');
     progressBar.style.width = '1%';
     loader.classList.remove('hidden');
+
     setTimeout(() => { progressBar.style.width = '40%'; }, 100);
     setTimeout(() => { progressBar.style.width = '70%'; }, 500);
+
     try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?status=eq.new&select=*`, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
@@ -199,15 +213,27 @@ async function loadVacancies() {
         const items = await response.json();
         progressBar.style.width = '100%';
         items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
         const mainVacancies = items.filter(item => item.category === 'ТОЧНО ТВОЁ');
         const maybeVacancies = items.filter(item => item.category === 'МОЖЕТ БЫТЬ');
         const otherVacancies = items.filter(item => !['ТОЧНО ТВОЁ', 'МОЖЕТ БЫТЬ'].includes(item.category));
+
         counts.main.textContent = `(${mainVacancies.length})`;
         counts.maybe.textContent = `(${maybeVacancies.length})`;
         counts.other.textContent = `(${otherVacancies.length})`;
+
         renderVacancies(containers.main, mainVacancies);
         renderVacancies(containers.maybe, maybeVacancies);
         renderVacancies(containers.other, otherVacancies);
+
+        if (items.length === 0) {
+            vacanciesContent.classList.add('hidden');
+            emptyStateContainer.classList.remove('hidden');
+        } else {
+            vacanciesContent.classList.remove('hidden');
+            emptyStateContainer.classList.add('hidden');
+        }
+
         filterVacancies();
     } catch (error) {
         console.error('Ошибка загрузки:', error);
@@ -215,7 +241,6 @@ async function loadVacancies() {
     } finally {
         setTimeout(() => {
             loader.classList.add('hidden');
-            vacanciesContent.classList.remove('hidden');
             headerActions.classList.remove('hidden');
             searchContainer.classList.remove('hidden');
             categoryTabs.classList.remove('hidden');
@@ -226,37 +251,28 @@ async function loadVacancies() {
 
 // --- EVENT LISTENERS ---
 tabButtons.forEach(button => {
-    let pressTimer = null;
-    let longPressTriggered = false;
-    const startPress = (e) => {
-        longPressTriggered = false;
-        pressTimer = window.setTimeout(() => {
-            longPressTriggered = true;
-            const categoryName = button.dataset.categoryName;
-            clearCategory(categoryName);
-        }, 800);
-    };
-    const cancelPress = (e) => {
-        clearTimeout(pressTimer);
-        if (longPressTriggered) {
-            e.preventDefault();
-        }
-    };
-    const handleClick = () => {
-        if (longPressTriggered) { return; }
+    button.addEventListener('click', () => {
+        if (button.classList.contains('active')) return;
+        
         tabButtons.forEach(btn => btn.classList.remove('active'));
         vacancyLists.forEach(list => list.classList.remove('active'));
+        
         button.classList.add('active');
-        document.getElementById(button.dataset.target).classList.add('active');
+        const targetList = document.getElementById(button.dataset.target);
+        targetList.classList.add('active');
+
+        // Show/hide empty state based on the content of the now-active tab
+        if (targetList.children.length === 0 && document.querySelectorAll('.vacancy-card').length > 0) {
+            targetList.innerHTML = '<p class="empty-list">-- В этой категории пусто --</p>';
+            emptyStateContainer.classList.add('hidden');
+        } else if (document.querySelectorAll('.vacancy-card').length === 0) {
+             emptyStateContainer.classList.remove('hidden');
+        } else {
+            emptyStateContainer.classList.add('hidden');
+        }
+        
         filterVacancies();
-    };
-    button.addEventListener('mousedown', startPress);
-    button.addEventListener('mouseup', cancelPress);
-    button.addEventListener('mouseleave', cancelPress);
-    button.addEventListener('touchstart', startPress, { passive: true });
-    button.addEventListener('touchend', cancelPress);
-    button.addEventListener('touchcancel', cancelPress);
-    button.addEventListener('click', handleClick);
+    });
 });
 
 searchInput.addEventListener('input', filterVacancies);

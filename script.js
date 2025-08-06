@@ -102,9 +102,7 @@ async function updateStatus(event, vacancyId, newStatus) {
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
             countSpan.textContent = `(${(currentCount - 1)})`;
-            if (parentList.children.length === 0) {
-                renderVacancies(parentList, []); 
-            }
+            renderVacancies(parentList, Array.from(parentList.querySelectorAll('.vacancy-card')));
         }, 300);
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
@@ -121,10 +119,6 @@ async function clearCategory(categoryName) {
     showCustomConfirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`, async (isConfirmed) => {
         if (isConfirmed) {
             const activeList = document.querySelector('.vacancy-list.active');
-            if (activeList) {
-                const cards = activeList.querySelectorAll('.vacancy-card');
-                cards.forEach(card => card.style.opacity = '0');
-            }
             try {
                 await fetch(`${SUPABASE_URL}/rest/v1/vacancies?category=eq.${categoryName}&status=eq.new`, {
                     method: 'PATCH',
@@ -187,14 +181,14 @@ function renderVacancies(container, vacancies) {
 
 async function loadVacancies() {
     // Скрываем все элементы интерфейса перед загрузкой
-    if (vacanciesContent) vacanciesContent.classList.add('hidden');
-    if (emptyStateContainer) emptyStateContainer.classList.add('hidden');
-    if (headerActions) headerActions.classList.add('hidden');
-    if (searchContainer) searchContainer.classList.add('hidden');
-    if (categoryTabs) categoryTabs.classList.add('hidden');
-    if (refreshBtn) refreshBtn.classList.add('hidden');
-    if (loader) loader.classList.remove('hidden');
-    if (progressBar) progressBar.style.width = '1%';
+    if(vacanciesContent) vacanciesContent.classList.add('hidden');
+    if(emptyStateContainer) emptyStateContainer.classList.add('hidden');
+    if(headerActions) headerActions.classList.add('hidden');
+    if(searchContainer) searchContainer.classList.add('hidden');
+    if(categoryTabs) categoryTabs.classList.add('hidden');
+    if(refreshBtn) refreshBtn.classList.add('hidden');
+    if(loader) loader.classList.remove('hidden');
+    if(progressBar) progressBar.style.width = '1%';
 
     setTimeout(() => { if (progressBar) progressBar.style.width = '40%'; }, 100);
     setTimeout(() => { if (progressBar) progressBar.style.width = '70%'; }, 500);
@@ -281,6 +275,13 @@ if (tabButtons) {
             const targetList = document.getElementById(button.dataset.target);
             if (targetList) {
                 targetList.classList.add('active');
+                if (targetList.children.length === 0 && document.querySelectorAll('.vacancy-card').length === 0) {
+                    if (emptyStateContainer) emptyStateContainer.classList.remove('hidden');
+                    if (vacanciesContent) vacanciesContent.classList.add('hidden');
+                } else {
+                    if (emptyStateContainer) emptyStateContainer.classList.add('hidden');
+                    if (vacanciesContent) vacanciesContent.classList.remove('hidden');
+                }
             }
             filterVacancies();
         };

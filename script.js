@@ -200,7 +200,6 @@ function renderVacancies(container, vacancies) {
         const vacancy = item;
         if (!vacancy.id) continue;
 
-        // ИСПРАВЛЕНИЕ ФОРМАТИРОВАНИЯ
         if (vacancy.text_highlighted) {
             vacancy.text_highlighted = vacancy.text_highlighted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
         }
@@ -212,11 +211,21 @@ function renderVacancies(container, vacancies) {
         else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
         else card.classList.add('category-other');
         
-        let detailsHTML = vacancy.text_highlighted ? `
-<details>
-    <summary>Показать полный текст</summary>
-    <div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div>
-</details>` : '';
+        let detailsHTML = '';
+        if (vacancy.text_highlighted) {
+            const details = document.createElement('details');
+            const summary = document.createElement('summary');
+            summary.textContent = 'Показать полный текст';
+            
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'vacancy-text';
+            contentDiv.style.marginTop = '10px';
+            contentDiv.innerHTML = vacancy.text_highlighted; 
+            
+            details.appendChild(summary);
+            details.appendChild(contentDiv);
+            detailsHTML = details.outerHTML;
+        }
         
         card.innerHTML = `
             <div class="card-actions">

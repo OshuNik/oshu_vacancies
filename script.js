@@ -102,9 +102,8 @@ async function updateStatus(event, vacancyId, newStatus) {
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
             countSpan.textContent = `(${(currentCount - 1)})`;
-            // Перерисовываем, чтобы показать сообщение о пустой категории, если нужно
             if (parentList.children.length === 0) {
-                renderVacancies(parentList, []);
+                renderVacancies(parentList, []); 
             }
         }, 300);
     } catch (error) {
@@ -187,18 +186,18 @@ function renderVacancies(container, vacancies) {
 }
 
 async function loadVacancies() {
-    // Скрываем все перед загрузкой
-    if(vacanciesContent) vacanciesContent.classList.add('hidden');
-    if(emptyStateContainer) emptyStateContainer.classList.add('hidden');
-    if(headerActions) headerActions.classList.add('hidden');
-    if(searchContainer) searchContainer.classList.add('hidden');
-    if(categoryTabs) categoryTabs.classList.add('hidden');
-    if(refreshBtn) refreshBtn.classList.add('hidden');
-    if(loader) loader.classList.remove('hidden');
-    if(progressBar) progressBar.style.width = '1%';
+    // Скрываем все элементы интерфейса перед загрузкой
+    if (vacanciesContent) vacanciesContent.classList.add('hidden');
+    if (emptyStateContainer) emptyStateContainer.classList.add('hidden');
+    if (headerActions) headerActions.classList.add('hidden');
+    if (searchContainer) searchContainer.classList.add('hidden');
+    if (categoryTabs) categoryTabs.classList.add('hidden');
+    if (refreshBtn) refreshBtn.classList.add('hidden');
+    if (loader) loader.classList.remove('hidden');
+    if (progressBar) progressBar.style.width = '1%';
 
-    setTimeout(() => { if(progressBar) progressBar.style.width = '40%'; }, 100);
-    setTimeout(() => { if(progressBar) progressBar.style.width = '70%'; }, 500);
+    setTimeout(() => { if (progressBar) progressBar.style.width = '40%'; }, 100);
+    setTimeout(() => { if (progressBar) progressBar.style.width = '70%'; }, 500);
 
     try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?status=eq.new&select=*`, {
@@ -207,15 +206,16 @@ async function loadVacancies() {
         if (!response.ok) throw new Error(`Ошибка сети: ${response.statusText}`);
         
         const items = await response.json();
-        if(progressBar) progressBar.style.width = '100%';
+        if (progressBar) progressBar.style.width = '100%';
         items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
         
+        // Показываем нужный блок в зависимости от того, есть ли вакансии
         if (items.length === 0) {
-            if(vacanciesContent) vacanciesContent.classList.add('hidden');
-            if(emptyStateContainer) emptyStateContainer.classList.remove('hidden');
+            if (vacanciesContent) vacanciesContent.classList.add('hidden');
+            if (emptyStateContainer) emptyStateContainer.classList.remove('hidden');
         } else {
-            if(vacanciesContent) vacanciesContent.classList.remove('hidden');
-            if(emptyStateContainer) emptyStateContainer.classList.add('hidden');
+            if (vacanciesContent) vacanciesContent.classList.remove('hidden');
+            if (emptyStateContainer) emptyStateContainer.classList.add('hidden');
         }
 
         const mainVacancies = items.filter(item => item.category === 'ТОЧНО ТВОЁ');
@@ -234,18 +234,15 @@ async function loadVacancies() {
 
     } catch (error) {
         console.error('Ошибка загрузки:', error);
-        if(loader) loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
+        if (loader) loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
     } finally {
         setTimeout(() => {
-            if(loader) loader.classList.add('hidden');
-            if(headerActions) headerActions.classList.remove('hidden');
-            if(searchContainer) searchContainer.classList.remove('hidden');
-            if(categoryTabs) categoryTabs.classList.remove('hidden');
-            if(refreshBtn) refreshBtn.classList.remove('hidden');
-            // Показываем контент только если есть вакансии
-            if (document.querySelectorAll('.vacancy-card').length > 0) {
-                if(vacanciesContent) vacanciesContent.classList.remove('hidden');
-            }
+            if (loader) loader.classList.add('hidden');
+            // Показываем интерфейс после завершения загрузки
+            if (headerActions) headerActions.classList.remove('hidden');
+            if (searchContainer) searchContainer.classList.remove('hidden');
+            if (categoryTabs) categoryTabs.classList.remove('hidden');
+            if (refreshBtn) refreshBtn.classList.remove('hidden');
         }, 500);
     }
 }
@@ -284,11 +281,6 @@ if (tabButtons) {
             const targetList = document.getElementById(button.dataset.target);
             if (targetList) {
                 targetList.classList.add('active');
-                // При переключении вкладки, если в ней нет карточек, но в других есть,
-                // показываем сообщение о пустой категории
-                if (targetList.children.length === 0 && document.querySelectorAll('.vacancy-card').length > 0) {
-                    renderVacancies(targetList, []);
-                }
             }
             filterVacancies();
         };

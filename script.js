@@ -1,10 +1,10 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// --- НАСТРОЙКА SUPABASE ---
+// --- SUPABASE SETUP ---
 const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
-// --- КОНЕЦ НАСТРОЙКИ ---
+// --- END OF SETUP ---
 
 // Page Elements
 const containers = {
@@ -32,9 +32,7 @@ const confirmText = document.getElementById('custom-confirm-text');
 const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 
-
 // --- HELPER FUNCTIONS ---
-
 function showCustomConfirm(message, callback) {
     confirmText.textContent = message;
     confirmOverlay.classList.remove('hidden');
@@ -84,103 +82,58 @@ function filterVacancies() {
 }
 
 // --- API FUNCTIONS & ANIMATIONS ---
-
 async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
     if (!cardElement) return;
-
     const parentList = cardElement.parentElement;
     const categoryKey = Object.keys(containers).find(key => containers[key] === parentList);
-
     try {
         await fetch(`${SUPABASE_URL}/rest/v1/vacancies?id=eq.${vacancyId}`, {
             method: 'PATCH',
-            headers: {
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                'Content-Type': 'application/json',
-                'Prefer': 'return=minimal'
-            },
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
             body: JSON.stringify({ status: newStatus })
         });
-
         cardElement.style.opacity = '0';
         cardElement.style.transform = 'scale(0.95)';
         setTimeout(() => {
-            cardElement.style.height = '0';
-            cardElement.style.paddingTop = '0';
-            cardElement.style.paddingBottom = '0';
-            cardElement.style.marginTop = '0';
-            cardElement.style.marginBottom = '0';
-            cardElement.style.borderWidth = '0';
+            cardElement.remove();
+            if (parentList.children.length === 0) {
+                parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+            }
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
             countSpan.textContent = `(${(currentCount - 1)})`;
-            setTimeout(() => {
-                cardElement.remove();
-                if (parentList.children.length === 0) {
-                    parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
-                }
-            }, 300);
         }, 300);
-
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
         tg.showAlert('Не удалось обновить статус.');
-        cardElement.style.opacity = '1';
-        cardElement.style.transform = 'scale(1)';
-    }
-}
-
-function animateClearCategory() {
-    const activeList = document.querySelector('.vacancy-list.active');
-    if (!activeList) return;
-    const cards = activeList.querySelectorAll('.vacancy-card');
-    if (cards.length === 0) return;
-    cards.forEach((card, index) => {
-        setTimeout(() => {
-            card.style.opacity = '0';
-            card.style.transform = 'scale(0.95)';
-        }, index * 50);
-    });
-    setTimeout(() => {
-        cards.forEach(card => {
-            card.style.height = '0';
-            card.style.paddingTop = '0';
-            card.style.paddingBottom = '0';
-            card.style.marginTop = '0';
-            card.style.marginBottom = '0';
-            card.style.borderWidth = '0';
-        });
-        const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
-        if (categoryKey) {
-            counts[categoryKey].textContent = '(0)';
+        if (cardElement) {
+            cardElement.style.opacity = '1';
+            cardElement.style.transform = 'scale(1)';
         }
-        setTimeout(() => {
-            activeList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
-        }, 300);
-    }, 300 + cards.length * 50);
+    }
 }
 
 async function clearCategory(categoryName) {
     if (!categoryName) return;
-    if (window.Telegram?.WebApp?.HapticFeedback) {
-        window.Telegram.WebApp.HapticFeedback.impactOccurred('medium');
-    }
     showCustomConfirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`, async (isConfirmed) => {
         if (isConfirmed) {
+            const activeList = document.querySelector('.vacancy-list.active');
+            if (activeList) {
+                const cards = activeList.querySelectorAll('.vacancy-card');
+                cards.forEach(card => card.style.opacity = '0');
+            }
             try {
                 await fetch(`${SUPABASE_URL}/rest/v1/vacancies?category=eq.${categoryName}&status=eq.new`, {
                     method: 'PATCH',
-                    headers: {
-                        'apikey': SUPABASE_ANON_KEY,
-                        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-                        'Content-Type': 'application/json',
-                        'Prefer': 'return=minimal'
-                    },
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
                     body: JSON.stringify({ status: 'deleted' })
                 });
-                animateClearCategory();
+                if (activeList) {
+                    activeList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+                    const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
+                    if (categoryKey) counts[categoryKey].textContent = '(0)';
+                }
             } catch (error) {
                 console.error('Ошибка очистки категории:', error);
                 tg.showAlert('Не удалось очистить категорию.');
@@ -198,35 +151,19 @@ function renderVacancies(container, vacancies) {
     }
     for (const item of vacancies) {
         const vacancy = item;
-        if (!vacancy.id) continue;
-
-        if (vacancy.text_highlighted) {
-            vacancy.text_highlighted = vacancy.text_highlighted.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-        }
-
         const card = document.createElement('div');
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
         if (vacancy.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
         else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
         else card.classList.add('category-other');
-        
-        let detailsHTML = '';
-        if (vacancy.text_highlighted) {
-            const details = document.createElement('details');
-            const summary = document.createElement('summary');
-            summary.textContent = 'Показать полный текст';
-            
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'vacancy-text';
-            contentDiv.style.marginTop = '10px';
-            contentDiv.innerHTML = vacancy.text_highlighted; 
-            
-            details.appendChild(summary);
-            details.appendChild(contentDiv);
-            detailsHTML = details.outerHTML;
-        }
-        
+
+        const detailsHTML = vacancy.text_highlighted ? `
+        <details>
+            <summary>Показать полный текст</summary>
+            <div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div>
+        </details>` : '';
+
         card.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
@@ -256,10 +193,7 @@ async function loadVacancies() {
     setTimeout(() => { progressBar.style.width = '70%'; }, 500);
     try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?status=eq.new&select=*`, {
-            headers: {
-                'apikey': SUPABASE_ANON_KEY,
-                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
-            }
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
         });
         if (!response.ok) throw new Error(`Ошибка сети: ${response.statusText}`);
         const items = await response.json();
@@ -309,9 +243,7 @@ tabButtons.forEach(button => {
         }
     };
     const handleClick = () => {
-        if (longPressTriggered) {
-            return;
-        }
+        if (longPressTriggered) { return; }
         tabButtons.forEach(btn => btn.classList.remove('active'));
         vacancyLists.forEach(list => list.classList.remove('active'));
         button.classList.add('active');

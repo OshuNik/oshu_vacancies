@@ -666,6 +666,7 @@ input:checked + .toggle-slider:before {
     animation: text-flicker 2s infinite;
     z-index: 1;
     line-height: 1.5;
+    text-align: center;
 }
 
 .empty-state-subtitle {

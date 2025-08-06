@@ -185,7 +185,6 @@ function renderVacancies(container, vacancies) {
     }
 }
 
-// --- ИЗМЕНЕННАЯ ФУНКЦИЯ ---
 async function loadVacancies() {
     // Скрываем все и показываем загрузчик
     vacanciesContent.classList.add('hidden');
@@ -193,7 +192,7 @@ async function loadVacancies() {
     searchContainer.classList.add('hidden');
     categoryTabs.classList.add('hidden');
     refreshBtn.classList.add('hidden');
-    emptyStatePlaceholder.classList.add('hidden'); // Скрываем котика на всякий случай
+    emptyStatePlaceholder.classList.add('hidden'); 
     
     progressBar.style.width = '1%';
     loader.classList.remove('hidden');
@@ -209,14 +208,14 @@ async function loadVacancies() {
         const items = await response.json();
         progressBar.style.width = '100%';
 
-        // ГЛАВНАЯ ЛОГИКА: ПРОВЕРЯЕМ, ЕСТЬ ЛИ ВАКАНСИИ
         if (items.length === 0) {
             // Если вакансий нет, показываем котика
             setTimeout(() => {
                 loader.classList.add('hidden');
                 emptyStatePlaceholder.classList.remove('hidden');
-                headerActions.classList.remove('hidden'); // Оставляем кнопки навигации
-                refreshBtn.classList.remove('hidden');     // Оставляем кнопку обновления
+                headerActions.classList.remove('hidden'); 
+                refreshBtn.classList.remove('hidden');     
+                categoryTabs.classList.remove('hidden'); // <-- ИСПРАВЛЕНИЕ: ВОЗВРАЩАЕМ ВКЛАДКИ НА МЕСТО
             }, 500);
         } else {
             // Если вакансии есть, обрабатываем их как раньше
@@ -249,7 +248,6 @@ async function loadVacancies() {
         loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
     }
 }
-// --- КОНЕЦ ИЗМЕНЕННОЙ ФУНКЦИИ ---
 
 
 // --- EVENT LISTENERS ---

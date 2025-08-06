@@ -1,16 +1,14 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// --- НАСТРОЙКА SUPABASE ---
-// Вставьте сюда ваши данные из вашего проекта Supabase
+// --- SUPABASE SETUP ---
 const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
-// --- КОНЕЦ НАСТРОЙКИ ---
+// --- END OF SETUP ---
 
 const container = document.getElementById('favorites-list');
 const searchInputFav = document.getElementById('search-input-fav');
 
-// --- Функция поиска (без изменений) ---
 function filterFavorites() {
     const query = searchInputFav.value.toLowerCase();
     const cards = container.querySelectorAll('.vacancy-card');
@@ -39,10 +37,8 @@ function filterFavorites() {
         emptyMessage.style.display = 'none';
     }
 }
+if(searchInputFav) searchInputFav.addEventListener('input', filterFavorites);
 
-searchInputFav.addEventListener('input', filterFavorites);
-
-// --- Вспомогательная функция (без изменений) ---
 function formatTimestamp(isoString) {
     if (!isoString) return '';
     const date = new Date(isoString);
@@ -51,8 +47,6 @@ function formatTimestamp(isoString) {
     });
 }
 
-// --- ОБНОВЛЕННАЯ ФУНКЦИЯ ---
-// Теперь удаление из избранного (смена статуса на 'new') происходит через Supabase
 async function updateStatus(event, vacancyId, newStatus) {
     const cardElement = document.getElementById(`card-${vacancyId}`);
     
@@ -67,7 +61,6 @@ async function updateStatus(event, vacancyId, newStatus) {
             body: JSON.stringify({ status: newStatus })
         });
 
-        // Анимация исчезновения
         cardElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
         cardElement.style.opacity = '0';
         cardElement.style.transform = 'scale(0.95)';
@@ -83,8 +76,6 @@ async function updateStatus(event, vacancyId, newStatus) {
     }
 }
 
-// --- ОБНОВЛЕННАЯ ФУНКЦИЯ ---
-// Теперь загрузка избранного происходит из Supabase
 async function loadFavorites() {
     if (!container) return;
     container.innerHTML = '<p class="empty-list">Загрузка...</p>';
@@ -114,13 +105,28 @@ async function loadFavorites() {
         }
 
         for (const item of items) {
-            // Код отрисовки карточки остается без изменений
             const vacancy = item;
             if (!vacancy.id) continue;
 
             const card = document.createElement('div');
             card.className = 'vacancy-card';
             card.id = `card-${vacancy.id}`;
+            
+            // --- ИСПРАВЛЕНИЕ ДЛЯ ЦВЕТА КАТЕГОРИИ ---
+            if (vacancy.category === 'ТОЧНО ТВОЁ') {
+                card.classList.add('category-main');
+            } else if (vacancy.category === 'МОЖЕТ БЫТЬ') {
+                card.classList.add('category-maybe');
+            } else {
+                card.classList.add('category-other');
+            }
+            // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
+            
+            const detailsHTML = vacancy.text_highlighted ? `
+            <details>
+                <summary>Показать полный текст</summary>
+                <div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div>
+            </details>` : '';
             
             card.innerHTML = `
                 <div class="card-actions">
@@ -135,10 +141,7 @@ async function loadFavorites() {
                     <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
                     <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
                     <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
-                    <details>
-                        <summary>Показать полный текст</summary>
-                        <p>${vacancy.text_highlighted || 'Нет данных'}</p>
-                    </details>
+                    ${detailsHTML}
                 </div>
                 <div class="card-footer">
                     <span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span>
@@ -146,7 +149,7 @@ async function loadFavorites() {
             `;
             container.appendChild(card);
         }
-        filterFavorites();
+        if(searchInputFav) filterFavorites();
 
     } catch (error) {
         console.error('Ошибка загрузки избранного:', error);

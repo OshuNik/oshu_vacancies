@@ -1,10 +1,10 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
 
-// --- SUPABASE SETUP ---
+// --- НАСТРОЙКА SUPABASE ---
 const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
-// --- END OF SETUP ---
+// --- КОНЕЦ НАСТРОЙКИ ---
 
 // Page Elements
 const containers = {
@@ -54,9 +54,10 @@ function formatTimestamp(isoString) {
 }
 
 function filterVacancies() {
-    const query = searchInput.value.toLowerCase();
     const activeList = document.querySelector('.vacancy-list.active');
     if (!activeList) return;
+
+    const query = searchInput.value.toLowerCase();
     const cards = activeList.querySelectorAll('.vacancy-card');
     let visibleCount = 0;
     cards.forEach(card => {
@@ -68,6 +69,7 @@ function filterVacancies() {
             card.style.display = 'none';
         }
     });
+
     let emptyMessage = activeList.querySelector('.empty-list');
     if (visibleCount === 0 && cards.length > 0) {
         if (!emptyMessage) {
@@ -101,9 +103,7 @@ async function updateStatus(event, vacancyId, newStatus) {
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
             countSpan.textContent = `(${(currentCount - 1)})`;
-            if (parentList.children.length === 0) {
-                renderVacancies(parentList, []); // Re-run render to show empty message for the tab
-            }
+            renderVacancies(parentList, Array.from(parentList.querySelectorAll('.vacancy-card')));
         }, 300);
     } catch (error) {
         console.error('Ошибка обновления статуса:', error);
@@ -133,7 +133,7 @@ async function clearCategory(categoryName) {
                 if (activeList) {
                     const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
                     if (categoryKey) counts[categoryKey].textContent = '(0)';
-                    renderVacancies(activeList, []); // Re-run render to show empty message
+                    renderVacancies(activeList, []);
                 }
             } catch (error) {
                 console.error('Ошибка очистки категории:', error);
@@ -146,19 +146,11 @@ async function clearCategory(categoryName) {
 function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = '';
-    const hasVacancies = vacancies && vacancies.length > 0;
     
-    // This function now only handles rendering cards.
-    // The logic for the main empty state is in loadVacancies.
-    if (!hasVacancies) {
-        if (container.classList.contains('active')) {
-            container.innerHTML = '<p class="empty-list">-- В этой категории пусто --</p>';
-        }
+    if (!vacancies || vacancies.length === 0) {
+        container.innerHTML = '<p class="empty-list">-- В этой категории пусто --</p>';
         return;
     }
-    
-    vacanciesContent.classList.remove('hidden');
-    emptyStateContainer.classList.add('hidden');
 
     for (const item of vacancies) {
         const vacancy = item;
@@ -194,13 +186,13 @@ function renderVacancies(container, vacancies) {
 
 async function loadVacancies() {
     vacanciesContent.classList.add('hidden');
+    emptyStateContainer.classList.add('hidden');
     headerActions.classList.add('hidden');
     searchContainer.classList.add('hidden');
     categoryTabs.classList.add('hidden');
     refreshBtn.classList.add('hidden');
-    emptyStateContainer.classList.add('hidden');
-    progressBar.style.width = '1%';
     loader.classList.remove('hidden');
+    progressBar.style.width = '1%';
 
     setTimeout(() => { progressBar.style.width = '40%'; }, 100);
     setTimeout(() => { progressBar.style.width = '70%'; }, 500);
@@ -210,9 +202,18 @@ async function loadVacancies() {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
         });
         if (!response.ok) throw new Error(`Ошибка сети: ${response.statusText}`);
+        
         const items = await response.json();
         progressBar.style.width = '100%';
         items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+        
+        if (items.length === 0) {
+            vacanciesContent.classList.add('hidden');
+            emptyStateContainer.classList.remove('hidden');
+        } else {
+            vacanciesContent.classList.remove('hidden');
+            emptyStateContainer.classList.add('hidden');
+        }
 
         const mainVacancies = items.filter(item => item.category === 'ТОЧНО ТВОЁ');
         const maybeVacancies = items.filter(item => item.category === 'МОЖЕТ БЫТЬ');
@@ -225,16 +226,9 @@ async function loadVacancies() {
         renderVacancies(containers.main, mainVacancies);
         renderVacancies(containers.maybe, maybeVacancies);
         renderVacancies(containers.other, otherVacancies);
-
-        if (items.length === 0) {
-            vacanciesContent.classList.add('hidden');
-            emptyStateContainer.classList.remove('hidden');
-        } else {
-            vacanciesContent.classList.remove('hidden');
-            emptyStateContainer.classList.add('hidden');
-        }
-
+        
         filterVacancies();
+
     } catch (error) {
         console.error('Ошибка загрузки:', error);
         loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
@@ -259,18 +253,21 @@ tabButtons.forEach(button => {
         
         button.classList.add('active');
         const targetList = document.getElementById(button.dataset.target);
-        targetList.classList.add('active');
-
-        // Show/hide empty state based on the content of the now-active tab
-        if (targetList.children.length === 0 && document.querySelectorAll('.vacancy-card').length > 0) {
-            targetList.innerHTML = '<p class="empty-list">-- В этой категории пусто --</p>';
-            emptyStateContainer.classList.add('hidden');
-        } else if (document.querySelectorAll('.vacancy-card').length === 0) {
-             emptyStateContainer.classList.remove('hidden');
-        } else {
-            emptyStateContainer.classList.add('hidden');
+        if (targetList) {
+            targetList.classList.add('active');
+            // Re-evaluate empty states when switching tabs
+            const totalCards = document.querySelectorAll('.vacancy-card').length;
+            if (totalCards > 0) {
+                emptyStateContainer.classList.add('hidden');
+                vacanciesContent.classList.remove('hidden');
+                if(targetList.children.length === 0) {
+                    targetList.innerHTML = '<p class="empty-list">-- В этой категории пусто --</p>';
+                }
+            } else {
+                emptyStateContainer.classList.remove('hidden');
+                vacanciesContent.classList.add('hidden');
+            }
         }
-        
         filterVacancies();
     });
 });

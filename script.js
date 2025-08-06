@@ -32,11 +32,25 @@ const confirmText = document.getElementById('custom-confirm-text');
 const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 
-// --- ДОБАВЛЕННЫЙ ЭЛЕМЕНТ ---
-const emptyStatePlaceholder = document.getElementById('empty-state-placeholder');
-
-
 // --- HELPER FUNCTIONS ---
+
+// НОВАЯ ФУНКЦИЯ: Генерирует HTML для котика
+function getEmptyStateHtml(message) {
+    return `
+    <div class="empty-state">
+        <div class="cat">
+            <div class="body"></div>
+            <div class="tail"></div>
+            <div class="ear"></div>
+            <div class="eye"></div>
+            <div class="zzz zzz-1">Z</div>
+            <div class="zzz zzz-2">z</div>
+            <div class="zzz zzz-3">z</div>
+        </div>
+        <p class="empty-state-text">${message}</p>
+    </div>`;
+}
+
 function showCustomConfirm(message, callback) {
     confirmText.textContent = message;
     confirmOverlay.classList.remove('hidden');
@@ -56,33 +70,21 @@ function formatTimestamp(isoString) {
     return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+// УПРОЩЕННАЯ ФУНКЦИЯ: Теперь только фильтрует
 function filterVacancies() {
     const query = searchInput.value.toLowerCase();
     const activeList = document.querySelector('.vacancy-list.active');
     if (!activeList) return;
+
     const cards = activeList.querySelectorAll('.vacancy-card');
-    let visibleCount = 0;
     cards.forEach(card => {
         const cardText = card.textContent.toLowerCase();
         if (cardText.includes(query)) {
             card.style.display = '';
-            visibleCount++;
         } else {
             card.style.display = 'none';
         }
     });
-    let emptyMessage = activeList.querySelector('.empty-list');
-    if (visibleCount === 0 && cards.length > 0) {
-        if (!emptyMessage) {
-            emptyMessage = document.createElement('p');
-            emptyMessage.className = 'empty-list';
-            activeList.appendChild(emptyMessage);
-        }
-        emptyMessage.textContent = '-- Ничего не найдено --';
-        emptyMessage.style.display = 'block';
-    } else if (emptyMessage) {
-        emptyMessage.style.display = 'none';
-    }
 }
 
 // --- API FUNCTIONS & ANIMATIONS ---
@@ -101,8 +103,9 @@ async function updateStatus(event, vacancyId, newStatus) {
         cardElement.style.transform = 'scale(0.95)';
         setTimeout(() => {
             cardElement.remove();
-            if (parentList.children.length === 0) {
-                parentList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+            // ИЗМЕНЕНО: Если список опустел, показываем котика
+            if (parentList.querySelectorAll('.vacancy-card').length === 0) {
+                parentList.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --");
             }
             const countSpan = counts[categoryKey];
             let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
@@ -134,7 +137,8 @@ async function clearCategory(categoryName) {
                     body: JSON.stringify({ status: 'deleted' })
                 });
                 if (activeList) {
-                    activeList.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+                    // ИЗМЕНЕНО: Показываем котика после очистки
+                    activeList.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --");
                     const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
                     if (categoryKey) counts[categoryKey].textContent = '(0)';
                 }
@@ -146,13 +150,17 @@ async function clearCategory(categoryName) {
     });
 }
 
+// ИЗМЕНЕНА ФУНКЦИЯ РЕНДЕРИНГА
 function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = '';
+    
+    // Если список вакансий для этой категории пуст, показываем кота
     if (!vacancies || vacancies.length === 0) {
-        container.innerHTML = '<p class="empty-list">-- Пусто --</p>';
+        container.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --");
         return;
     }
+
     for (const item of vacancies) {
         const vacancy = item;
         const card = document.createElement('div');
@@ -185,14 +193,12 @@ function renderVacancies(container, vacancies) {
     }
 }
 
+// ОСНОВНАЯ ФУНКЦИЯ ЗАГРУЗКИ (ПЕРЕРАБОТАНА)
 async function loadVacancies() {
-    // Скрываем все и показываем загрузчик
     vacanciesContent.classList.add('hidden');
-    headerActions.classList.add('hidden');
     searchContainer.classList.add('hidden');
     categoryTabs.classList.add('hidden');
     refreshBtn.classList.add('hidden');
-    emptyStatePlaceholder.classList.add('hidden'); 
     
     progressBar.style.width = '1%';
     loader.classList.remove('hidden');
@@ -208,17 +214,14 @@ async function loadVacancies() {
         const items = await response.json();
         progressBar.style.width = '100%';
 
+        // Очищаем все контейнеры перед заполнением
+        Object.values(containers).forEach(container => container.innerHTML = '');
+        
         if (items.length === 0) {
-            // Если вакансий нет, показываем котика
-            setTimeout(() => {
-                loader.classList.add('hidden');
-                emptyStatePlaceholder.classList.remove('hidden');
-                headerActions.classList.remove('hidden'); 
-                refreshBtn.classList.remove('hidden');     
-                categoryTabs.classList.remove('hidden'); // <-- ИСПРАВЛЕНИЕ: ВОЗВРАЩАЕМ ВКЛАДКИ НА МЕСТО
-            }, 500);
+            // Если вакансий НОЛЬ, показываем главного кота
+            containers.main.innerHTML = getEmptyStateHtml("Новых вакансий нет");
         } else {
-            // Если вакансии есть, обрабатываем их как раньше
+            // Если вакансии есть, сортируем и рендерим
             items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
             const mainVacancies = items.filter(item => item.category === 'ТОЧНО ТВОЁ');
             const maybeVacancies = items.filter(item => item.category === 'МОЖЕТ БЫТЬ');
@@ -231,18 +234,20 @@ async function loadVacancies() {
             renderVacancies(containers.main, mainVacancies);
             renderVacancies(containers.maybe, maybeVacancies);
             renderVacancies(containers.other, otherVacancies);
-            filterVacancies();
-
-            // Показываем основной интерфейс
-            setTimeout(() => {
-                loader.classList.add('hidden');
-                vacanciesContent.classList.remove('hidden');
-                headerActions.classList.remove('hidden');
-                searchContainer.classList.remove('hidden');
-                categoryTabs.classList.remove('hidden');
-                refreshBtn.classList.remove('hidden');
-            }, 500);
+            
+            searchContainer.classList.remove('hidden'); // Показываем поиск только если есть вакансии
         }
+        
+        // Показываем основной интерфейс в любом случае
+        setTimeout(() => {
+            loader.classList.add('hidden');
+            vacanciesContent.classList.remove('hidden');
+            headerActions.classList.remove('hidden');
+            categoryTabs.classList.remove('hidden');
+            refreshBtn.classList.remove('hidden');
+            filterVacancies(); // Применяем фильтр после отрисовки
+        }, 500);
+
     } catch (error) {
         console.error('Ошибка загрузки:', error);
         loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;

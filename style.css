@@ -12,9 +12,6 @@
     --accent-yellow: #FFD93D;
     --accent-green: #6BCB77;
     --accent-blue: #41A6FF;
-    --terminal-bg: #2d2d2d;
-    --terminal-text: #e0e0e0;
-    --terminal-text-label: #9e9e9e;
 }
 
 body {
@@ -125,7 +122,7 @@ body {
 .card-body p:last-child { margin-bottom: 0; }
 .card-body p strong { font-weight: 700; }
 .highlight { background-color: var(--accent-yellow); }
-.card-body details { margin-top: 10px; font-size: 15px; }
+.card-body details { margin-top: 15px; font-size: 15px; }
 .card-body summary { cursor: pointer; font-weight: 700; color: var(--hint-color); }
 .card-body details p { padding-top: 10px; color: var(--text-color); white-space: pre-wrap; }
 .card-actions {
@@ -629,16 +626,13 @@ input:checked + .toggle-slider:before {
 
 /* --- ФИНАЛЬНЫЕ СТИЛИ ДЛЯ КАРТОЧКИ --- */
 
-/* 1. Стиль для сводки в стиле "Заголовка миссии" */
+/* 1. Стиль для сводки в стиле "Терминала" (без фона) */
 .card-summary {
-    background-color: var(--terminal-bg);
-    color: var(--terminal-text);
-    padding: 10px 12px;
-    margin: -15px -15px 15px -15px;
-    border-bottom: var(--border-width) solid var(--border-color);
     font-size: 16px;
     font-weight: 700;
     line-height: 1.5;
+    margin: 0 0 15px 0 !important;
+    padding: 0 !important;
     position: relative;
 }
 .card-summary::before {
@@ -663,50 +657,27 @@ input:checked + .toggle-slider:before {
     gap: 12px 10px;
     align-items: center;
     margin: 15px 0;
-    padding: 15px 10px;
-    background-color: var(--terminal-bg);
-    border: var(--border-width) solid var(--border-color);
-    position: relative;
-    overflow: hidden;
-    border-radius: 8px;
 }
-.info-grid::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: repeating-linear-gradient(
-        0deg,
-        rgba(0, 0, 0, 0.3) 0,
-        rgba(0, 0, 0, 0.3) 1px,
-        transparent 1px,
-        transparent 3px
-    );
-    pointer-events: none;
-    z-index: 1;
-}
+
 .info-label {
     font-family: 'Press Start 2P', monospace;
     font-size: 10px;
-    color: var(--terminal-text-label);
+    color: var(--hint-color);
     display: flex;
     align-items: center;
     gap: 8px;
     white-space: nowrap;
-    z-index: 2;
 }
+
 .info-label span {
     font-family: 'Roboto Mono', monospace;
     font-size: 18px;
 }
+
 .info-value {
     font-size: 15px;
     font-weight: 500;
     line-height: 1.5;
-    color: var(--terminal-text);
-    z-index: 2;
 }
 .info-value a {
     color: var(--accent-blue);
@@ -720,10 +691,10 @@ input:checked + .toggle-slider:before {
     padding: 4px 8px;
     border-radius: 4px;
     display: inline-block;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
 }
 .value-highlight.salary {
     background-color: var(--accent-yellow);
-    color: var(--text-color);
 }
 .value-highlight.industry {
     background-color: var(--accent-blue);

@@ -184,19 +184,26 @@ function renderVacancies(container, vacancies) {
             </div>`;
         }
         
-        // Generate HTML for the company (now with a link)
-        let companyHtml = '';
+        // Generate the new info grid
+        let infoGridHtml = '<div class="info-grid">';
+        infoGridHtml += `<div class="info-label"><span class="icon-format">📋</span>Формат:</div><div class="info-value">${vacancy.employment_type} / ${vacancy.work_format}</div>`;
+        
+        if (vacancy.salary_display_text) {
+            infoGridHtml += `<div class="info-label"><span class="icon-salary">💰</span>Зарплата:</div><div class="info-value">${vacancy.salary_display_text}</div>`;
+        }
+
         if (vacancy.industry || vacancy.company_name) {
             let companyName = vacancy.company_name || '';
             if (vacancy.company_url && companyName) {
-                companyName = `<a href="${vacancy.company_url}" target="_blank">(${companyName})</a>`;
-            } else if (companyName) {
-                companyName = `(${companyName})`;
+                companyName = `<a href="${vacancy.company_url}" target="_blank">${companyName}</a>`;
             }
             const industryText = vacancy.industry || '';
-            companyHtml = `<p class="card-info-line"><strong>🏢 Сфера:</strong> ${industryText} ${companyName}</p>`;
+            infoGridHtml += `<div class="info-label"><span class="icon-industry">🏢</span>Сфера:</div><div class="info-value">${industryText} ${companyName ? `(${companyName})` : ''}</div>`;
         }
-        
+
+        infoGridHtml += `<div class="info-label"><span class="icon-channel">📢</span>Канал:</div><div class="info-value">${vacancy.channel || 'Нет данных'}</div>`;
+        infoGridHtml += '</div>';
+
         const detailsHTML = vacancy.text_highlighted ? `
         <details>
             <summary>Показать полный текст</summary>
@@ -213,14 +220,8 @@ function renderVacancies(container, vacancies) {
             <div class="card-header"><h3>${vacancy.category || 'NO_CATEGORY'}</h3></div>
             <div class="card-body">
                 <p class="card-summary">${vacancy.reason || 'Описание не было сгенерировано.'}</p>
-                <div class="info-divider"></div>
                 
-                <p class="card-info-line"><strong>📋 Формат:</strong> ${vacancy.employment_type} / ${vacancy.work_format}</p>
-                ${vacancy.salary_display_text ? `<p class="card-info-line"><strong>💰 Зарплата:</strong> ${vacancy.salary_display_text}</p>` : ''}
-                ${companyHtml}
-                
-                <div class="info-divider"></div>
-                <p class="card-info-line"><strong>📢 Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
+                ${infoGridHtml}
                 
                 ${detailsHTML}
             </div>
@@ -288,7 +289,7 @@ async function loadVacancies() {
 
     } catch (error) {
         console.error('Ошибка загрузки:', error);
-        loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
+        loader.innerHTML = `<p class="empty-list">Ошибка: ${e.message}</p>`;
     }
 }
 

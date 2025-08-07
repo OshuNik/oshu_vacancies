@@ -635,3 +635,41 @@ input:checked + .toggle-slider:before {
     height: auto;
     margin-bottom: 15px; /* Отступ между гифкой и текстом */
 }
+
+/* --- Стили для новых информационных блоков в карточке --- */
+.card-info-line {
+    margin: 10px 0 0 0 !important;
+    padding: 0 !important;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.card-info-line strong {
+    font-weight: 700;
+}
+
+.info-divider {
+    height: 1px;
+    background-color: var(--background-color);
+    border-top: 1px dashed var(--hint-color);
+    margin: 15px 0;
+}
+
+/* --- Стили для тегов навыков --- */
+.skill-tags {
+    margin-top: 15px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px; /* Расстояние между тегами */
+}
+
+.skill-tag {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    background-color: var(--card-color);
+    color: var(--text-color);
+    padding: 5px 10px;
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 4px;
+}

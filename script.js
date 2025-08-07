@@ -33,6 +33,8 @@ const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 
 // --- HELPER FUNCTIONS ---
+
+// Opens links via the Telegram API for a smooth experience
 function openApplyLink(url) {
     if (url) {
         tg.openLink(url);
@@ -161,6 +163,7 @@ function renderVacancies(container, vacancies) {
         else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
         else card.classList.add('category-other');
 
+        // Generate "Apply" icon only if the URL exists
         let applyIconHtml = '';
         if (vacancy.apply_url) {
             applyIconHtml = `
@@ -172,56 +175,28 @@ function renderVacancies(container, vacancies) {
             </button>`;
         }
         
+        // Generate HTML for skill tags for the footer
         let skillsFooterHtml = '';
         if (vacancy.skills && vacancy.skills.length > 0) {
-            const primarySkills = ['after effects', 'unity', 'монтаж видео', '2d-анимация', 'рилсы'];
             skillsFooterHtml = `
             <div class="footer-skill-tags">
-                ${vacancy.skills.map(skill => {
-                    const isPrimary = primarySkills.includes(skill.toLowerCase());
-                    return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${skill}</span>`;
-                }).join('')}
+                ${vacancy.skills.map(skill => `<span class="footer-skill-tag">${skill}</span>`).join('')}
             </div>`;
         }
         
-        // --- ГЛАВНОЕ ИЗМЕНЕНИЕ: Умная генерация строк ---
-        let infoGridHtml = '';
-        const infoRows = [];
-
-        const formatValue = (vacancy.employment_type && vacancy.employment_type !== 'не указано') ? `${vacancy.employment_type} / ${vacancy.work_format}` : null;
-        if (formatValue && !formatValue.includes('null')) {
-            infoRows.push({icon: '📋', label: 'ФОРМАТ', value: formatValue, highlight: false});
-        }
-        
-        if (vacancy.salary_display_text) {
-            infoRows.push({icon: '💰', label: 'ОПЛАТА', value: vacancy.salary_display_text, highlight: true, highlightClass: 'salary'});
-        }
-
+        // Generate HTML for the company (with a link)
+        let companyHtml = '';
         if (vacancy.industry || vacancy.company_name) {
-            const industryText = vacancy.industry || '';
             let companyName = vacancy.company_name || '';
             if (vacancy.company_url && companyName) {
-                companyName = `<a href="${vacancy.company_url}" target="_blank">${companyName}</a>`;
+                companyName = `<a href="${vacancy.company_url}" target="_blank">(${companyName})</a>`;
+            } else if (companyName) {
+                companyName = `(${companyName})`;
             }
-            const sphereValue = `${industryText} ${companyName ? `(${companyName})` : ''}`.trim();
-            if (sphereValue) {
-                 infoRows.push({icon: '🏢', label: 'СФЕРА', value: sphereValue, highlight: true, highlightClass: 'industry'});
+            const industryText = vacancy.industry || '';
+            if (industryText || companyName) {
+                companyHtml = `<p class="card-info-line"><strong>🏢 Сфера:</strong> ${industryText} ${companyName}</p>`;
             }
-        }
-        
-        if (vacancy.channel) {
-             infoRows.push({icon: '📢', label: 'КАНАЛ', value: vacancy.channel, highlight: false});
-        }
-        
-        if (infoRows.length > 0) {
-            infoGridHtml = '<div class="info-grid">';
-            infoRows.forEach(row => {
-                const valueHtml = row.highlight
-                    ? `<span class="value-highlight ${row.highlightClass}">${row.value}</span>`
-                    : row.value;
-                infoGridHtml += `<div class="info-label">${row.icon} ${row.label} >></div><div class="info-value">${valueHtml}</div>`;
-            });
-            infoGridHtml += '</div>';
         }
 
         const detailsHTML = vacancy.text_highlighted ? `
@@ -240,8 +215,14 @@ function renderVacancies(container, vacancies) {
             <div class="card-header"><h3>${vacancy.category || 'NO_CATEGORY'}</h3></div>
             <div class="card-body">
                 <p class="card-summary">${vacancy.reason || 'Описание не было сгенерировано.'}</p>
+                <div class="info-divider"></div>
                 
-                ${infoGridHtml}
+                <p class="card-info-line"><strong>📋 Формат:</strong> ${vacancy.employment_type} / ${vacancy.work_format}</p>
+                ${vacancy.salary_display_text ? `<p class="card-info-line"><strong>💰 Зарплата:</strong> ${vacancy.salary_display_text}</p>` : ''}
+                ${companyHtml}
+                
+                <div class="info-divider"></div>
+                <p class="card-info-line"><strong>📢 Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
                 
                 ${detailsHTML}
             </div>

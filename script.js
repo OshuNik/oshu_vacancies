@@ -34,18 +34,14 @@ const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 
 // --- HELPER FUNCTIONS ---
 
+// ИЗМЕНЕНА ФУНКЦИЯ: Теперь она возвращает <img> с гифкой
 function getEmptyStateHtml(message) {
+    // ВАЖНО: Замените эту ссылку на прямую ссылку на ВАШУ гифку
+    const catGifUrl = 'https://media.tenor.com/t4x5_1a287MAAAAi/sleep-cat.gif'; 
+    
     return `
     <div class="empty-state">
-        <div class="cat">
-            <div class="body"></div>
-            <div class="tail"></div>
-            <div class="ear"></div>
-            <div class="eye"></div>
-            <div class="zzz zzz-1">Z</div>
-            <div class="zzz zzz-2">z</div>
-            <div class="zzz zzz-3">z</div>
-        </div>
+        <img src="${catGifUrl}" alt="Спящий котик" class="empty-state-gif" />
         <p class="empty-state-text">${message}</p>
     </div>`;
 }
@@ -187,16 +183,13 @@ function renderVacancies(container, vacancies) {
     }
 }
 
-// ГЛАВНАЯ ФУНКЦИЯ ЗАГРУЗКИ (ИСПРАВЛЕНА)
 async function loadVacancies() {
-    // ЭТАП 1: Скрываем абсолютно все, кроме заголовка
     headerActions.classList.add('hidden');
     vacanciesContent.classList.add('hidden');
     searchContainer.classList.add('hidden');
     categoryTabs.classList.add('hidden');
     refreshBtn.classList.add('hidden');
     
-    // ЭТАП 2: Показываем только загрузчик
     progressBar.style.width = '1%';
     loader.classList.remove('hidden');
     setTimeout(() => { progressBar.style.width = '40%'; }, 100);
@@ -230,7 +223,6 @@ async function loadVacancies() {
             renderVacancies(containers.other, otherVacancies);
         }
         
-        // ЭТАП 3: После обработки данных, показываем нужный интерфейс
         setTimeout(() => {
             loader.classList.add('hidden');
             vacanciesContent.classList.remove('hidden');
@@ -238,7 +230,6 @@ async function loadVacancies() {
             categoryTabs.classList.remove('hidden');
             refreshBtn.classList.remove('hidden');
             
-            // Показываем поиск только если есть вакансии
             if (items.length > 0) {
                 searchContainer.classList.remove('hidden');
             }

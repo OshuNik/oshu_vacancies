@@ -33,6 +33,14 @@ const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 
 // --- HELPER FUNCTIONS ---
+
+// Opens links via the Telegram API for a smooth experience
+function openApplyLink(url) {
+    if (url) {
+        tg.openLink(url);
+    }
+}
+
 function getEmptyStateHtml(message) {
     const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif'; 
     return `
@@ -155,6 +163,7 @@ function renderVacancies(container, vacancies) {
         else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
         else card.classList.add('category-other');
 
+        // Generate HTML for skill tags for the footer
         let skillsFooterHtml = '';
         if (vacancy.skills && vacancy.skills.length > 0) {
             skillsFooterHtml = `
@@ -163,6 +172,7 @@ function renderVacancies(container, vacancies) {
             </div>`;
         }
         
+        // Generate HTML for the company (now with a link)
         let companyHtml = '';
         if (vacancy.industry || vacancy.company_name) {
             let companyName = vacancy.company_name || '';
@@ -175,9 +185,10 @@ function renderVacancies(container, vacancies) {
             companyHtml = `<p class="card-info-line"><strong>🏢 Сфера:</strong> ${industryText} ${companyName}</p>`;
         }
 
+        // Generate the "Apply" button
         let applyButtonHtml = '';
         if(vacancy.apply_url) {
-            applyButtonHtml = `<a href="${vacancy.apply_url}" target="_blank" class="apply-button">Откликнуться 🚀</a>`;
+            applyButtonHtml = `<button onclick="openApplyLink('${vacancy.apply_url}')" class="apply-button">Откликнуться 🚀</button>`;
         }
         
         const detailsHTML = vacancy.text_highlighted ? `
@@ -186,7 +197,7 @@ function renderVacancies(container, vacancies) {
             <div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div>
         </details>` : '';
 
-        // Финальная сборка карточки
+        // Final card assembly
         card.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
@@ -214,7 +225,6 @@ function renderVacancies(container, vacancies) {
         container.appendChild(card);
     }
 }
-
 
 async function loadVacancies() {
     headerActions.classList.add('hidden');

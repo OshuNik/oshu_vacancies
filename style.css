@@ -624,22 +624,37 @@ input:checked + .toggle-slider:before {
     margin-bottom: 15px; /* Отступ между гифкой и текстом */
 }
 
-/* --- НОВЫЕ СТИЛИ ДЛЯ КАРТОЧКИ --- */
+/* --- ФИНАЛЬНЫЕ СТИЛИ ДЛЯ КАРТОЧКИ --- */
 
-/* 1. Стиль для краткой сути вакансии */
+/* 1. Стиль для сводки в стиле "Терминала" */
 .card-summary {
     font-size: 16px;
     font-weight: 700;
     line-height: 1.5;
     margin: 0 0 15px 0 !important;
     padding: 0 !important;
+    position: relative;
+}
+.card-summary::before {
+    content: '> ';
+    margin-right: 5px;
+}
+.card-summary::after {
+    content: '█';
+    animation: blink 1s step-end infinite;
+    margin-left: 5px;
+    color: var(--accent-green);
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
 }
 
 /* 2. Стили для блока характеристик */
 .info-grid {
     display: grid;
-    grid-template-columns: auto 1fr; /* Первая колонка по содержимому, вторая занимает остальное место */
-    gap: 12px 10px; /* Вертикальный и горизонтальный отступ */
+    grid-template-columns: auto 1fr;
+    gap: 12px 10px;
     align-items: center;
     margin: 15px 0;
     padding: 15px 0;
@@ -654,6 +669,12 @@ input:checked + .toggle-slider:before {
     display: flex;
     align-items: center;
     gap: 8px;
+    white-space: nowrap;
+}
+
+.info-label span {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 18px;
 }
 
 .info-value {
@@ -662,7 +683,6 @@ input:checked + .toggle-slider:before {
     line-height: 1.5;
 }
 
-/* 3. Стили для выделения "особых" значений */
 .value-highlight {
     background-color: var(--background-color);
     border: var(--border-width) solid var(--border-color);
@@ -670,7 +690,6 @@ input:checked + .toggle-slider:before {
     border-radius: 4px;
     display: inline-block;
 }
-
 .value-highlight.salary {
     background-color: var(--accent-yellow);
 }
@@ -679,13 +698,13 @@ input:checked + .toggle-slider:before {
     color: var(--card-color);
 }
 
-/* 4. Цвет для иконки "Откликнуться" */
+/* 3. Цвет для иконки "Откликнуться" */
 .card-action-btn.apply svg {
     stroke: var(--accent-green);
     fill: none;
 }
 
-/* 5. Обновленные стили для подвала карточки и тегов */
+/* 4. Обновленные стили для подвала карточки и тегов */
 .card-footer {
     display: flex;
     justify-content: space-between;
@@ -705,14 +724,19 @@ input:checked + .toggle-slider:before {
     flex-basis: 70%;
 }
 .footer-skill-tag {
-    font-family: 'Roboto Mono', monospace;
-    font-size: 11px;
-    font-weight: 700;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    font-weight: normal;
     background-color: var(--background-color);
     color: var(--text-color);
-    padding: 2px 6px;
+    padding: 5px 8px;
     border: var(--border-width) solid var(--border-color);
     border-radius: 4px;
+    text-transform: uppercase;
+}
+.footer-skill-tag.primary {
+    background-color: var(--accent-green);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
 }
 
 .timestamp-footer {

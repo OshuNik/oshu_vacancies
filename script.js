@@ -6,281 +6,295 @@ const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
 // --- END OF SETUP ---
 
-// Page Elements
-const containers = {
-    main: document.getElementById('vacancies-list-main'),
-    maybe: document.getElementById('vacancies-list-maybe'),
-    other: document.getElementById('vacancies-list-other')
-};
-const counts = {
-    main: document.getElementById('count-main'),
-    maybe: document.getElementById('count-maybe'),
-    other: document.getElementById('count-other')
-};
-const tabButtons = document.querySelectorAll('.tab-button');
-const vacancyLists = document.querySelectorAll('.vacancy-list');
-const refreshBtn = document.getElementById('refresh-button');
-const searchInput = document.getElementById('search-input');
-const loader = document.getElementById('loader');
-const progressBar = document.getElementById('progress-bar');
-const vacanciesContent = document.getElementById('vacancies-content');
-const headerActions = document.getElementById('header-actions');
-const searchContainer = document.getElementById('search-container');
-const categoryTabs = document.getElementById('category-tabs');
-const confirmOverlay = document.getElementById('custom-confirm-overlay');
-const confirmText = document.getElementById('custom-confirm-text');
-const confirmOkBtn = document.getElementById('confirm-btn-ok');
-const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
+// --- TAB ELEMENTS ---
+const settingsTabButtons = document.querySelectorAll('.settings-tab-button');
+const settingsTabContents = document.querySelectorAll('.settings-tab-content');
 
-// --- HELPER FUNCTIONS ---
+// --- KEYWORD ELEMENTS ---
+const keywordsInput = document.getElementById('keywords-input');
+const keywordsDisplay = document.getElementById('current-keywords-display');
+const saveBtn = document.getElementById('save-button');
 
-// ИЗМЕНЕНА ФУНКЦИЯ: Теперь она возвращает <img> с гифкой
-function getEmptyStateHtml(message) {
-    // ВАЖНО: Замените эту ссылку на прямую ссылку на ВАШУ гифку
-    const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif'; 
-    
-    return `
-    <div class="empty-state">
-        <img src="${catGifUrl}" alt="Спящий котик" class="empty-state-gif" />
-        <p class="empty-state-text">${message}</p>
-    </div>`;
-}
+// --- CHANNEL ELEMENTS ---
+const loadDefaultsBtn = document.getElementById('load-defaults-btn');
+const addChannelBtn = document.getElementById('add-channel-btn');
+const channelInput = document.getElementById('channel-input');
+const channelsListContainer = document.getElementById('channels-list');
+const deleteAllBtn = document.getElementById('delete-all-btn');
 
-function showCustomConfirm(message, callback) {
-    confirmText.textContent = message;
-    confirmOverlay.classList.remove('hidden');
-    confirmOkBtn.onclick = () => {
-        confirmOverlay.classList.add('hidden');
-        callback(true);
-    };
-    confirmCancelBtn.onclick = () => {
-        confirmOverlay.classList.add('hidden');
-        callback(false);
-    };
-}
-
-function formatTimestamp(isoString) {
-    if (!isoString) return '';
-    const date = new Date(isoString);
-    return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
-
-function filterVacancies() {
-    const query = searchInput.value.toLowerCase();
-    const activeList = document.querySelector('.vacancy-list.active');
-    if (!activeList) return;
-
-    const cards = activeList.querySelectorAll('.vacancy-card');
-    cards.forEach(card => {
-        const cardText = card.textContent.toLowerCase();
-        if (cardText.includes(query)) {
-            card.style.display = '';
-        } else {
-            card.style.display = 'none';
-        }
-    });
-}
-
-// --- API FUNCTIONS & ANIMATIONS ---
-async function updateStatus(event, vacancyId, newStatus) {
-    const cardElement = document.getElementById(`card-${vacancyId}`);
-    if (!cardElement) return;
-    const parentList = cardElement.parentElement;
-    const categoryKey = Object.keys(containers).find(key => containers[key] === parentList);
-    try {
-        await fetch(`${SUPABASE_URL}/rest/v1/vacancies?id=eq.${vacancyId}`, {
-            method: 'PATCH',
-            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-            body: JSON.stringify({ status: newStatus })
+// --- TAB SWITCHING LOGIC ---
+if (settingsTabButtons.length > 0) {
+    settingsTabButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            settingsTabButtons.forEach(btn => btn.classList.remove('active'));
+            settingsTabContents.forEach(content => content.classList.remove('active'));
+            button.classList.add('active');
+            const targetContent = document.getElementById(button.dataset.target);
+            if (targetContent) targetContent.classList.add('active');
         });
-        cardElement.style.opacity = '0';
-        cardElement.style.transform = 'scale(0.95)';
-        setTimeout(() => {
-            cardElement.remove();
-            if (parentList.querySelectorAll('.vacancy-card').length === 0) {
-                parentList.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --");
-            }
-            const countSpan = counts[categoryKey];
-            let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, ''));
-            countSpan.textContent = `(${(currentCount - 1)})`;
-        }, 300);
-    } catch (error) {
-        console.error('Ошибка обновления статуса:', error);
-        tg.showAlert('Не удалось обновить статус.');
-        if (cardElement) {
-            cardElement.style.opacity = '1';
-            cardElement.style.transform = 'scale(1)';
-        }
-    }
-}
-
-async function clearCategory(categoryName) {
-    if (!categoryName) return;
-    showCustomConfirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`, async (isConfirmed) => {
-        if (isConfirmed) {
-            const activeList = document.querySelector('.vacancy-list.active');
-            if (activeList) {
-                const cards = activeList.querySelectorAll('.vacancy-card');
-                cards.forEach(card => card.style.opacity = '0');
-            }
-            try {
-                await fetch(`${SUPABASE_URL}/rest/v1/vacancies?category=eq.${categoryName}&status=eq.new`, {
-                    method: 'PATCH',
-                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
-                    body: JSON.stringify({ status: 'deleted' })
-                });
-                if (activeList) {
-                    activeList.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --");
-                    const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
-                    if (categoryKey) counts[categoryKey].textContent = '(0)';
-                }
-            } catch (error) {
-                console.error('Ошибка очистки категории:', error);
-                tg.showAlert('Не удалось очистить категорию.');
-            }
-        }
     });
 }
 
-function renderVacancies(container, vacancies) {
-    if (!container) return;
-    container.innerHTML = '';
-    
-    if (!vacancies || vacancies.length === 0) {
-        container.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --");
-        return;
-    }
-
-    for (const item of vacancies) {
-        const vacancy = item;
-        const card = document.createElement('div');
-        card.className = 'vacancy-card';
-        card.id = `card-${vacancy.id}`;
-        if (vacancy.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
-        else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
-        else card.classList.add('category-other');
-
-        const detailsHTML = vacancy.text_highlighted ? `
-        <details>
-            <summary>Показать полный текст</summary>
-            <div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div>
-        </details>` : '';
-
-        card.innerHTML = `
-            <div class="card-actions">
-                <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
-                <button class="card-action-btn delete" onclick="updateStatus(event, '${vacancy.id}', 'deleted')"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-            </div>
-            <div class="card-header"><h3>${vacancy.category || 'NO_CATEGORY'}</h3></div>
-            <div class="card-body">
-                <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
-                <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
-                <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
-                ${detailsHTML}
-            </div>
-            <div class="card-footer"><span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span></div>`;
-        container.appendChild(card);
-    }
-}
-
-async function loadVacancies() {
-    headerActions.classList.add('hidden');
-    vacanciesContent.classList.add('hidden');
-    searchContainer.classList.add('hidden');
-    categoryTabs.classList.add('hidden');
-    refreshBtn.classList.add('hidden');
-    
-    progressBar.style.width = '1%';
-    loader.classList.remove('hidden');
-    setTimeout(() => { progressBar.style.width = '40%'; }, 100);
-    setTimeout(() => { progressBar.style.width = '70%'; }, 500);
-
+// --- KEYWORD LOGIC (без изменений) ---
+async function loadKeywords() {
+    if (!keywordsDisplay) return;
+    saveBtn.disabled = true;
+    keywordsDisplay.textContent = 'Загрузка...';
     try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?status=eq.new&select=*`, {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/settings?select=keywords`, {
             headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
         });
-        if (!response.ok) throw new Error(`Ошибка сети: ${response.statusText}`);
-        
-        const items = await response.json();
-        progressBar.style.width = '100%';
+        if (!response.ok) throw new Error('Network response was not ok');
+        const data = await response.json();
+        const keywords = data.length > 0 ? data[0].keywords : '';
+        keywordsInput.value = keywords;
+        keywordsDisplay.textContent = keywords || '-- не заданы --';
+    } catch (error) {
+        console.error('Ошибка загрузки ключевых слов:', error);
+        keywordsDisplay.textContent = 'Ошибка загрузки';
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
 
-        Object.values(containers).forEach(container => container.innerHTML = '');
+async function saveKeywords() {
+    if (!keywordsInput) return;
+    const kws = keywordsInput.value.trim();
+    saveBtn.disabled = true;
+    try {
+        // Мы используем upsert: true, чтобы создать запись, если она не существует
+        await fetch(`${SUPABASE_URL}/rest/v1/settings`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Prefer': 'resolution=merge-duplicates' },
+            body: JSON.stringify({ update_key: 1, keywords: kws })
+        });
+        keywordsDisplay.textContent = kws || '-- не заданы --';
+        tg.showAlert('Ключевые слова сохранены');
+    } catch (error) {
+        console.error('Ошибка при сохранении ключевых слов:', error);
+        tg.showAlert('Ошибка сохранения');
+    } finally {
+        saveBtn.disabled = false;
+    }
+}
+
+// --- НОВАЯ ЛОГИКА ДЛЯ КАНАЛОВ (АВТОСОХРАНЕНИЕ) ---
+
+// Функция для отрисовки ОДНОГО канала и навешивания на него событий
+function renderChannel(channel) {
+    const channelItem = document.createElement('div');
+    channelItem.className = 'channel-item';
+    // Используем ID из базы данных, если он есть, для надежности
+    channelItem.dataset.dbId = channel.id;
+
+    // --- HTML-структура элемента списка ---
+    const cleanId = channel.channel_id.startsWith('http') ? new URL(channel.channel_id).pathname.substring(1) : channel.channel_id.replace('@', '');
+    channelItem.innerHTML = `
+        <div class="channel-item-info">
+            <span class="channel-item-title">${channel.channel_title || cleanId}</span>
+            <a href="https://t.me/${cleanId}" target="_blank" class="channel-item-id">@${cleanId}</a>
+        </div>
+        <div class="channel-item-toggle">
+            <label class="toggle-switch">
+                <input type="checkbox" class="toggle-channel" ${channel.is_enabled ? 'checked' : ''}>
+                <span class="toggle-slider"></span>
+            </label>
+        </div>
+        <button class="channel-item-delete">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+    `;
+
+    // --- Событие для кнопки УДАЛЕНИЯ ---
+    channelItem.querySelector('.channel-item-delete').addEventListener('click', async () => {
+        const dbId = channelItem.dataset.dbId;
+        if (!dbId) return; // Не удаляем, если нет ID из базы
         
-        if (items.length === 0) {
-            containers.main.innerHTML = getEmptyStateHtml("Новых вакансий нет");
-        } else {
-            items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-            const mainVacancies = items.filter(item => item.category === 'ТОЧНО ТВОЁ');
-            const maybeVacancies = items.filter(item => item.category === 'МОЖЕТ БЫТЬ');
-            const otherVacancies = items.filter(item => !['ТОЧНО ТВОЁ', 'МОЖЕТ БЫТЬ'].includes(item.category));
-            
-            counts.main.textContent = `(${mainVacancies.length})`;
-            counts.maybe.textContent = `(${maybeVacancies.length})`;
-            counts.other.textContent = `(${otherVacancies.length})`;
-            
-            renderVacancies(containers.main, mainVacancies);
-            renderVacancies(containers.maybe, maybeVacancies);
-            renderVacancies(containers.other, otherVacancies);
+        // Визуально удаляем сразу для отзывчивости
+        channelItem.style.opacity = '0';
+        setTimeout(() => channelItem.remove(), 300);
+
+        try {
+            await fetch(`${SUPABASE_URL}/rest/v1/channels?id=eq.${dbId}`, {
+                method: 'DELETE',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+        } catch (error) {
+            console.error('Ошибка удаления канала:', error);
+            tg.showAlert('Не удалось удалить канал');
+            // Если ошибка, возвращаем элемент на место
+            channelItem.style.opacity = '1';
         }
-        
-        setTimeout(() => {
-            loader.classList.add('hidden');
-            vacanciesContent.classList.remove('hidden');
-            headerActions.classList.remove('hidden');
-            categoryTabs.classList.remove('hidden');
-            refreshBtn.classList.remove('hidden');
-            
-            if (items.length > 0) {
-                searchContainer.classList.remove('hidden');
-            }
+    });
 
-            filterVacancies();
-        }, 500);
+    // --- Событие для ПЕРЕКЛЮЧАТЕЛЯ ---
+    channelItem.querySelector('.toggle-channel').addEventListener('change', async (event) => {
+        const dbId = channelItem.dataset.dbId;
+        const is_enabled = event.target.checked;
+        if (!dbId) return;
+        
+        try {
+            await fetch(`${SUPABASE_URL}/rest/v1/channels?id=eq.${dbId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+                body: JSON.stringify({ is_enabled: is_enabled })
+            });
+        } catch (error) {
+            console.error('Ошибка обновления статуса канала:', error);
+            tg.showAlert('Не удалось обновить статус');
+            // Возвращаем чекбокс в исходное состояние
+            event.target.checked = !is_enabled;
+        }
+    });
+
+    // Вставляем созданный элемент в список
+    const emptyListMessage = channelsListContainer.querySelector('.empty-list');
+    if (emptyListMessage) {
+        emptyListMessage.remove();
+    }
+    channelsListContainer.appendChild(channelItem);
+}
+
+
+// Функция для ДОБАВЛЕНИЯ нового канала
+async function addChannel() {
+    let channelId = channelInput.value.trim();
+    if (!channelId) return;
+    
+    // Очищаем от лишнего
+    if (channelId.includes('t.me/')) {
+        channelId = '@' + channelId.split('t.me/')[1].split('/')[0];
+    }
+    if (!channelId.startsWith('@')) {
+        channelId = '@' + channelId;
+    }
+
+    addChannelBtn.disabled = true;
+    const newChannelData = {
+        channel_id: channelId,
+        channel_title: channelId, // Изначально ставим юзернейм как заголовок
+        is_enabled: true
+    };
+
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/channels`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Prefer': 'return=representation' },
+            body: JSON.stringify(newChannelData)
+        });
+        if (!response.ok) throw new Error('Канал не найден или ошибка сети');
+        
+        const data = await response.json();
+        renderChannel(data[0]); // Отрисовываем канал с ID, полученным от базы
+        channelInput.value = ''; // Очищаем поле ввода
+    } catch (error) {
+        console.error('Ошибка добавления канала:', error);
+        tg.showAlert('Не удалось добавить канал. Проверьте правильность имени.');
+    } finally {
+        addChannelBtn.disabled = false;
+    }
+}
+
+// ОСНОВНАЯ ФУНКЦИЯ ЗАГРУЗКИ КАНАЛОВ
+async function loadChannels() {
+    if (!channelsListContainer) return;
+    channelsListContainer.innerHTML = '<p>Загрузка каналов...</p>';
+    try {
+        const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?select=*`, {
+            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        });
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+        const data = await response.json();
+        
+        channelsListContainer.innerHTML = ''; // Очищаем контейнер
+        if (data && data.length > 0) {
+            data.forEach(item => renderChannel(item));
+        } else {
+            channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
+        }
 
     } catch (error) {
-        console.error('Ошибка загрузки:', error);
-        loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
+        console.error('Ошибка загрузки каналов:', error);
+        channelsListContainer.innerHTML = '<p class="empty-list">Не удалось загрузить каналы.</p>';
     }
 }
 
 
-// --- EVENT LISTENERS ---
-tabButtons.forEach(button => {
-    let pressTimer = null;
-    let longPressTriggered = false;
-    const startPress = (e) => {
-        longPressTriggered = false;
-        pressTimer = window.setTimeout(() => {
-            longPressTriggered = true;
-            const categoryName = button.dataset.categoryName;
-            clearCategory(categoryName);
-        }, 800);
-    };
-    const cancelPress = (e) => {
-        clearTimeout(pressTimer);
-        if (longPressTriggered) {
-            e.preventDefault();
+// --- ИНИЦИАЛИЗАЦИЯ И ОБРАБОТЧИКИ СОБЫТИЙ ---
+
+// Кнопка "Добавить канал"
+if (addChannelBtn) {
+    addChannelBtn.addEventListener('click', addChannel);
+}
+
+// ИЗМЕНЕНО: Кнопка "Сохранить" теперь сохраняет только ключевые слова
+if (saveBtn) {
+    saveBtn.addEventListener('click', () => {
+        const activeTab = document.querySelector('.settings-tab-content.active');
+        if (activeTab.id === 'tab-keywords') {
+            saveKeywords();
+        } else {
+            // Для вкладки каналов кнопка больше ничего не делает, так как у нас автосохранение
+            tg.showAlert('Изменения в каналах сохраняются автоматически!');
         }
-    };
-    const handleClick = () => {
-        if (longPressTriggered) { return; }
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        vacancyLists.forEach(list => list.classList.remove('active'));
-        button.classList.add('active');
-        document.getElementById(button.dataset.target).classList.add('active');
-        filterVacancies();
-    };
-    button.addEventListener('mousedown', startPress);
-    button.addEventListener('mouseup', cancelPress);
-    button.addEventListener('mouseleave', cancelPress);
-    button.addEventListener('touchstart', startPress, { passive: true });
-    button.addEventListener('touchend', cancelPress);
-    button.addEventListener('touchcancel', cancelPress);
-    button.addEventListener('click', handleClick);
-});
+    });
+}
 
-searchInput.addEventListener('input', filterVacancies);
-refreshBtn.addEventListener('click', loadVacancies);
+// Загрузка стандартных каналов (без изменений)
+if (loadDefaultsBtn) {
+    loadDefaultsBtn.addEventListener('click', async () => {
+        loadDefaultsBtn.disabled = true;
+        try {
+            const response = await fetch(`${SUPABASE_URL}/rest/v1/default_channels?select=channel_id`, {
+                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            if (!response.ok) throw new Error('Не удалось получить стандартные каналы');
+            const defaultChannels = await response.json();
+            if (defaultChannels.length === 0) {
+                tg.showAlert('Список стандартных каналов пуст.');
+                return;
+            }
+            const channelsToUpsert = defaultChannels.map(ch => ({ channel_id: ch.channel_id, is_enabled: true }));
+            await fetch(`${SUPABASE_URL}/rest/v1/channels`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Prefer': 'resolution=merge-duplicates'},
+                body: JSON.stringify(channelsToUpsert)
+            });
+            await loadChannels();
+            tg.showAlert('Стандартные каналы добавлены.');
+        } catch (error) {
+            console.error('Ошибка загрузки стандартных каналов:', error);
+            tg.showAlert('Ошибка загрузки стандартных каналов');
+        } finally {
+            loadDefaultsBtn.disabled = false;
+        }
+    });
+}
 
-// Initial load
-loadVacancies();
+// Удаление всех каналов (без изменений)
+if (deleteAllBtn) {
+    deleteAllBtn.addEventListener('click', async () => {
+        if (!confirm('Вы уверены, что хотите удалить все каналы из базы данных? Это действие необратимо.')) {
+            return;
+        }
+        deleteAllBtn.disabled = true;
+        try {
+            await fetch(`${SUPABASE_URL}/rest/v1/channels?id=gt.0`, {
+                method: 'DELETE',
+                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+            });
+            channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
+            tg.showAlert('Все каналы удалены.');
+
+        } catch (error) {
+             console.error('Ошибка удаления каналов:', error);
+             tg.showAlert(String(error));
+        } finally {
+            deleteAllBtn.disabled = false;
+        }
+    });
+}
+
+// Начальная загрузка данных при открытии страницы
+loadKeywords();
+loadChannels();

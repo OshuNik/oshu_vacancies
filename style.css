@@ -12,6 +12,9 @@
     --accent-yellow: #FFD93D;
     --accent-green: #6BCB77;
     --accent-blue: #41A6FF;
+    --terminal-bg: #2d2d2d;
+    --terminal-text: #e0e0e0;
+    --terminal-text-label: #9e9e9e;
 }
 
 body {
@@ -657,19 +660,41 @@ input:checked + .toggle-slider:before {
     gap: 12px 10px;
     align-items: center;
     margin: 15px 0;
-    padding: 15px 0;
-    border-top: var(--border-width) dashed var(--hint-color);
-    border-bottom: var(--border-width) dashed var(--hint-color);
+    padding: 15px 10px;
+    background-color: var(--terminal-bg);
+    border: var(--border-width) solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+}
+
+/* Эффект сканлайнов */
+.info-grid::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.3) 0,
+        rgba(0, 0, 0, 0.3) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+    pointer-events: none;
+    z-index: 1;
 }
 
 .info-label {
     font-family: 'Press Start 2P', monospace;
     font-size: 10px;
-    color: var(--hint-color);
+    color: var(--terminal-text-label);
     display: flex;
     align-items: center;
     gap: 8px;
     white-space: nowrap;
+    z-index: 2;
 }
 
 .info-label span {
@@ -681,8 +706,11 @@ input:checked + .toggle-slider:before {
     font-size: 15px;
     font-weight: 500;
     line-height: 1.5;
+    color: var(--terminal-text);
+    z-index: 2;
 }
 
+/* 3. Стили для выделения "особых" значений */
 .value-highlight {
     background-color: var(--background-color);
     border: var(--border-width) solid var(--border-color);
@@ -692,19 +720,20 @@ input:checked + .toggle-slider:before {
 }
 .value-highlight.salary {
     background-color: var(--accent-yellow);
+    color: var(--text-color);
 }
 .value-highlight.industry {
     background-color: var(--accent-blue);
     color: var(--card-color);
 }
 
-/* 3. Цвет для иконки "Откликнуться" */
+/* 4. Цвет для иконки "Откликнуться" */
 .card-action-btn.apply svg {
     stroke: var(--accent-green);
     fill: none;
 }
 
-/* 4. Обновленные стили для подвала карточки и тегов */
+/* 5. Обновленные стили для подвала карточки и тегов */
 .card-footer {
     display: flex;
     justify-content: space-between;

@@ -37,7 +37,7 @@ const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 // ИЗМЕНЕНА ФУНКЦИЯ: Теперь она возвращает <img> с гифкой
 function getEmptyStateHtml(message) {
     // ВАЖНО: Замените эту ссылку на прямую ссылку на ВАШУ гифку
-    const catGifUrl = 'https://media.tenor.com/t4x5_1a287MAAAAi/sleep-cat.gif'; 
+    const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif'; 
     
     return `
     <div class="empty-state">

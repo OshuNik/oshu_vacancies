@@ -149,18 +149,6 @@ body {
 }
 .card-action-btn.favorite svg { stroke: var(--accent-blue); fill: none; }
 .card-action-btn.delete svg { stroke: var(--accent-red); fill: none; }
-.card-footer {
-    display: flex;
-    justify-content: flex-end;
-    margin-top: 15px;
-    padding-top: 10px;
-    border-top: 1px solid #e0e0e0;
-}
-.timestamp-footer {
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--hint-color);
-}
 
 /* --- Bottom Tabs --- */
 .category-tabs {
@@ -655,48 +643,12 @@ input:checked + .toggle-slider:before {
     margin: 15px 0;
 }
 
-/* --- Стили для тегов навыков --- */
-.skill-tags {
-    margin-top: 15px;
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px; /* Расстояние между тегами */
+/* --- Цвет для иконки "Откликнуться" --- */
+.card-action-btn.apply svg {
+    stroke: var(--accent-green);
+    fill: none;
 }
 
-.skill-tag {
-    font-family: 'Roboto Mono', monospace;
-    font-size: 13px;
-    font-weight: 700;
-    background-color: var(--card-color);
-    color: var(--text-color);
-    padding: 5px 10px;
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 4px;
-}
-
-/* --- Стили для кнопки "Откликнуться" --- */
-.apply-button {
-    display: block;
-    box-sizing: border-box;
-    width: 100%;
-    margin: 15px 0 5px 0;
-    padding: 12px 15px;
-    background-color: var(--accent-green);
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
-    color: var(--text-color);
-    font-weight: 700;
-    text-align: center;
-    text-decoration: none;
-    font-size: 16px;
-    transition: all 0.1s ease-out;
-}
-
-.apply-button:active {
-    transform: translate(var(--shadow-offset), var(--shadow-offset));
-    box-shadow: 0px 0px 0px var(--border-color);
-}
 
 /* --- ИЗМЕНЕНИЯ для подвала карточки, чтобы вместить навыки --- */
 .card-footer {
@@ -745,3 +697,4 @@ input:checked + .toggle-slider:before {
     margin: 0 0 15px 0 !important;
     padding: 0 !important;
 }
+пришли полный код script.js и вот css тоже его обнови

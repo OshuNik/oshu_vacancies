@@ -616,3 +616,22 @@ input:checked + .toggle-slider:before {
     transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
     box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--accent-red);
 }
+
+/* --- Стили для пустого состояния (с гифкой кота) --- */
+.empty-state {
+    padding-top: 80px;
+    text-align: center;
+}
+
+.empty-state-text {
+    font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
+    font-size: 14px;
+    color: var(--hint-color);
+    margin-top: 25px;
+}
+
+.empty-state-gif {
+    width: 120px; /* Можете подобрать размер, который вам нравится */
+    height: auto;
+    margin-bottom: 15px; /* Отступ между гифкой и текстом */
+}

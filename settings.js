@@ -6,19 +6,51 @@ const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
 // --- END OF SETUP ---
 
-// Page Elements (без изменений)
+// --- TAB ELEMENTS ---
 const settingsTabButtons = document.querySelectorAll('.settings-tab-button');
 const settingsTabContents = document.querySelectorAll('.settings-tab-content');
+
+// --- KEYWORD ELEMENTS ---
 const keywordsInput = document.getElementById('keywords-input');
 const keywordsDisplay = document.getElementById('current-keywords-display');
 const saveBtn = document.getElementById('save-button');
+
+// --- CHANNEL ELEMENTS ---
 const loadDefaultsBtn = document.getElementById('load-defaults-btn');
 const addChannelBtn = document.getElementById('add-channel-btn');
 const channelInput = document.getElementById('channel-input');
 const channelsListContainer = document.getElementById('channels-list');
 const deleteAllBtn = document.getElementById('delete-all-btn');
 
-// --- TAB SWITCHING LOGIC (без изменений) ---
+// --- НОВЫЕ ЭЛЕМЕНТЫ: Получаем доступ к элементам диалога ---
+const confirmOverlay = document.getElementById('custom-confirm-overlay');
+const confirmText = document.getElementById('custom-confirm-text');
+const confirmOkBtn = document.getElementById('confirm-btn-ok');
+const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
+
+
+// --- НОВАЯ ФУНКЦИЯ: Копируем сюда функцию кастомного подтверждения ---
+function showCustomConfirm(message, callback) {
+    if (!confirmOverlay) return; // Проверка на случай, если HTML не добавлен
+    confirmText.textContent = message;
+    confirmOverlay.classList.remove('hidden');
+    
+    // Очищаем старые обработчики, чтобы избежать двойных срабатываний
+    confirmOkBtn.onclick = null;
+    confirmCancelBtn.onclick = null;
+
+    confirmOkBtn.onclick = () => {
+        confirmOverlay.classList.add('hidden');
+        callback(true);
+    };
+    confirmCancelBtn.onclick = () => {
+        confirmOverlay.classList.add('hidden');
+        callback(false);
+    };
+}
+
+
+// --- TAB SWITCHING LOGIC ---
 if (settingsTabButtons.length > 0) {
     settingsTabButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -31,7 +63,7 @@ if (settingsTabButtons.length > 0) {
     });
 }
 
-// --- KEYWORD LOGIC (без изменений) ---
+// --- KEYWORD LOGIC ---
 async function loadKeywords() {
     if (!keywordsDisplay) return;
     saveBtn.disabled = true;
@@ -74,18 +106,11 @@ async function saveKeywords() {
 }
 
 
-// --- CHANNEL LOGIC (ПОЛНОСТЬЮ ПЕРЕПИСАНА ФУНКЦИЯ RENDERCHANNEL) ---
-
-/**
- * ГЛАВНОЕ ИЗМЕНЕНИЕ ЗДЕСЬ.
- * Эта функция теперь создает каждый HTML-элемент программно,
- * что гарантирует правильное и надежное прикрепление обработчиков событий.
- */
+// --- CHANNEL LOGIC ---
 function renderChannel(channel) {
-    // 1. Создаем все элементы
     const channelItem = document.createElement('div');
     channelItem.className = 'channel-item';
-    channelItem.dataset.dbId = channel.id; // Самое важное - храним ID из базы
+    channelItem.dataset.dbId = channel.id;
 
     const infoDiv = document.createElement('div');
     infoDiv.className = 'channel-item-info';
@@ -115,23 +140,22 @@ function renderChannel(channel) {
     deleteButton.className = 'channel-item-delete';
     deleteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 
-    // 2. Прикрепляем обработчики событий НАПРЯМУЮ к созданным элементам
     deleteButton.addEventListener('click', async () => {
         const dbId = channelItem.dataset.dbId;
         if (!dbId) return;
         
-        channelItem.style.opacity = '0.5'; // Визуальный отклик
+        channelItem.style.opacity = '0.5';
         try {
             const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?id=eq.${dbId}`, {
                 method: 'DELETE',
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
             });
             if (!response.ok) throw new Error('Ошибка ответа сети');
-            channelItem.remove(); // Удаляем элемент только после успешного ответа от сервера
+            channelItem.remove();
         } catch (error) {
             console.error('Ошибка удаления канала:', error);
             tg.showAlert('Не удалось удалить канал');
-            channelItem.style.opacity = '1'; // Возвращаем, если ошибка
+            channelItem.style.opacity = '1';
         }
     });
 
@@ -150,24 +174,21 @@ function renderChannel(channel) {
         } catch (error) {
             console.error('Ошибка обновления статуса канала:', error);
             tg.showAlert('Не удалось обновить статус');
-            event.target.checked = !is_enabled; // Возвращаем обратно
+            event.target.checked = !is_enabled;
         }
     });
 
-    // 3. Собираем всё вместе
     infoDiv.append(titleSpan, idLink);
     toggleLabel.append(toggleInput, toggleSlider);
     toggleContainer.append(toggleLabel);
     channelItem.append(infoDiv, toggleContainer, deleteButton);
     
-    // 4. Добавляем в DOM
     const emptyListMessage = channelsListContainer.querySelector('.empty-list');
     if (emptyListMessage) {
         emptyListMessage.remove();
     }
     channelsListContainer.appendChild(channelItem);
 }
-
 
 async function addChannel() {
     let channelId = channelInput.value.trim();
@@ -206,7 +227,6 @@ async function addChannel() {
     }
 }
 
-
 async function loadChannels() {
     if (!channelsListContainer) return;
     channelsListContainer.innerHTML = '<p>Загрузка каналов...</p>';
@@ -230,8 +250,7 @@ async function loadChannels() {
     }
 }
 
-
-// --- EVENT LISTENERS (без изменений) ---
+// --- EVENT LISTENERS ---
 if (addChannelBtn) {
     addChannelBtn.addEventListener('click', addChannel);
 }
@@ -277,26 +296,30 @@ if (loadDefaultsBtn) {
     });
 }
 
+// ИЗМЕНЕНО: Используем новую функцию подтверждения
 if (deleteAllBtn) {
-    deleteAllBtn.addEventListener('click', async () => {
-        if (!confirm('Вы уверены, что хотите удалить все каналы из базы данных? Это действие необратимо.')) {
-            return;
-        }
-        deleteAllBtn.disabled = true;
-        try {
-            await fetch(`${SUPABASE_URL}/rest/v1/channels?id=gt.0`, {
-                method: 'DELETE',
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-            });
-            channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
-            tg.showAlert('Все каналы удалены.');
+    deleteAllBtn.addEventListener('click', () => {
+        const message = 'Вы уверены, что хотите удалить все каналы из базы данных? Это действие необратимо.';
+        
+        showCustomConfirm(message, async (isConfirmed) => {
+            if (isConfirmed) {
+                deleteAllBtn.disabled = true;
+                try {
+                    await fetch(`${SUPABASE_URL}/rest/v1/channels?id=gt.0`, {
+                        method: 'DELETE',
+                        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                    });
+                    channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
+                    tg.showAlert('Все каналы удалены.');
 
-        } catch (error) {
-             console.error('Ошибка удаления каналов:', error);
-             tg.showAlert(String(error));
-        } finally {
-            deleteAllBtn.disabled = false;
-        }
+                } catch (error) {
+                     console.error('Ошибка удаления каналов:', error);
+                     tg.showAlert(String(error));
+                } finally {
+                    deleteAllBtn.disabled = false;
+                }
+            }
+        });
     });
 }
 

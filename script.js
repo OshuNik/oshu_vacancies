@@ -164,7 +164,6 @@ function renderVacancies(container, vacancies) {
         else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
         else card.classList.add('category-other');
 
-        // Generate "Apply" icon only if the URL exists
         let applyIconHtml = '';
         if (vacancy.apply_url) {
             applyIconHtml = `
@@ -176,7 +175,6 @@ function renderVacancies(container, vacancies) {
             </button>`;
         }
         
-        // Generate HTML for skill tags with color-coding
         let skillsFooterHtml = '';
         if (vacancy.skills && vacancy.skills.length > 0) {
             skillsFooterHtml = `
@@ -188,38 +186,36 @@ function renderVacancies(container, vacancies) {
             </div>`;
         }
         
-        // Generate the new info grid
-        let infoGridHtml = '';
+        // --- УЛУЧШЕННАЯ ЛОГИКА ГЕНЕРАЦИИ СТРОК ---
         const infoRows = [];
-        
-        const formatValue = (vacancy.employment_type !== 'не указано' || vacancy.work_format !== 'не указано') 
-            ? `${vacancy.employment_type} / ${vacancy.work_format}` 
-            : null;
+        const isValid = (val) => val && val !== 'null' && val !== 'не указано';
 
-        if (formatValue && !formatValue.includes('null')) {
-            infoRows.push({icon: '📋', label: 'ФОРМАТ', value: formatValue, highlight: false});
+        const employment = isValid(vacancy.employment_type) ? vacancy.employment_type : '';
+        const workFormat = isValid(vacancy.work_format) ? vacancy.work_format : '';
+        const formatValue = [employment, workFormat].filter(Boolean).join(' / ');
+
+        if (isValid(formatValue)) {
+            infoRows.push({icon: '📋', label: 'ФОРМАТ', value: formatValue});
         }
-        
-        if (vacancy.salary_display_text) {
+        if (isValid(vacancy.salary_display_text)) {
             infoRows.push({icon: '💰', label: 'ОПЛАТА', value: vacancy.salary_display_text, highlight: true, highlightClass: 'salary'});
         }
-
-        if (vacancy.industry || vacancy.company_name) {
-            const industryText = vacancy.industry || '';
-            let companyName = vacancy.company_name || '';
+        if (isValid(vacancy.industry) || isValid(vacancy.company_name)) {
+            const industryText = isValid(vacancy.industry) ? vacancy.industry : '';
+            let companyName = isValid(vacancy.company_name) ? vacancy.company_name : '';
             if (vacancy.company_url && companyName) {
                 companyName = `<a href="${vacancy.company_url}" target="_blank">${companyName}</a>`;
             }
             const sphereValue = `${industryText} ${companyName ? `(${companyName})` : ''}`.trim();
             if (sphereValue) {
-                 infoRows.push({icon: '🏢', label: 'СФЕРА', value: sphereValue, highlight: true, highlightClass: 'industry'});
+                infoRows.push({icon: '🏢', label: 'СФЕРА', value: sphereValue, highlight: true, highlightClass: 'industry'});
             }
         }
-        
-        if (vacancy.channel) {
-             infoRows.push({icon: '📢', label: 'КАНАЛ', value: vacancy.channel, highlight: false});
+        if (isValid(vacancy.channel)) {
+            infoRows.push({icon: '📢', label: 'КАНАЛ', value: vacancy.channel});
         }
         
+        let infoGridHtml = '';
         if (infoRows.length > 0) {
             infoGridHtml = '<div class="info-grid">';
             infoRows.forEach(row => {

@@ -198,6 +198,11 @@ function renderVacancies(container, vacancies) {
                 companyHtml = `<p class="card-info-line"><strong>🏢 Сфера:</strong> ${industryText} ${companyName}</p>`;
             }
         }
+        
+        let formatHtml = '';
+        if (vacancy.employment_type && vacancy.employment_type !== 'не указано') {
+            formatHtml = `<p class="card-info-line"><strong>📋 Формат:</strong> ${vacancy.employment_type} / ${vacancy.work_format}</p>`;
+        }
 
         const detailsHTML = vacancy.text_highlighted ? `
         <details>
@@ -217,7 +222,7 @@ function renderVacancies(container, vacancies) {
                 <p class="card-summary">${vacancy.reason || 'Описание не было сгенерировано.'}</p>
                 <div class="info-divider"></div>
                 
-                <p class="card-info-line"><strong>📋 Формат:</strong> ${vacancy.employment_type} / ${vacancy.work_format}</p>
+                ${formatHtml}
                 ${vacancy.salary_display_text ? `<p class="card-info-line"><strong>💰 Зарплата:</strong> ${vacancy.salary_display_text}</p>` : ''}
                 ${companyHtml}
                 

@@ -138,10 +138,6 @@ async function clearCategory(categoryName) {
     });
 }
 
-/**
- * ГЛАВНАЯ ИЗМЕНЕННАЯ ФУНКЦИЯ
- * Отрисовывает карточку со всеми новыми данными
- */
 function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = '';
@@ -159,7 +155,6 @@ function renderVacancies(container, vacancies) {
         else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
         else card.classList.add('category-other');
 
-        // Генерация HTML для тегов навыков для подвала
         let skillsFooterHtml = '';
         if (vacancy.skills && vacancy.skills.length > 0) {
             skillsFooterHtml = `
@@ -168,7 +163,6 @@ function renderVacancies(container, vacancies) {
             </div>`;
         }
         
-        // Генерация HTML для компании (теперь со ссылкой)
         let companyHtml = '';
         if (vacancy.industry || vacancy.company_name) {
             let companyName = vacancy.company_name || '';
@@ -181,7 +175,6 @@ function renderVacancies(container, vacancies) {
             companyHtml = `<p class="card-info-line"><strong>🏢 Сфера:</strong> ${industryText} ${companyName}</p>`;
         }
 
-        // Генерация кнопки "Откликнуться"
         let applyButtonHtml = '';
         if(vacancy.apply_url) {
             applyButtonHtml = `<a href="${vacancy.apply_url}" target="_blank" class="apply-button">Откликнуться 🚀</a>`;
@@ -201,13 +194,15 @@ function renderVacancies(container, vacancies) {
             </div>
             <div class="card-header"><h3>${vacancy.category || 'NO_CATEGORY'}</h3></div>
             <div class="card-body">
+                <p class="card-summary">${vacancy.reason || 'Описание не было сгенерировано.'}</p>
+                <div class="info-divider"></div>
+                
                 <p class="card-info-line"><strong>📋 Формат:</strong> ${vacancy.employment_type} / ${vacancy.work_format}</p>
                 ${vacancy.salary_display_text ? `<p class="card-info-line"><strong>💰 Зарплата:</strong> ${vacancy.salary_display_text}</p>` : ''}
                 ${companyHtml}
                 
                 <div class="info-divider"></div>
-                <p><strong>📄 Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
-                <p><strong>📢 Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
+                <p class="card-info-line"><strong>📢 Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
                 
                 ${applyButtonHtml}
                 ${detailsHTML}
@@ -219,6 +214,7 @@ function renderVacancies(container, vacancies) {
         container.appendChild(card);
     }
 }
+
 
 async function loadVacancies() {
     headerActions.classList.add('hidden');

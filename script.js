@@ -186,22 +186,28 @@ function renderVacancies(container, vacancies) {
         
         // Generate the new info grid
         let infoGridHtml = '<div class="info-grid">';
-        infoGridHtml += `<div class="info-label"><span class="icon-format">📋</span>Формат:</div><div class="info-value">${vacancy.employment_type} / ${vacancy.work_format}</div>`;
+        
+        const createRow = (icon, label, value, isHighlighted = false, highlightClass = '') => {
+            if (!value || value.trim() === '' || value.includes('не указано')) return '';
+            const valueHtml = isHighlighted 
+                ? `<span class="value-highlight ${highlightClass}">${value}</span>`
+                : value;
+            return `<div class="info-label">${icon} ${label} >></div><div class="info-value">${valueHtml}</div>`;
+        };
+
+        infoGridHtml += createRow('📋', 'ФОРМАТ', `${vacancy.employment_type} / ${vacancy.work_format}`);
         
         if (vacancy.salary_display_text) {
-            infoGridHtml += `<div class="info-label"><span class="icon-salary">💰</span>Зарплата:</div><div class="info-value">${vacancy.salary_display_text}</div>`;
+            infoGridHtml += createRow('💰', 'ОПЛАТА', vacancy.salary_display_text, true, 'salary');
         }
 
         if (vacancy.industry || vacancy.company_name) {
-            let companyName = vacancy.company_name || '';
-            if (vacancy.company_url && companyName) {
-                companyName = `<a href="${vacancy.company_url}" target="_blank">${companyName}</a>`;
-            }
             const industryText = vacancy.industry || '';
-            infoGridHtml += `<div class="info-label"><span class="icon-industry">🏢</span>Сфера:</div><div class="info-value">${industryText} ${companyName ? `(${companyName})` : ''}</div>`;
+            const companyName = vacancy.company_name ? `(${vacancy.company_name})` : '';
+            infoGridHtml += createRow('🏢', 'СФЕРА', `${industryText} ${companyName}`, true, 'industry');
         }
 
-        infoGridHtml += `<div class="info-label"><span class="icon-channel">📢</span>Канал:</div><div class="info-value">${vacancy.channel || 'Нет данных'}</div>`;
+        infoGridHtml += createRow('📢', 'КАНАЛ', vacancy.channel || 'Нет данных');
         infoGridHtml += '</div>';
 
         const detailsHTML = vacancy.text_highlighted ? `
@@ -289,7 +295,7 @@ async function loadVacancies() {
 
     } catch (error) {
         console.error('Ошибка загрузки:', error);
-        loader.innerHTML = `<p class="empty-list">Ошибка: ${e.message}</p>`;
+        loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
     }
 }
 

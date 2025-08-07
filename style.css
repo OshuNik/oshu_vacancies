@@ -12,6 +12,9 @@
     --accent-yellow: #FFD93D;
     --accent-green: #6BCB77;
     --accent-blue: #41A6FF;
+    --terminal-bg: #2d2d2d;
+    --terminal-text: #e0e0e0;
+    --terminal-text-label: #9e9e9e;
 }
 
 body {
@@ -628,8 +631,8 @@ input:checked + .toggle-slider:before {
 
 /* 1. Стиль для сводки в стиле "Заголовка миссии" */
 .card-summary {
-    background-color: var(--border-color);
-    color: var(--card-color);
+    background-color: var(--terminal-bg);
+    color: var(--terminal-text);
     padding: 10px 12px;
     margin: -15px -15px 15px -15px;
     border-bottom: var(--border-width) solid var(--border-color);
@@ -653,27 +656,87 @@ input:checked + .toggle-slider:before {
     50% { opacity: 0; }
 }
 
-/* 2. Общие стили карточки, которые были заменены */
-.card-info-line {
-    margin: 10px 0 0 0 !important;
-    padding: 0 !important;
-    font-size: 15px;
-    line-height: 1.5;
-}
-.info-divider {
-    height: 1px;
-    background-color: var(--background-color);
-    border-top: 1px dashed var(--hint-color);
+/* 2. Стили для блока характеристик */
+.info-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px 10px;
+    align-items: center;
     margin: 15px 0;
+    padding: 15px 10px;
+    background-color: var(--terminal-bg);
+    border: var(--border-width) solid var(--border-color);
+    position: relative;
+    overflow: hidden;
+    border-radius: 8px;
+}
+.info-grid::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(0, 0, 0, 0.3) 0,
+        rgba(0, 0, 0, 0.3) 1px,
+        transparent 1px,
+        transparent 3px
+    );
+    pointer-events: none;
+    z-index: 1;
+}
+.info-label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--terminal-text-label);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    z-index: 2;
+}
+.info-label span {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 18px;
+}
+.info-value {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.5;
+    color: var(--terminal-text);
+    z-index: 2;
+}
+.info-value a {
+    color: var(--accent-blue);
+    text-decoration: underline;
 }
 
-/* 3. Цвет для иконки "Откликнуться" */
+/* 3. Стили для выделения "особых" значений */
+.value-highlight {
+    background-color: var(--background-color);
+    border: var(--border-width) solid var(--border-color);
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+}
+.value-highlight.salary {
+    background-color: var(--accent-yellow);
+    color: var(--text-color);
+}
+.value-highlight.industry {
+    background-color: var(--accent-blue);
+    color: var(--card-color);
+}
+
+/* 4. Цвет для иконки "Откликнуться" */
 .card-action-btn.apply svg {
     stroke: var(--accent-green);
     fill: none;
 }
 
-/* 4. Обновленные стили для подвала карточки и тегов */
+/* 5. Обновленные стили для подвала карточки и тегов */
 .card-footer {
     display: flex;
     justify-content: space-between;
@@ -693,15 +756,21 @@ input:checked + .toggle-slider:before {
     flex-basis: 70%;
 }
 .footer-skill-tag {
-    font-family: 'Roboto Mono', monospace;
-    font-size: 11px;
-    font-weight: 700;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    font-weight: normal;
     background-color: var(--background-color);
     color: var(--text-color);
-    padding: 2px 6px;
+    padding: 5px 8px;
     border: var(--border-width) solid var(--border-color);
     border-radius: 4px;
+    text-transform: uppercase;
 }
+.footer-skill-tag.primary {
+    background-color: var(--accent-green);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+}
+
 .timestamp-footer {
     font-size: 12px;
     font-weight: 500;

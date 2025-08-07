@@ -624,55 +624,89 @@ input:checked + .toggle-slider:before {
     margin-bottom: 15px; /* Отступ между гифкой и текстом */
 }
 
-/* --- Стили для новых информационных блоков в карточке --- */
-.card-info-line {
-    margin: 10px 0 0 0 !important;
+/* --- НОВЫЕ СТИЛИ ДЛЯ КАРТОЧКИ --- */
+
+/* 1. Стиль для краткой сути вакансии */
+.card-summary {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 0 0 15px 0 !important;
     padding: 0 !important;
+}
+
+/* 2. Стили для блока характеристик */
+.info-grid {
+    display: grid;
+    grid-template-columns: auto 1fr; /* Первая колонка по содержимому, вторая занимает остальное место */
+    gap: 12px 10px; /* Вертикальный и горизонтальный отступ */
+    align-items: center;
+    margin: 15px 0;
+    padding: 15px 0;
+    border-top: var(--border-width) dashed var(--hint-color);
+    border-bottom: var(--border-width) dashed var(--hint-color);
+}
+
+.info-label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--hint-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.info-value {
     font-size: 15px;
+    font-weight: 500;
     line-height: 1.5;
 }
 
-.card-info-line strong {
-    font-weight: 700;
-}
-
-.info-divider {
-    height: 1px;
+/* 3. Стили для выделения "особых" значений */
+.value-highlight {
     background-color: var(--background-color);
-    border-top: 1px dashed var(--hint-color);
-    margin: 15px 0;
+    border: var(--border-width) solid var(--border-color);
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
 }
 
-/* --- Цвет для иконки "Откликнуться" --- */
+.value-highlight.salary {
+    background-color: var(--accent-yellow);
+}
+.value-highlight.industry {
+    background-color: var(--accent-blue);
+    color: var(--card-color);
+}
+
+/* 4. Цвет для иконки "Откликнуться" */
 .card-action-btn.apply svg {
     stroke: var(--accent-green);
     fill: none;
 }
 
-
-/* --- ИЗМЕНЕНИЯ для подвала карточки, чтобы вместить навыки --- */
+/* 5. Обновленные стили для подвала карточки и тегов */
 .card-footer {
     display: flex;
-    justify-content: space-between; /* Изменено */
-    align-items: flex-end; /* Добавлено */
+    justify-content: space-between;
+    align-items: flex-end;
     margin-top: 15px;
     padding-top: 10px;
-    border-top: 1px dashed var(--hint-color); /* Изменено */
-    flex-wrap: wrap; /* Добавлено */
-    gap: 10px; /* Добавлено */
+    border-top: 1px dashed var(--hint-color);
+    flex-wrap: wrap;
+    gap: 10px;
 }
 
-/* Переносим стили для тегов сюда, чтобы они были в подвале */
 .footer-skill-tags {
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
     justify-content: flex-start;
-    flex-basis: 70%; /* Занимают большую часть подвала */
+    flex-basis: 70%;
 }
 .footer-skill-tag {
     font-family: 'Roboto Mono', monospace;
-    font-size: 11px; /* Уменьшаем шрифт для подвала */
+    font-size: 11px;
     font-weight: 700;
     background-color: var(--background-color);
     color: var(--text-color);
@@ -688,40 +722,3 @@ input:checked + .toggle-slider:before {
     text-align: right;
     white-space: nowrap;
 }
-
-/* --- Стиль для краткой сути вакансии --- */
-.card-summary {
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 1.5;
-    margin: 0 0 15px 0 !important;
-    padding: 0 !important;
-}
-/* --- Стили для нового информационного блока --- */
-.info-grid {
-    display: grid;
-    grid-template-columns: auto 1fr; /* Первая колонка по содержимому, вторая занимает остальное место */
-    gap: 12px 10px; /* Вертикальный и горизонтальный отступ */
-    align-items: center;
-    margin: 15px 0;
-}
-
-.info-label {
-    font-weight: 700;
-    color: var(--hint-color);
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-size: 15px;
-}
-
-.info-value {
-    font-size: 15px;
-    font-weight: 500;
-    line-height: 1.5;
-}
-
-/* Раскрашиваем иконки */
-.info-label .icon-format { color: var(--accent-blue); }
-.info-label .icon-salary { color: var(--accent-yellow); }
-.info-label .icon-industry { color: var(--border-color); }

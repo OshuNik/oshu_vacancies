@@ -140,7 +140,7 @@ async function clearCategory(categoryName) {
 
 /**
  * ГЛАВНАЯ ИЗМЕНЕННАЯ ФУНКЦИЯ
- * Отрисовывает карточку со всеми новыми данными: зарплата, навыки, сфера и т.д.
+ * Отрисовывает карточку со всеми новыми данными
  */
 function renderVacancies(container, vacancies) {
     if (!container) return;
@@ -159,21 +159,32 @@ function renderVacancies(container, vacancies) {
         else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
         else card.classList.add('category-other');
 
-        // Генерация HTML для тегов навыков
-        let skillsHtml = '';
+        // Генерация HTML для тегов навыков для подвала
+        let skillsFooterHtml = '';
         if (vacancy.skills && vacancy.skills.length > 0) {
-            skillsHtml = `
-            <div class="skill-tags">
-                ${vacancy.skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
+            skillsFooterHtml = `
+            <div class="footer-skill-tags">
+                ${vacancy.skills.map(skill => `<span class="footer-skill-tag">${skill}</span>`).join('')}
             </div>`;
         }
         
-        // Генерация HTML для строки о компании/индустрии
+        // Генерация HTML для компании (теперь со ссылкой)
         let companyHtml = '';
         if (vacancy.industry || vacancy.company_name) {
+            let companyName = vacancy.company_name || '';
+            if (vacancy.company_url && companyName) {
+                companyName = `<a href="${vacancy.company_url}" target="_blank">(${companyName})</a>`;
+            } else if (companyName) {
+                companyName = `(${companyName})`;
+            }
             const industryText = vacancy.industry || '';
-            const companyText = vacancy.company_name ? `(${vacancy.company_name})` : '';
-            companyHtml = `<p class="card-info-line"><strong>🏢 Сфера:</strong> ${industryText} ${companyText}</p>`;
+            companyHtml = `<p class="card-info-line"><strong>🏢 Сфера:</strong> ${industryText} ${companyName}</p>`;
+        }
+
+        // Генерация кнопки "Откликнуться"
+        let applyButtonHtml = '';
+        if(vacancy.apply_url) {
+            applyButtonHtml = `<a href="${vacancy.apply_url}" target="_blank" class="apply-button">Откликнуться 🚀</a>`;
         }
         
         const detailsHTML = vacancy.text_highlighted ? `
@@ -194,20 +205,20 @@ function renderVacancies(container, vacancies) {
                 ${vacancy.salary_display_text ? `<p class="card-info-line"><strong>💰 Зарплата:</strong> ${vacancy.salary_display_text}</p>` : ''}
                 ${companyHtml}
                 
-                ${skillsHtml ? '<div class="info-divider"></div>' : ''}
-                ${skillsHtml}
-                
                 <div class="info-divider"></div>
                 <p><strong>📄 Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
                 <p><strong>📢 Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
                 
+                ${applyButtonHtml}
                 ${detailsHTML}
             </div>
-            <div class="card-footer"><span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span></div>`;
+            <div class="card-footer">
+                ${skillsFooterHtml}
+                <span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span>
+            </div>`;
         container.appendChild(card);
     }
 }
-
 
 async function loadVacancies() {
     headerActions.classList.add('hidden');

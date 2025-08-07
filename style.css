@@ -629,24 +629,32 @@ input:checked + .toggle-slider:before {
 
 /* --- ФИНАЛЬНЫЕ СТИЛИ ДЛЯ КАРТОЧКИ --- */
 
-/* 1. Стиль для сводки в стиле "Терминала" */
+/* --- Стиль для сводки в стиле "Заголовка миссии" --- */
 .card-summary {
+    background-color: var(--border-color); /* Темный фон */
+    color: var(--card-color);              /* Светлый текст */
+    padding: 10px 12px;
+    margin: -15px -15px 15px -15px;      /* Вытягиваем фон до краев карточки */
+    border-bottom: var(--border-width) solid var(--border-color);
+    
     font-size: 16px;
     font-weight: 700;
     line-height: 1.5;
-    margin: 0 0 15px 0 !important;
-    padding: 0 !important;
     position: relative;
 }
+
+/* Добавляем '>' перед текстом */
 .card-summary::before {
     content: '> ';
     margin-right: 5px;
 }
+
+/* Анимированный мигающий курсор в конце */
 .card-summary::after {
     content: '█';
     animation: blink 1s step-end infinite;
     margin-left: 5px;
-    color: var(--accent-green);
+    color: var(--accent-green); /* Зеленый курсор, как в терминале */
 }
 
 @keyframes blink {

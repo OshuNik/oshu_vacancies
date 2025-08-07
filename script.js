@@ -33,12 +33,8 @@ const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 
 // --- HELPER FUNCTIONS ---
-
-// ИЗМЕНЕНА ФУНКЦИЯ: Теперь она возвращает <img> с гифкой
 function getEmptyStateHtml(message) {
-    // ВАЖНО: Замените эту ссылку на прямую ссылку на ВАШУ гифку
     const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif'; 
-    
     return `
     <div class="empty-state">
         <img src="${catGifUrl}" alt="Спящий котик" class="empty-state-gif" />
@@ -142,6 +138,10 @@ async function clearCategory(categoryName) {
     });
 }
 
+/**
+ * ГЛАВНАЯ ИЗМЕНЕННАЯ ФУНКЦИЯ
+ * Отрисовывает карточку со всеми новыми данными: зарплата, навыки, сфера и т.д.
+ */
 function renderVacancies(container, vacancies) {
     if (!container) return;
     container.innerHTML = '';
@@ -151,8 +151,7 @@ function renderVacancies(container, vacancies) {
         return;
     }
 
-    for (const item of vacancies) {
-        const vacancy = item;
+    for (const vacancy of vacancies) {
         const card = document.createElement('div');
         card.className = 'vacancy-card';
         card.id = `card-${vacancy.id}`;
@@ -160,12 +159,30 @@ function renderVacancies(container, vacancies) {
         else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
         else card.classList.add('category-other');
 
+        // Генерация HTML для тегов навыков
+        let skillsHtml = '';
+        if (vacancy.skills && vacancy.skills.length > 0) {
+            skillsHtml = `
+            <div class="skill-tags">
+                ${vacancy.skills.map(skill => `<span class="skill-tag">${skill}</span>`).join('')}
+            </div>`;
+        }
+        
+        // Генерация HTML для строки о компании/индустрии
+        let companyHtml = '';
+        if (vacancy.industry || vacancy.company_name) {
+            const industryText = vacancy.industry || '';
+            const companyText = vacancy.company_name ? `(${vacancy.company_name})` : '';
+            companyHtml = `<p class="card-info-line"><strong>🏢 Сфера:</strong> ${industryText} ${companyText}</p>`;
+        }
+        
         const detailsHTML = vacancy.text_highlighted ? `
         <details>
             <summary>Показать полный текст</summary>
             <div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div>
         </details>` : '';
 
+        // Финальная сборка карточки
         card.innerHTML = `
             <div class="card-actions">
                 <button class="card-action-btn favorite" onclick="updateStatus(event, '${vacancy.id}', 'favorite')"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
@@ -173,15 +190,24 @@ function renderVacancies(container, vacancies) {
             </div>
             <div class="card-header"><h3>${vacancy.category || 'NO_CATEGORY'}</h3></div>
             <div class="card-body">
-                <p><strong>Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
-                <p><strong>Ключевые слова:</strong> ${vacancy.keywords_found || 'Нет данных'}</p>
-                <p><strong>Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
+                <p class="card-info-line"><strong>📋 Формат:</strong> ${vacancy.employment_type} / ${vacancy.work_format}</p>
+                ${vacancy.salary_display_text ? `<p class="card-info-line"><strong>💰 Зарплата:</strong> ${vacancy.salary_display_text}</p>` : ''}
+                ${companyHtml}
+                
+                ${skillsHtml ? '<div class="info-divider"></div>' : ''}
+                ${skillsHtml}
+                
+                <div class="info-divider"></div>
+                <p><strong>📄 Причина:</strong> ${vacancy.reason || 'Нет данных'}</p>
+                <p><strong>📢 Канал:</strong> ${vacancy.channel || 'Нет данных'}</p>
+                
                 ${detailsHTML}
             </div>
             <div class="card-footer"><span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span></div>`;
         container.appendChild(card);
     }
 }
+
 
 async function loadVacancies() {
     headerActions.classList.add('hidden');

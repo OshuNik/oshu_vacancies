@@ -736,3 +736,12 @@ input:checked + .toggle-slider:before {
     text-align: right;
     white-space: nowrap;
 }
+
+/* --- Стиль для краткой сути вакансии --- */
+.card-summary {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 0 0 15px 0 !important;
+    padding: 0 !important;
+}

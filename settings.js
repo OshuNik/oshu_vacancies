@@ -1,5 +1,6 @@
 const tg = window.Telegram.WebApp;
 tg.expand();
+
 // --- SUPABASE SETUP ---
 const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';

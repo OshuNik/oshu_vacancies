@@ -631,7 +631,7 @@ input:checked + .toggle-slider:before {
 }
 
 .empty-state-gif {
-    width: 120px; /* Можете подобрать размер, который вам нравится */
+    width: 200px; /* Можете подобрать размер, который вам нравится */
     height: auto;
     margin-bottom: 15px; /* Отступ между гифкой и текстом */
 }

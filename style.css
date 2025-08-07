@@ -697,4 +697,31 @@ input:checked + .toggle-slider:before {
     margin: 0 0 15px 0 !important;
     padding: 0 !important;
 }
-пришли полный код script.js и вот css тоже его обнови
+/* --- Стили для нового информационного блока --- */
+.info-grid {
+    display: grid;
+    grid-template-columns: auto 1fr; /* Первая колонка по содержимому, вторая занимает остальное место */
+    gap: 12px 10px; /* Вертикальный и горизонтальный отступ */
+    align-items: center;
+    margin: 15px 0;
+}
+
+.info-label {
+    font-weight: 700;
+    color: var(--hint-color);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+}
+
+.info-value {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+
+/* Раскрашиваем иконки */
+.info-label .icon-format { color: var(--accent-blue); }
+.info-label .icon-salary { color: var(--accent-yellow); }
+.info-label .icon-industry { color: var(--border-color); }

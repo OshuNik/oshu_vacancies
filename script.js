@@ -27,8 +27,21 @@ const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 
 // --- HELPER FUNCTIONS ---
-function openApplyLink(url) { if (url) { tg.openLink(url); } }
-function getEmptyStateHtml(message) { const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif'; return `<div class="empty-state"><img src="${catGifUrl}" alt="Спящий котик" class="empty-state-gif" /><p class="empty-state-text">${message}</p></div>`; }
+function openApplyLink(url) {
+    if (url) {
+        tg.openLink(url);
+    }
+}
+
+function getEmptyStateHtml(message) {
+    const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif'; 
+    return `
+    <div class="empty-state">
+        <img src="${catGifUrl}" alt="Спящий котик" class="empty-state-gif" />
+        <p class="empty-state-text">${message}</p>
+    </div>`;
+}
+
 function showCustomConfirm(message, callback) { confirmText.textContent = message; confirmOverlay.classList.remove('hidden'); confirmOkBtn.onclick = () => { confirmOverlay.classList.add('hidden'); callback(true); }; confirmCancelBtn.onclick = () => { confirmOverlay.classList.add('hidden'); callback(false); };}
 function formatTimestamp(isoString) { if (!isoString) return ''; const date = new Date(isoString); return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });}
 function filterVacancies() { const query = searchInput.value.toLowerCase(); const activeList = document.querySelector('.vacancy-list.active'); if (!activeList) return; const cards = activeList.querySelectorAll('.vacancy-card'); cards.forEach(card => { const cardText = card.textContent.toLowerCase(); if (cardText.includes(query)) { card.style.display = ''; } else { card.style.display = 'none'; } });}
@@ -58,41 +71,64 @@ function renderVacancies(container, vacancies) {
         
         let applyIconHtml = '';
         if (isValid(vacancy.apply_url)) {
-            applyIconHtml = `<button class="card-action-btn apply" onclick="openApplyLink('${vacancy.apply_url}')"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>`;
+            applyIconHtml = `
+            <button class="card-action-btn apply" onclick="openApplyLink('${vacancy.apply_url}')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="22" y1="2" x2="11" y2="13"></line>
+                    <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+                </svg>
+            </button>`;
         }
         
         let skillsFooterHtml = '';
         if (vacancy.skills && vacancy.skills.length > 0) {
-            skillsFooterHtml = `<div class="footer-skill-tags">${vacancy.skills.slice(0, 3).map(skill => { const isPrimary = PRIMARY_SKILLS.includes(skill.toLowerCase()); return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${skill}</span>`; }).join('')}</div>`;
+            skillsFooterHtml = `
+            <div class="footer-skill-tags">
+                ${vacancy.skills.slice(0, 3).map(skill => {
+                    const isPrimary = PRIMARY_SKILLS.includes(skill.toLowerCase());
+                    return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${skill}</span>`;
+                }).join('')}
+            </div>`;
         }
         
         const infoRows = [];
+        
         const employment = isValid(vacancy.employment_type) ? vacancy.employment_type : '';
         const workFormat = isValid(vacancy.work_format) ? vacancy.work_format : '';
         const formatValue = [employment, workFormat].filter(Boolean).join(' / ');
-        if (isValid(formatValue)) infoRows.push({label: 'ФОРМАТ', value: formatValue, type: 'default'});
+        if (isValid(formatValue)) infoRows.push({icon: '📋', label: 'ФОРМАТ', value: formatValue});
         
-        if (isValid(vacancy.salary_display_text)) infoRows.push({label: 'ОПЛАТА', value: vacancy.salary_display_text, type: 'salary'});
+        if (isValid(vacancy.salary_display_text)) infoRows.push({icon: '💰', label: 'ОПЛАТА', value: vacancy.salary_display_text, highlight: true, highlightClass: 'salary'});
         
         const industryText = isValid(vacancy.industry) ? vacancy.industry : '';
-        let companyText = isValid(vacancy.company_name) ? `(${vacancy.company_name})` : '';
+        let companyText = isValid(vacancy.company_name) ? vacancy.company_name : '';
+        if (companyText && isValid(vacancy.company_url)) {
+            companyText = `(<a href="${vacancy.company_url}" target="_blank">${companyText}</a>)`;
+        } else if (companyText) {
+            companyText = `(${companyText})`;
+        }
         const sphereValue = `${industryText} ${companyText}`.trim();
-        if (sphereValue) infoRows.push({label: 'СФЕРА', value: sphereValue, type: 'industry'});
+        if (sphereValue) {
+            infoRows.push({icon: '🏢', label: 'СФЕРА', value: sphereValue, highlight: true, highlightClass: 'industry'});
+        }
         
-        let infoWindowHtml = '';
+        let infoGridHtml = '';
         if (infoRows.length > 0) {
-            infoWindowHtml = '<div class="info-window">';
+            infoGridHtml = '<div class="info-grid">';
             infoRows.forEach(row => {
-                infoWindowHtml += `<div class="info-row info-row--${row.type}"><div class="info-label">${row.label} >></div><div class="info-value">${row.value}</div></div>`;
+                const valueHtml = row.highlight ? `<span class="value-highlight ${row.highlightClass}">${row.value}</span>` : row.value;
+                infoGridHtml += `<div class="info-label"><span>${row.icon}</span> ${row.label} >></div><div class="info-value">${valueHtml}</div>`;
             });
-            infoWindowHtml += '</div>';
+            infoGridHtml += '</div>';
         }
 
         const detailsHTML = vacancy.text_highlighted ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div></details>` : '';
 
+        // --- ИЗМЕНЕНИЕ ЗДЕСЬ: Собираем новый подвал ---
         const channelHtml = isValid(vacancy.channel) ? `<span class="channel-name">${vacancy.channel}</span>` : '';
         const timestampHtml = `<span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span>`;
         const separator = channelHtml && timestampHtml ? ' • ' : '';
+
         const footerMetaHtml = `<div class="footer-meta">${channelHtml}${separator}${timestampHtml}</div>`;
 
         card.innerHTML = `
@@ -104,7 +140,7 @@ function renderVacancies(container, vacancies) {
             <div class="card-header"><h3>${vacancy.category || 'NO_CATEGORY'}</h3></div>
             <div class="card-body">
                 <p class="card-summary">${vacancy.reason || 'Описание не было сгенерировано.'}</p>
-                ${infoWindowHtml}
+                ${infoGridHtml}
                 ${detailsHTML}
             </div>
             <div class="card-footer">
@@ -116,6 +152,7 @@ function renderVacancies(container, vacancies) {
 }
 
 async function loadVacancies() {
+    // ... (остальной код без изменений)
     headerActions.classList.add('hidden');
     vacanciesContent.classList.add('hidden');
     searchContainer.classList.add('hidden');
@@ -176,40 +213,8 @@ async function loadVacancies() {
 }
 
 // --- EVENT LISTENERS ---
-tabButtons.forEach(button => {
-    let pressTimer = null;
-    let longPressTriggered = false;
-    const startPress = (e) => {
-        longPressTriggered = false;
-        pressTimer = window.setTimeout(() => {
-            longPressTriggered = true;
-            const categoryName = button.dataset.categoryName;
-            clearCategory(categoryName);
-        }, 800);
-    };
-    const cancelPress = (e) => {
-        clearTimeout(pressTimer);
-        if (longPressTriggered) {
-            e.preventDefault();
-        }
-    };
-    const handleClick = () => {
-        if (longPressTriggered) { return; }
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        vacancyLists.forEach(list => list.classList.remove('active'));
-        button.classList.add('active');
-        document.getElementById(button.dataset.target).classList.add('active');
-        filterVacancies();
-    };
-    button.addEventListener('mousedown', startPress);
-    button.addEventListener('mouseup', cancelPress);
-    button.addEventListener('mouseleave', cancelPress);
-    button.addEventListener('touchstart', startPress, { passive: true });
-    button.addEventListener('touchend', cancelPress);
-    button.addEventListener('touchcancel', cancelPress);
-    button.addEventListener('click', handleClick);
-});
-
+// ... (остальной код без изменений)
+tabButtons.forEach(button => { let pressTimer = null; let longPressTriggered = false; const startPress = (e) => { longPressTriggered = false; pressTimer = window.setTimeout(() => { longPressTriggered = true; const categoryName = button.dataset.categoryName; clearCategory(categoryName); }, 800); }; const cancelPress = (e) => { clearTimeout(pressTimer); if (longPressTriggered) { e.preventDefault(); } }; const handleClick = () => { if (longPressTriggered) { return; } tabButtons.forEach(btn => btn.classList.remove('active')); vacancyLists.forEach(list => list.classList.remove('active')); button.classList.add('active'); document.getElementById(button.dataset.target).classList.add('active'); filterVacancies(); }; button.addEventListener('mousedown', startPress); button.addEventListener('mouseup', cancelPress); button.addEventListener('mouseleave', cancelPress); button.addEventListener('touchstart', startPress, { passive: true }); button.addEventListener('touchend', cancelPress); button.addEventListener('touchcancel', cancelPress); button.addEventListener('click', handleClick); });
 searchInput.addEventListener('input', filterVacancies);
 refreshBtn.addEventListener('click', loadVacancies);
 

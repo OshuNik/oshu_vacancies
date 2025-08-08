@@ -9,18 +9,9 @@ const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
 const PRIMARY_SKILLS = ['after effects', 'unity', 'монтаж видео', '2d-анимация', 'рилсы', 'premiere pro'];
 
 // Page Elements
-const containers = {
-    main: document.getElementById('vacancies-list-main'),
-    maybe: document.getElementById('vacancies-list-maybe'),
-    other: document.getElementById('vacancies-list-other')
-};
-const counts = {
-    main: document.getElementById('count-main'),
-    maybe: document.getElementById('count-maybe'),
-    other: document.getElementById('count-other')
-};
+const containers = { main: document.getElementById('vacancies-list-main'), maybe: document.getElementById('vacancies-list-maybe'), other: document.getElementById('vacancies-list-other') };
+const counts = { main: document.getElementById('count-main'), maybe: document.getElementById('count-maybe'), other: document.getElementById('count-other') };
 const tabButtons = document.querySelectorAll('.tab-button');
-// ... (остальные Page Elements без изменений)
 const vacancyLists = document.querySelectorAll('.vacancy-list');
 const refreshBtn = document.getElementById('refresh-button');
 const searchInput = document.getElementById('search-input');
@@ -34,7 +25,6 @@ const confirmOverlay = document.getElementById('custom-confirm-overlay');
 const confirmText = document.getElementById('custom-confirm-text');
 const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
-
 
 // --- HELPER FUNCTIONS ---
 function openApplyLink(url) {
@@ -52,12 +42,13 @@ function getEmptyStateHtml(message) {
     </div>`;
 }
 
-// ... (остальные helper-функции без изменений)
-function showCustomConfirm(message, callback) { confirmText.textContent = message; confirmOverlay.classList.remove('hidden'); confirmOkBtn.onclick = () => { confirmOverlay.classList.add('hidden'); callback(true); }; confirmCancelBtn.onclick = () => { confirmOverlay.classList.add('hidden'); callback(false); };}function formatTimestamp(isoString) { if (!isoString) return ''; const date = new Date(isoString); return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });}function filterVacancies() { const query = searchInput.value.toLowerCase(); const activeList = document.querySelector('.vacancy-list.active'); if (!activeList) return; const cards = activeList.querySelectorAll('.vacancy-card'); cards.forEach(card => { const cardText = card.textContent.toLowerCase(); if (cardText.includes(query)) { card.style.display = ''; } else { card.style.display = 'none'; } });}
+function showCustomConfirm(message, callback) { confirmText.textContent = message; confirmOverlay.classList.remove('hidden'); confirmOkBtn.onclick = () => { confirmOverlay.classList.add('hidden'); callback(true); }; confirmCancelBtn.onclick = () => { confirmOverlay.classList.add('hidden'); callback(false); };}
+function formatTimestamp(isoString) { if (!isoString) return ''; const date = new Date(isoString); return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });}
+function filterVacancies() { const query = searchInput.value.toLowerCase(); const activeList = document.querySelector('.vacancy-list.active'); if (!activeList) return; const cards = activeList.querySelectorAll('.vacancy-card'); cards.forEach(card => { const cardText = card.textContent.toLowerCase(); if (cardText.includes(query)) { card.style.display = ''; } else { card.style.display = 'none'; } });}
 
 // --- API FUNCTIONS & ANIMATIONS ---
-// ... (updateStatus и clearCategory без изменений)
-async function updateStatus(event, vacancyId, newStatus) { const cardElement = document.getElementById(`card-${vacancyId}`); if (!cardElement) return; const parentList = cardElement.parentElement; const categoryKey = Object.keys(containers).find(key => containers[key] === parentList); try { await fetch(`${SUPABASE_URL}/rest/v1/vacancies?id=eq.${vacancyId}`, { method: 'PATCH', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ status: newStatus }) }); cardElement.style.opacity = '0'; cardElement.style.transform = 'scale(0.95)'; setTimeout(() => { cardElement.remove(); if (parentList.querySelectorAll('.vacancy-card').length === 0) { parentList.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --"); } const countSpan = counts[categoryKey]; let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, '')); countSpan.textContent = `(${(currentCount - 1)})`; }, 300); } catch (error) { console.error('Ошибка обновления статуса:', error); tg.showAlert('Не удалось обновить статус.'); if (cardElement) { cardElement.style.opacity = '1'; cardElement.style.transform = 'scale(1)'; } } } async function clearCategory(categoryName) { if (!categoryName) return; showCustomConfirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`, async (isConfirmed) => { if (isConfirmed) { const activeList = document.querySelector('.vacancy-list.active'); if (activeList) { const cards = activeList.querySelectorAll('.vacancy-card'); cards.forEach(card => card.style.opacity = '0'); } try { await fetch(`${SUPABASE_URL}/rest/v1/vacancies?category=eq.${categoryName}&status=eq.new`, { method: 'PATCH', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ status: 'deleted' }) }); if (activeList) { activeList.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --"); const categoryKey = Object.keys(containers).find(key => containers[key] === activeList); if (categoryKey) counts[categoryKey].textContent = '(0)'; } } catch (error) { console.error('Ошибка очистки категории:', error); tg.showAlert('Не удалось очистить категорию.'); } } }); }
+async function updateStatus(event, vacancyId, newStatus) { const cardElement = document.getElementById(`card-${vacancyId}`); if (!cardElement) return; const parentList = cardElement.parentElement; const categoryKey = Object.keys(containers).find(key => containers[key] === parentList); try { await fetch(`${SUPABASE_URL}/rest/v1/vacancies?id=eq.${vacancyId}`, { method: 'PATCH', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ status: newStatus }) }); cardElement.style.opacity = '0'; cardElement.style.transform = 'scale(0.95)'; setTimeout(() => { cardElement.remove(); if (parentList.querySelectorAll('.vacancy-card').length === 0) { parentList.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --"); } const countSpan = counts[categoryKey]; let currentCount = parseInt(countSpan.textContent.replace(/\(|\)/g, '')); countSpan.textContent = `(${(currentCount - 1)})`; }, 300); } catch (error) { console.error('Ошибка обновления статуса:', error); tg.showAlert('Не удалось обновить статус.'); if (cardElement) { cardElement.style.opacity = '1'; cardElement.style.transform = 'scale(1)'; } } } 
+async function clearCategory(categoryName) { if (!categoryName) return; showCustomConfirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`, async (isConfirmed) => { if (isConfirmed) { const activeList = document.querySelector('.vacancy-list.active'); if (activeList) { const cards = activeList.querySelectorAll('.vacancy-card'); cards.forEach(card => card.style.opacity = '0'); } try { await fetch(`${SUPABASE_URL}/rest/v1/vacancies?category=eq.${categoryName}&status=eq.new`, { method: 'PATCH', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' }, body: JSON.stringify({ status: 'deleted' }) }); if (activeList) { activeList.innerHTML = getEmptyStateHtml("-- Пусто в этой категории --"); const categoryKey = Object.keys(containers).find(key => containers[key] === activeList); if (categoryKey) counts[categoryKey].textContent = '(0)'; } } catch (error) { console.error('Ошибка очистки категории:', error); tg.showAlert('Не удалось очистить категорию.'); } } }); }
 
 function renderVacancies(container, vacancies) {
     if (!container) return;
@@ -76,11 +67,13 @@ function renderVacancies(container, vacancies) {
         else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
         else card.classList.add('category-other');
 
+        const isValid = (val) => val && val !== 'null' && val !== 'не указано';
+        
         let applyIconHtml = '';
-        if (vacancy.apply_url && vacancy.apply_url !== 'null') {
+        if (isValid(vacancy.apply_url)) {
             applyIconHtml = `
             <button class="card-action-btn apply" onclick="openApplyLink('${vacancy.apply_url}')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                 </svg>
@@ -99,52 +92,41 @@ function renderVacancies(container, vacancies) {
         }
         
         const infoRows = [];
-        const isValid = (val) => val && val !== 'null' && val !== 'не указано';
-
+        
         const employment = isValid(vacancy.employment_type) ? vacancy.employment_type : '';
         const workFormat = isValid(vacancy.work_format) ? vacancy.work_format : '';
         const formatValue = [employment, workFormat].filter(Boolean).join(' / ');
-        if (isValid(formatValue)) {
-            infoRows.push({icon: '📋', label: 'ФОРМАТ', value: formatValue});
-        }
+        if (isValid(formatValue)) infoRows.push({icon: '📋', label: 'ФОРМАТ', value: formatValue});
         
-        if (isValid(vacancy.salary_display_text)) {
-            infoRows.push({icon: '💰', label: 'ОПЛАТА', value: vacancy.salary_display_text, highlight: true, highlightClass: 'salary'});
-        }
+        if (isValid(vacancy.salary_display_text)) infoRows.push({icon: '💰', label: 'ОПЛАТА', value: vacancy.salary_display_text, highlight: true, highlightClass: 'salary'});
         
+        // --- ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ СФЕРЫ ---
         const industryText = isValid(vacancy.industry) ? vacancy.industry : '';
-        let companyName = isValid(vacancy.company_name) ? vacancy.company_name : '';
-        if (isValid(vacancy.company_url) && companyName) {
-            companyName = `<a href="${vacancy.company_url}" target="_blank">${companyName}</a>`;
+        let companyText = isValid(vacancy.company_name) ? vacancy.company_name : '';
+        if (companyText && isValid(vacancy.company_url)) {
+            companyText = `(<a href="${vacancy.company_url}" target="_blank">${companyText}</a>)`;
+        } else if (companyText) {
+            companyText = `(${companyText})`;
         }
-        const sphereValue = `${industryText} ${companyName ? `(${companyName})` : ''}`.trim();
+        const sphereValue = `${industryText} ${companyText}`.trim();
         if (sphereValue) {
             infoRows.push({icon: '🏢', label: 'СФЕРА', value: sphereValue, highlight: true, highlightClass: 'industry'});
         }
         
-        if (isValid(vacancy.channel)) {
-            infoRows.push({icon: '📢', label: 'КАНАЛ', value: vacancy.channel});
-        }
+        if (isValid(vacancy.channel)) infoRows.push({icon: '📢', label: 'КАНАЛ', value: vacancy.channel});
         
         let infoGridHtml = '';
         if (infoRows.length > 0) {
             infoGridHtml = '<div class="info-grid">';
             infoRows.forEach(row => {
-                const valueHtml = row.highlight 
-                    ? `<span class="value-highlight ${row.highlightClass}">${row.value}</span>`
-                    : row.value;
+                const valueHtml = row.highlight ? `<span class="value-highlight ${row.highlightClass}">${row.value}</span>` : row.value;
                 infoGridHtml += `<div class="info-label"><span>${row.icon}</span> ${row.label} >></div><div class="info-value">${valueHtml}</div>`;
             });
             infoGridHtml += '</div>';
         }
 
-        const detailsHTML = vacancy.text_highlighted ? `
-        <details>
-            <summary>Показать полный текст</summary>
-            <div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div>
-        </details>` : '';
+        const detailsHTML = vacancy.text_highlighted ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div></details>` : '';
 
-        // Final card assembly
         card.innerHTML = `
             <div class="card-actions">
                 ${applyIconHtml}
@@ -154,9 +136,7 @@ function renderVacancies(container, vacancies) {
             <div class="card-header"><h3>${vacancy.category || 'NO_CATEGORY'}</h3></div>
             <div class="card-body">
                 <p class="card-summary">${vacancy.reason || 'Описание не было сгенерировано.'}</p>
-                
                 ${infoGridHtml}
-                
                 ${detailsHTML}
             </div>
             <div class="card-footer">

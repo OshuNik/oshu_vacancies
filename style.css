@@ -452,7 +452,8 @@ body {
     flex-wrap: wrap;
     gap: 5px;
     justify-content: flex-start;
-    flex-basis: 70%;
+    flex-grow: 1; /* <--- Новое свойство */
+    min-width: 0; /* Для правильной работы flex-grow */
 }
 .footer-skill-tag {
     font-family: 'Press Start 2P', monospace;

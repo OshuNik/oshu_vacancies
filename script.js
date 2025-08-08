@@ -179,7 +179,7 @@ function renderVacancies(container, vacancies) {
         if (vacancy.skills && vacancy.skills.length > 0) {
             skillsFooterHtml = `
             <div class="footer-skill-tags">
-                ${vacancy.skills.map(skill => {
+                ${vacancy.skills.slice(0, 3).map(skill => {
                     const isPrimary = PRIMARY_SKILLS.includes(skill.toLowerCase());
                     return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${skill}</span>`;
                 }).join('')}

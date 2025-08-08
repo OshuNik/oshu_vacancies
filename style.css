@@ -439,6 +439,12 @@ body {
     gap: 8px;
     padding: 5px 0;
     transition: color 0.2s ease;
+    font-family: 'Roboto Mono', monospace; /* <- Добавляем моноширинный шрифт */
+    font-weight: 700;
+    color: var(--hint-color);
+    font-size: 14px; /* <- Немного уменьшаем для стиля */
+    text-transform: uppercase; /* <- Делаем все буквы заглавными */
+    letter-spacing: 1px; /* <- Добавляем "воздуха" между буквами */
 }
 .card-body summary::-webkit-details-marker {
     display: none;

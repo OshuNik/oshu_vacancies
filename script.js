@@ -186,7 +186,6 @@ function renderVacancies(container, vacancies) {
             </div>`;
         }
         
-        // --- УЛУЧШЕННАЯ ЛОГИКА ГЕНЕРАЦИИ СТРОК ---
         const infoRows = [];
         const isValid = (val) => val && val !== 'null' && val !== 'не указано';
 

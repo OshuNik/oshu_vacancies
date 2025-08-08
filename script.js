@@ -73,7 +73,7 @@ function renderVacancies(container, vacancies) {
         if (isValid(vacancy.apply_url)) {
             applyIconHtml = `
             <button class="card-action-btn apply" onclick="openApplyLink('${vacancy.apply_url}')">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"></line>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
                 </svg>
@@ -100,7 +100,6 @@ function renderVacancies(container, vacancies) {
         
         if (isValid(vacancy.salary_display_text)) infoRows.push({icon: '💰', label: 'ОПЛАТА', value: vacancy.salary_display_text, highlight: true, highlightClass: 'salary'});
         
-        // --- ИСПРАВЛЕННАЯ ЛОГИКА ДЛЯ СФЕРЫ ---
         const industryText = isValid(vacancy.industry) ? vacancy.industry : '';
         let companyText = isValid(vacancy.company_name) ? vacancy.company_name : '';
         if (companyText && isValid(vacancy.company_url)) {
@@ -113,8 +112,6 @@ function renderVacancies(container, vacancies) {
             infoRows.push({icon: '🏢', label: 'СФЕРА', value: sphereValue, highlight: true, highlightClass: 'industry'});
         }
         
-        if (isValid(vacancy.channel)) infoRows.push({icon: '📢', label: 'КАНАЛ', value: vacancy.channel});
-        
         let infoGridHtml = '';
         if (infoRows.length > 0) {
             infoGridHtml = '<div class="info-grid">';
@@ -126,6 +123,13 @@ function renderVacancies(container, vacancies) {
         }
 
         const detailsHTML = vacancy.text_highlighted ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;">${vacancy.text_highlighted}</div></details>` : '';
+
+        // --- ИЗМЕНЕНИЕ ЗДЕСЬ: Собираем новый подвал ---
+        const channelHtml = isValid(vacancy.channel) ? `<span class="channel-name">${vacancy.channel}</span>` : '';
+        const timestampHtml = `<span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span>`;
+        const separator = channelHtml && timestampHtml ? ' • ' : '';
+
+        const footerMetaHtml = `<div class="footer-meta">${channelHtml}${separator}${timestampHtml}</div>`;
 
         card.innerHTML = `
             <div class="card-actions">
@@ -141,7 +145,7 @@ function renderVacancies(container, vacancies) {
             </div>
             <div class="card-footer">
                 ${skillsFooterHtml}
-                <span class="timestamp-footer">${formatTimestamp(vacancy.timestamp)}</span>
+                ${footerMetaHtml}
             </div>`;
         container.appendChild(card);
     }
@@ -207,7 +211,6 @@ async function loadVacancies() {
         loader.innerHTML = `<p class="empty-list">Ошибка: ${error.message}</p>`;
     }
 }
-
 
 // --- EVENT LISTENERS ---
 // ... (остальной код без изменений)

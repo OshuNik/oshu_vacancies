@@ -889,3 +889,32 @@ details[open] .vacancy-text {
   padding-bottom: 12px !important;
   border-bottom: 2px dashed var(--hint-color);
 }
+
+/* Обёртка и кнопка "Загрузить ещё" */
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 14px 0 6px; /* сверху небольшая дистанция от карточек */
+}
+.load-more-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  padding: 12px 16px;
+  background-color: var(--card-color);
+  color: var(--text-color);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--border-color);
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.load-more-btn:hover { filter: brightness(1.02); }
+.load-more-btn:active {
+  transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
+  box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0 var(--border-color);
+}
+.load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

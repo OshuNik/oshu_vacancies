@@ -1,5 +1,5 @@
-const tg = window.Telegram.WebApp;
-tg.expand();
+const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+if (tg) tg.expand();
 
 // --- SUPABASE SETUP ---
 const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
@@ -12,12 +12,12 @@ const PRIMARY_SKILLS = ['after effects', 'unity', 'монтаж видео', '2d
 const containers = {
   main: document.getElementById('vacancies-list-main'),
   maybe: document.getElementById('vacancies-list-maybe'),
-  other: document.getElementById('vacancies-list-other')
+  other: document.getElementById('vacancies-list-other'),
 };
 const counts = {
   main: document.getElementById('count-main'),
   maybe: document.getElementById('count-maybe'),
-  other: document.getElementById('count-other')
+  other: document.getElementById('count-other'),
 };
 const tabButtons = document.querySelectorAll('.tab-button');
 const vacancyLists = document.querySelectorAll('.vacancy-list');
@@ -38,9 +38,22 @@ const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 // Helpers (debounce/sanitize/highlight/progress)
 // =========================
 const debounce = (fn, delay = 250) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); }; };
-const escapeHtml = (s = '') => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const escapeHtml = (s = '') => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const stripTags = (html = '') => { const tmp = document.createElement('div'); tmp.innerHTML = html; return tmp.textContent || tmp.innerText || ''; };
-const sanitizeUrl = (url = '') => { try { const u = new URL(url, window.location.origin); return (u.protocol === 'https:' || u.protocol === 'http:') ? u.href : '#'; } catch { return '#'; } };
+
+function normalizeUrl(raw = '') {
+  let s = String(raw).trim();
+  if (!s) return '';
+  // t.me без протокола → https://t.me/...
+  if (/^(t\.me|telegram\.me)\//i.test(s)) s = 'https://' + s;
+  // протокол опущен, но это абсолютный домен
+  if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
+  // относительные пути → к текущему origin
+  try { return new URL(s, window.location.origin).href; } catch { return ''; }
+}
+function isHttpUrl(u = '') { return /^https?:\/\//i.test(u); }
+function sanitizeUrl(raw = '') { const norm = normalizeUrl(raw); return isHttpUrl(norm) ? norm : ''; }
+
 const highlightText = (text = '', q = '') => {
   if (!q) return escapeHtml(text);
   const rx = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, 'gi');
@@ -54,7 +67,9 @@ const resetProgress = () => setTimeout(() => setProgress(0), 200);
 
 function openLink(url) {
   const safe = sanitizeUrl(url);
-  if (safe && safe !== '#') tg.openLink(safe);
+  if (!safe) return;
+  if (tg && typeof tg.openLink === 'function') tg.openLink(safe);
+  else window.open(safe, '_blank', 'noopener');
 }
 
 function getEmptyStateHtml(message) {
@@ -75,22 +90,25 @@ function formatTimestamp(isoString) {
   return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-// Marker in text like "[ Изображение ]", "фото", "скрин", "картинка"
+// Маркер наличия изображения внутри текста
 function containsImageMarker(text = '') {
   return /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
 }
+// Удаляем визуальные маркеры, чтобы не дублировались с кнопкой
+function cleanImageMarkers(text = '') {
+  return text.replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
+}
 
-// Select best URL for image button
+// Выбор URL для кнопки. ТРЕБУЕМ message_link в приоритете
 function pickImageUrl(v, detailsText = '') {
-  const img = typeof v.image_link === 'string' ? v.image_link.trim() : '';
-  const msg = typeof v.message_link === 'string' ? v.message_link.trim() : '';
-  const safeImg = sanitizeUrl(img);
-  const safeMsg = sanitizeUrl(msg);
+  const msg = sanitizeUrl(v.message_link || '');
+  const img = sanitizeUrl(v.image_link || '');
   const hasMarker = containsImageMarker(detailsText) || containsImageMarker(v.reason || '');
-
-  // Показываем кнопку если есть реальная картинка в данных ИЛИ в тексте есть явный маркер
-  if (safeImg !== '#' && (v.has_image === true || hasMarker)) return safeImg;
-  if (safeMsg !== '#' && (v.has_image === true || hasMarker)) return safeMsg; // fallback: ссылка на пост в TG
+  // Кнопку показываем, если есть message_link|image_link и при этом has_image=true ИЛИ есть маркер в тексте
+  const allow = (v.has_image === true) || hasMarker;
+  if (!allow) return '';
+  if (msg) return msg;      // всегда в приоритете — переход на пост
+  if (img) return img;      // fallback — прямая картинка
   return '';
 }
 
@@ -115,11 +133,7 @@ const applySearch = () => {
     if (detailsEl && detailsEl.dataset.originalText !== undefined) {
       const attachments = detailsEl.querySelector('.attachments');
       const textHtml = highlightText(detailsEl.dataset.originalText || '', q);
-      if (attachments) {
-        detailsEl.innerHTML = attachments.outerHTML + textHtml;
-      } else {
-        detailsEl.innerHTML = textHtml;
-      }
+      detailsEl.innerHTML = (attachments ? attachments.outerHTML : '') + textHtml;
     }
   });
 };
@@ -162,7 +176,7 @@ async function updateStatus(event, vacancyId, newStatus) {
     }, 300);
   } catch (error) {
     console.error('Ошибка обновления статуса:', error);
-    tg.showAlert('Не удалось обновить статус.');
+    if (tg && tg.showAlert) tg.showAlert('Не удалось обновить статус.');
     cardElement.style.opacity = '1';
     cardElement.style.transform = 'scale(1)';
   }
@@ -193,7 +207,7 @@ async function clearCategory(categoryName) {
       }
     } catch (error) {
       console.error('Ошибка очистки категории:', error);
-      tg.showAlert('Не удалось очистить категорию.');
+      if (tg && tg.showAlert) tg.showAlert('Не удалось очистить категорию.');
     }
   });
 }
@@ -220,7 +234,7 @@ function renderVacancies(container, vacancies) {
     let applyIconHtml = '';
     if (isValid(v.apply_url)) {
       const safeApply = sanitizeUrl(v.apply_url);
-      if (safeApply && safeApply !== '#') {
+      if (safeApply) {
         applyIconHtml = `<button class="card-action-btn apply" onclick="openLink('${safeApply}')" aria-label="Откликнуться"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>`;
       }
     }
@@ -237,14 +251,14 @@ function renderVacancies(container, vacancies) {
     const employment = isValid(v.employment_type) ? v.employment_type : '';
     const workFormat = isValid(v.work_format) ? v.work_format : '';
     const formatValue = [employment, workFormat].filter(Boolean).join(' / ');
-    if (isValid(formatValue)) infoRows.push({label: 'ФОРМАТ', value: formatValue, type: 'default'});
+    if (isValid(formatValue)) infoRows.push({ label: 'ФОРМАТ', value: formatValue, type: 'default' });
 
-    if (isValid(v.salary_display_text)) infoRows.push({label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary'});
+    if (isValid(v.salary_display_text)) infoRows.push({ label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary' });
 
     const industryText = isValid(v.industry) ? v.industry : '';
     const companyText = isValid(v.company_name) ? `(${v.company_name})` : '';
     const sphereValue = `${industryText} ${companyText}`.trim();
-    if (sphereValue) infoRows.push({label: 'СФЕРА', value: sphereValue, type: 'industry'});
+    if (sphereValue) infoRows.push({ label: 'СФЕРА', value: sphereValue, type: 'industry' });
 
     let infoWindowHtml = '';
     if (infoRows.length > 0) {
@@ -257,13 +271,14 @@ function renderVacancies(container, vacancies) {
     const originalSummary = v.reason || 'Описание не было сгенерировано.';
     const q = (searchInput?.value || '').trim();
 
-    const originalDetailsText = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
-    const bestImageUrl = pickImageUrl(v, originalDetailsText);
+    const originalDetailsRaw = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
+    const bestImageUrl = pickImageUrl(v, originalDetailsRaw);
+    const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
 
     // attachments row
     const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
 
-    const hasAnyDetails = Boolean(originalDetailsText) || Boolean(attachmentsHTML);
+    const hasAnyDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
     const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
     const channelHtml = isValid(v.channel) ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
@@ -289,7 +304,7 @@ function renderVacancies(container, vacancies) {
       </div>`;
 
     // store searchable text & originals
-    const searchChunks = [v.category, v.reason, industryText, v.company_name, Array.isArray(v.skills) ? v.skills.join(' ') : '', originalDetailsText].filter(Boolean);
+    const searchChunks = [v.category, v.reason, industryText, v.company_name, Array.isArray(v.skills) ? v.skills.join(' ') : '', cleanedDetailsText].filter(Boolean);
     card.dataset.searchText = searchChunks.join(' ').toLowerCase();
 
     const summaryEl = card.querySelector('.card-summary');
@@ -300,8 +315,8 @@ function renderVacancies(container, vacancies) {
 
     const detailsEl = card.querySelector('.vacancy-text');
     if (detailsEl) {
-      detailsEl.dataset.originalText = originalDetailsText;
-      const textHtml = highlightText(originalDetailsText, q);
+      detailsEl.dataset.originalText = cleanedDetailsText;
+      const textHtml = highlightText(cleanedDetailsText, q);
       detailsEl.innerHTML = attachmentsHTML + textHtml;
     }
 

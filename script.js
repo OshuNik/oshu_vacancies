@@ -14,7 +14,11 @@ const containers = {
   maybe: document.getElementById('vacancies-list-maybe'),
   other: document.getElementById('vacancies-list-other')
 };
-const counts = { main: document.getElementById('count-main'), maybe: document.getElementById('count-maybe'), other: document.getElementById('count-other') };
+const counts = {
+  main: document.getElementById('count-main'),
+  maybe: document.getElementById('count-maybe'),
+  other: document.getElementById('count-other')
+};
 const tabButtons = document.querySelectorAll('.tab-button');
 const vacancyLists = document.querySelectorAll('.vacancy-list');
 const refreshBtn = document.getElementById('refresh-button');
@@ -87,7 +91,15 @@ const applySearch = () => {
       summaryEl.innerHTML = highlightText(summaryEl.dataset.originalSummary || '', q);
     }
     if (detailsEl && detailsEl.dataset.originalText !== undefined) {
-      detailsEl.innerHTML = highlightText(detailsEl.dataset.originalText || '', q);
+      // Кнопка изображения остаётся как есть; подсвечиваем только текст после неё
+      const imgBtn = detailsEl.querySelector('.image-link-button');
+      const restText = detailsEl.dataset.originalText || '';
+      const textHtml = highlightText(restText, q);
+      if (imgBtn) {
+        detailsEl.innerHTML = imgBtn.outerHTML + textHtml;
+      } else {
+        detailsEl.innerHTML = textHtml;
+      }
     }
   });
 };
@@ -223,14 +235,18 @@ function renderVacancies(container, vacancies) {
 
     // Summary & details
     const originalSummary = v.reason || 'Описание не было сгенерировано.';
-    const hasDetails = Boolean(v.text_highlighted);
-    const originalDetails = hasDetails ? stripTags(String(v.text_highlighted)) : '';
+    const q = (searchInput?.value || '').trim();
 
-    // Image button (hotfix)
+    // Подготовим кнопку изображения
     const safeImage = sanitizeUrl(v.image_link || '');
     const imageBtnHTML = (safeImage && safeImage !== '#') ? `<a class="image-link-button" href="${safeImage}" target="_blank" rel="noopener noreferrer">Изображение</a>` : '';
 
-    const detailsHTML = hasDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
+    // Текст полного описания (без HTML) для подсветки
+    const originalDetailsText = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
+
+    // Показываем details, если есть либо текст, либо картинка
+    const hasAnyDetails = Boolean(originalDetailsText) || Boolean(imageBtnHTML);
+    const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
     const channelHtml = isValid(v.channel) ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
     const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
@@ -247,7 +263,6 @@ function renderVacancies(container, vacancies) {
       <div class="card-body">
         <p class="card-summary"></p>
         ${infoWindowHtml}
-        ${imageBtnHTML}
         ${detailsHTML}
       </div>
       <div class="card-footer">
@@ -256,18 +271,21 @@ function renderVacancies(container, vacancies) {
       </div>`;
 
     // store searchable text & originals
-    const searchChunks = [v.category, v.reason, industryText, v.company_name, Array.isArray(v.skills) ? v.skills.join(' ') : '', originalDetails].filter(Boolean);
+    const searchChunks = [v.category, v.reason, industryText, v.company_name, Array.isArray(v.skills) ? v.skills.join(' ') : '', originalDetailsText].filter(Boolean);
     card.dataset.searchText = searchChunks.join(' ').toLowerCase();
 
     const summaryEl = card.querySelector('.card-summary');
     if (summaryEl) {
       summaryEl.dataset.originalSummary = originalSummary;
-      summaryEl.innerHTML = highlightText(originalSummary, (searchInput?.value || '').trim());
+      summaryEl.innerHTML = highlightText(originalSummary, q);
     }
+
     const detailsEl = card.querySelector('.vacancy-text');
     if (detailsEl) {
-      detailsEl.dataset.originalText = originalDetails;
-      detailsEl.innerHTML = highlightText(originalDetails, (searchInput?.value || '').trim());
+      // Сохраняем исходный текст для подсветки и добавляем кнопку изображения внутри блока
+      detailsEl.dataset.originalText = originalDetailsText;
+      const textHtml = highlightText(originalDetailsText, q);
+      detailsEl.innerHTML = `${imageBtnHTML}${textHtml}`;
     }
 
     container.appendChild(card);

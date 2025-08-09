@@ -725,25 +725,48 @@ input[type="search"]::-ms-clear { display: none; width: 0; height: 0; }
   box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0 var(--border-color);
 }
 
-/* 4) Счётчик под строкой */
+/* Поиск: крестик внутри поля + счётчик под строкой */
+#search-container,
+#search-container-fav {
+  position: relative;
+  display: block; /* чтобы счётчик был ниже строки */
+}
+
+/* даём место под крестик справа */
+#search-container .search-input,
+#search-container-fav .search-input,
+#search-container #search-input,
+#search-container-fav #search-input-fav {
+  padding-right: 42px;
+}
+
+/* сам крестик — внутри инпута, справа */
+.search-clear-btn {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  background: var(--card-color);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 0 var(--border-color);
+  user-select: none;
+}
+.search-clear-btn:active {
+  transform: translateY(-50%) scale(0.96);
+}
+
+/* счётчик результатов — под строкой */
 .search-stats {
   margin-top: 6px;
   font-size: 12px;
   color: var(--hint-color);
-}
-
-/* === Fix: крестик точно внутри поля, с учётом тени === */
-
-/* больше места справа внутри поля, учитывая var(--shadow-offset) */
-#search-container .search-input,
-#search-container #search-input,
-#search-container-fav .search-input,
-#search-container-fav #search-input-fav {
-  padding-right: calc(46px + var(--shadow-offset)); /* было ~46px, добавили тень */
-}
-
-/* двигаем кнопку влево внутрь поля на размер тени */
-.search-clear-btn {
-  right: calc(12px + var(--shadow-offset)); /* было 12px */
 }
 

@@ -52,7 +52,10 @@ const startProgress = () => setProgress(5);
 const finishProgress = () => setTimeout(() => setProgress(100), 0);
 const resetProgress = () => setTimeout(() => setProgress(0), 200);
 
-function openLink(url) { const safe = sanitizeUrl(url); if (safe && safe !== '#') tg.openLink(safe); }
+function openLink(url) {
+  const safe = sanitizeUrl(url);
+  if (safe && safe !== '#') tg.openLink(safe);
+}
 
 function getEmptyStateHtml(message) {
   const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif';
@@ -72,7 +75,7 @@ function formatTimestamp(isoString) {
   return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
-// Marker in text like "[ Изображение ]", "фото", "картинка", "скрин"
+// Marker in text like "[ Изображение ]", "фото", "скрин", "картинка"
 function containsImageMarker(text = '') {
   return /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
 }
@@ -85,9 +88,9 @@ function pickImageUrl(v, detailsText = '') {
   const safeMsg = sanitizeUrl(msg);
   const hasMarker = containsImageMarker(detailsText) || containsImageMarker(v.reason || '');
 
-  // Показать кнопку, если есть реальная картинка в данных ИЛИ по тексту явно есть маркер
+  // Показываем кнопку если есть реальная картинка в данных ИЛИ в тексте есть явный маркер
   if (safeImg !== '#' && (v.has_image === true || hasMarker)) return safeImg;
-  if (safeMsg !== '#' && (v.has_image === true || hasMarker)) return safeMsg; // fallback: ссылка на пост TG
+  if (safeMsg !== '#' && (v.has_image === true || hasMarker)) return safeMsg; // fallback: ссылка на пост в TG
   return '';
 }
 
@@ -146,7 +149,7 @@ async function updateStatus(event, vacancyId, newStatus) {
 
     cardElement.style.opacity = '0';
     cardElement.style.transform = 'scale(0.95)';
-    setTimeout(()n=> {
+    setTimeout(() => {
       cardElement.remove();
       if (parentList && parentList.querySelectorAll('.vacancy-card').length === 0) {
         parentList.innerHTML = getEmptyStateHtml('-- Пусто в этой категории --');
@@ -325,7 +328,7 @@ async function loadVacancies() {
     const items = await response.json();
     finishProgress();
 
-    Object.values(containers).forEach(container => container.innerHTML = '');
+    Object.values(containers).forEach(c => c.innerHTML = '');
 
     if (!items || items.length === 0) {
       containers.main.innerHTML = getEmptyStateHtml('Новых вакансий нет');
@@ -358,7 +361,8 @@ async function loadVacancies() {
   } catch (error) {
     console.error('Ошибка загрузки:', error);
     loader.innerHTML = `<p class="empty-list">Ошибка: ${escapeHtml(error.message)}</p>`;
-    setProgress(100); resetProgress();
+    setProgress(100);
+    resetProgress();
   }
 }
 

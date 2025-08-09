@@ -38,13 +38,15 @@ const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 // Helpers (debounce/sanitize/highlight/progress/time)
 // =========================
 const debounce = (fn, delay = 250) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); }; };
-const escapeHtml = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\'':'&#39;'}[c]));
+const escapeHtml = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const stripTags = (html = '') => { const tmp = document.createElement('div'); tmp.innerHTML = html; return tmp.textContent || tmp.innerText || ''; };
 
 function normalizeUrl(raw = '') {
   let s = String(raw).trim();
   if (!s) return '';
+  // t.me без протокола → https://t.me/...
   if (/^(t\.me|telegram\.me)\//i.test(s)) s = 'https://' + s;
+  // домен без протокола → добавим https
   if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
   try { return new URL(s, window.location.origin).href; } catch { return ''; }
 }
@@ -53,7 +55,7 @@ function sanitizeUrl(raw = '') { const norm = normalizeUrl(raw); return isHttpUr
 
 const highlightText = (text = '', q = '') => {
   if (!q) return escapeHtml(text);
-  const rx = new RegExp(`(${q.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")})`, 'gi');
+  const rx = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, 'gi');
   return escapeHtml(text).replace(rx, '<mark class="highlight">$1</mark>');
 };
 
@@ -125,36 +127,16 @@ function pickImageUrl(v, detailsText = '') {
 }
 
 // =========================
-// Search UI (крестик внутри, счётчик снизу)
+// Search UI (БЕЗ крестика) + счётчик снизу
 // =========================
 let searchStatsEl = null;
 function ensureSearchUI() {
   if (!searchContainer || !searchInput) return;
-
-  // Удаляем старые кнопки (если были) — чтобы не было дублей
-  searchContainer.querySelectorAll('button:not(.search-clear-btn)').forEach(btn => btn.remove());
-
-  // Создаём единственную кнопку очистки, если её ещё нет
-  let searchClearBtn = searchContainer.querySelector('.search-clear-btn');
-  if (!searchClearBtn) {
-    searchClearBtn = document.createElement('button');
-    searchClearBtn.type = 'button';
-    searchClearBtn.className = 'search-clear-btn';
-    searchClearBtn.setAttribute('aria-label', 'Очистить');
-    searchClearBtn.textContent = '×';
-    searchClearBtn.onclick = () => { searchInput.value = ''; applySearch(); searchInput.focus(); };
-    searchContainer.appendChild(searchClearBtn);
-  }
-
-  // Счётчик результатов — блок под строкой (оставляем один)
-  const stats = searchContainer.querySelectorAll('.search-stats');
-  for (let i = 1; i < stats.length; i++) stats[i].remove();
-  if (!stats[0]) {
+  // Только счётчик результатов под строкой — без каких-либо кнопок
+  if (!searchStatsEl) {
     searchStatsEl = document.createElement('div');
     searchStatsEl.className = 'search-stats';
     searchContainer.appendChild(searchStatsEl);
-  } else {
-    searchStatsEl = stats[0];
   }
 }
 
@@ -307,14 +289,14 @@ function renderVacancies(container, vacancies) {
     let applyIconHtml = '';
     const safeApply = sanitizeUrl(v.apply_url || '');
     if (safeApply) {
-      applyIconHtml = `<button class=\"card-action-btn apply\" onclick=\"openLink('${safeApply}')\" aria-label=\"Откликнуться\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"22\" y1=\"2\" x2=\"11\" y2=\"13\"></line><polygon points=\"22 2 15 22 11 13 2 9 22 2\"></polygon></svg></button>`;
+      applyIconHtml = `<button class="card-action-btn apply" onclick="openLink('${safeApply}')" aria-label="Откликнуться"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>`;
     }
 
     let skillsFooterHtml = '';
     if (Array.isArray(v.skills) && v.skills.length > 0) {
-      skillsFooterHtml = `<div class=\"footer-skill-tags\">${v.skills.slice(0, 3).map(skill => {
+      skillsFooterHtml = `<div class="footer-skill-tags">${v.skills.slice(0, 3).map(skill => {
         const isPrimary = PRIMARY_SKILLS.includes(String(skill).toLowerCase());
-        return `<span class=\"footer-skill-tag ${isPrimary ? 'primary' : ''}\">${escapeHtml(String(skill))}</span>`;
+        return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${escapeHtml(String(skill))}</span>`;
       }).join('')}</div>`;
     }
 
@@ -332,8 +314,8 @@ function renderVacancies(container, vacancies) {
 
     let infoWindowHtml = '';
     if (infoRows.length > 0) {
-      infoWindowHtml = '<div class=\"info-window\">' + infoRows.map(row => {
-        return `<div class=\"info-row info-row--${row.type}\"><div class=\"info-label\">${escapeHtml(row.label)} >>\</div><div class=\"info-value\">${escapeHtml(row.value)}</div></div>`;
+      infoWindowHtml = '<div class="info-window">' + infoRows.map(row => {
+        return `<div class="info-row info-row--${row.type}"><div class="info-label">${escapeHtml(row.label)} >></div><div class="info-value">${escapeHtml(row.value)}</div></div>`;
       }).join('') + '</div>';
     }
 
@@ -344,29 +326,29 @@ function renderVacancies(container, vacancies) {
     const bestImageUrl = pickImageUrl(v, originalDetailsRaw);
     const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
 
-    const attachmentsHTML = bestImageUrl ? `<div class=\"attachments\"><a class=\"image-link-button\" href=\"${bestImageUrl}\" target=\"_blank\" rel=\"noopener noreferrer\">Изображение</a></div>` : '';
+    const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
 
     const hasAnyDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
-    const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class=\"vacancy-text\" style=\"margin-top:10px;\"></div></details>` : '';
+    const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
-    const channelHtml = isValid(v.channel) ? `<span class=\"channel-name\">${escapeHtml(v.channel)}</span>` : '';
-    const timestampHtml = `<span class=\"timestamp-footer\">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
+    const channelHtml = isValid(v.channel) ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
+    const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
     const separator = channelHtml && timestampHtml ? ' • ' : '';
-    const footerMetaHtml = `<div class=\"footer-meta\">${channelHtml}${separator}${timestampHtml}</div>`;
+    const footerMetaHtml = `<div class="footer-meta">${channelHtml}${separator}${timestampHtml}</div>`;
 
     const cardHTML = `
-      <div class=\"card-actions\">
+      <div class="card-actions">
         ${applyIconHtml}
-        <button class=\"card-action-btn favorite\" onclick=\"updateStatus(event, '${v.id}', 'favorite')\" aria-label=\"В избранное\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z\"/></svg></button>
-        <button class=\"card-action-btn delete\" onclick=\"updateStatus(event, '${v.id}', 'deleted')\" aria-label=\"Удалить\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"></line><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"></line></svg></button>
+        <button class="card-action-btn favorite" onclick="updateStatus(event, '${v.id}', 'favorite')" aria-label="В избранное"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+        <button class="card-action-btn delete" onclick="updateStatus(event, '${v.id}', 'deleted')" aria-label="Удалить"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
       </div>
-      <div class=\"card-header\"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
-      <div class=\"card-body\">
-        <p class=\"card-summary\"></p>
+      <div class="card-header"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
+      <div class="card-body">
+        <p class="card-summary"></p>
         ${infoWindowHtml}
         ${detailsHTML}
       </div>
-      <div class=\"card-footer\">
+      <div class="card-footer">
         ${skillsFooterHtml}
         ${footerMetaHtml}
       </div>`;

@@ -12,8 +12,11 @@ const container = document.getElementById('favorites-list');
 const searchInputFav = document.getElementById('search-input-fav');
 
 // =========================
-// SEARCH UI (счётчик, без крестика)
+// Helpers (используются из utils.js): escapeHtml, stripTags, sanitizeUrl, openLink, formatTimestamp,
+// containsImageMarker, cleanImageMarkers, pickImageUrl, debounce
 // =========================
+
+// SEARCH UI
 let favStatsEl = null;
 function ensureFavSearchUI() {
   const parent = document.getElementById('search-container-fav') || searchInputFav?.parentElement;
@@ -31,9 +34,7 @@ function updateFavStats(visible, total) {
   favStatsEl.textContent = visible === 0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`;
 }
 
-// =========================
-// PAGINATION STATE
-// =========================
+// PAGINATION
 const favState = { all: [], rendered: 0, pageSize: PAGE_SIZE_FAV, btn: null };
 function makeFavBtn() { const b=document.createElement('button'); b.className='header-button'; b.textContent='Загрузить ещё'; b.style.marginTop='10px'; b.onclick=renderNextFav; return b; }
 function updateFavBtn() { if (!container) return; const total=favState.all.length, rendered=favState.rendered; if (!favState.btn) favState.btn = makeFavBtn(); const btn=favState.btn; if (rendered < total) { if (!btn.parentElement) container.appendChild(btn); btn.disabled=false; } else if (btn.parentElement) { btn.parentElement.remove(); } }
@@ -213,10 +214,11 @@ async function loadFavorites() {
   ensureFavSearchUI();
   container.innerHTML = '<p class="empty-list">Загрузка...</p>';
   try {
+    // Только существующие поля + company_url (используется в карточке)
     const fields = [
       'id','category','reason','employment_type','work_format','salary_display_text',
-      'industry','company_name','skills','text_highlighted','channel','timestamp',
-      'apply_url','message_link','image_link','has_image'
+      'industry','company_name','company_url','skills','text_highlighted','channel','timestamp',
+      'apply_url','message_link'
     ].join(',');
     const url = `${SUPABASE_URL}/rest/v1/vacancies?status=eq.favorite&select=${fields}&order=timestamp.desc&limit=200`;
     const response = await fetch(url, {
@@ -235,7 +237,7 @@ async function loadFavorites() {
   }
 }
 
-// Делегирование кликов по кнопкам карточек
+// Делегирование кликов
 container.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
@@ -254,7 +256,7 @@ searchInputFav?.addEventListener('input', debounce(applySearchFav, 200));
 ensureFavSearchUI();
 loadFavorites();
 
-// Pull-to-refresh для избранного — оставляем как было
+// Pull-to-refresh — без изменений
 (function setupPTRFav(){
   const threshold = 70;
   let startY = 0; let pulling = false; let ready = false; let locked = false;

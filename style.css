@@ -807,3 +807,85 @@ details[open] .vacancy-text {
     background-color: var(--accent-blue);
     color: var(--card-color);
 }
+
+/* ====== СЕРЕДИНА КАРТОЧКИ (НОВЫЙ РАЗМЕТКА info-window/info-row) ====== */
+
+/* Контейнер характеристик под сводкой */
+.info-window {
+  display: grid;
+  grid-template-columns: max-content 1fr; /* слева метка, справа значение */
+  gap: 12px 10px;
+  align-items: center;
+  margin: 14px 0 0 0;              /* отступ сверху от сводки */
+  padding: 14px 0 0 0;              /* «воздух» сверху */
+  border-top: 1px dashed var(--hint-color); /* разделитель от сводки */
+}
+
+/* Каждая строка — это label + value в тех же колонках */
+.info-row { display: contents; }
+
+/* Метка (ФОРМАТ >>, ОПЛАТА >>, СФЕРА >>) */
+.info-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--hint-color);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* Значение — базовый вид */
+.info-value {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.info-value a { color: var(--accent-blue); text-decoration: underline; }
+
+/* Подсветки «важных» значений */
+.info-row--salary .info-value,
+.info-row--industry .info-value {
+  display: inline-block;
+  padding: 4px 8px;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--border-color);
+  background-color: var(--background-color);
+}
+.info-row--salary .info-value { background-color: var(--accent-yellow); }
+.info-row--industry .info-value { background-color: var(--accent-blue); color: var(--card-color); }
+
+/* Небольшая правка для старого варианта (.info-grid) — чтобы и он выглядел единообразно */
+.info-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 12px 10px;
+  align-items: center;
+  margin: 14px 0 0 0;
+  padding: 14px 0 0 0;
+  border-top: 1px dashed var(--hint-color);
+}
+.info-grid .info-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--hint-color);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.info-grid .info-value { font-size: 15px; font-weight: 500; line-height: 1.6; }
+.info-grid .value-highlight {
+  background-color: var(--background-color);
+  border: var(--border-width) solid var(--border-color);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--border-color);
+}
+.value-highlight.salary { background-color: var(--accent-yellow); }
+.value-highlight.industry { background-color: var(--accent-blue); color: var(--card-color); }
+
+/* Чуть подтянем отступы сводки, чтобы стык был аккуратным */
+.card-summary {
+  margin-bottom: 8px !important;
+  padding-bottom: 12px !important;
+  border-bottom: 2px dashed var(--hint-color);
+}

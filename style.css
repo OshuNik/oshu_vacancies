@@ -231,31 +231,6 @@ input[type="search"]::-ms-clear { display: none; width: 0; height: 0; }
 .vacancy-list, .settings-tab-content { display: none; }
 .vacancy-list.active, .settings-tab-content.active { display: block; }
 .empty-list { text-align: center; color: var(--hint-color); padding: 30px 0; }
-.refresh-button {
-    position: fixed;
-    bottom: 90px;
-    right: 15px;
-    width: 54px;
-    height: 54px;
-    background-color: var(--accent-red);
-    border-radius: 50%;
-    border: var(--border-width) solid var(--border-color);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    box-shadow: 2px 2px 0px var(--border-color);
-    cursor: pointer;
-    transition: all 0.1s ease-out;
-    z-index: 11;
-}
-.refresh-button:active {
-    transform: translate(2px, 2px);
-    box-shadow: 0px 0px 0px var(--border-color);
-}
-.refresh-button svg { width: 28px; height: 28px; stroke: #fff; stroke-width: 3px; }
-.hidden {
-    display: none !important;
-}
 .loader-container {
     padding: 50px 20px;
     text-align: center;

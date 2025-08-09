@@ -14,11 +14,7 @@ const containers = {
   maybe: document.getElementById('vacancies-list-maybe'),
   other: document.getElementById('vacancies-list-other')
 };
-const counts = {
-  main: document.getElementById('count-main'),
-  maybe: document.getElementById('count-maybe'),
-  other: document.getElementById('count-other')
-};
+const counts = { main: document.getElementById('count-main'), maybe: document.getElementById('count-maybe'), other: document.getElementById('count-other') };
 const tabButtons = document.querySelectorAll('.tab-button');
 const vacancyLists = document.querySelectorAll('.vacancy-list');
 const refreshBtn = document.getElementById('refresh-button');
@@ -85,7 +81,6 @@ const applySearch = () => {
     const match = q === '' || haystack.includes(q.toLowerCase());
     card.style.display = match ? '' : 'none';
 
-    // highlight summary & details text
     const summaryEl = card.querySelector('.card-summary');
     const detailsEl = card.querySelector('.vacancy-text');
     if (summaryEl && summaryEl.dataset.originalSummary !== undefined) {
@@ -118,7 +113,7 @@ async function updateStatus(event, vacancyId, newStatus) {
       body: JSON.stringify({ status: newStatus })
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    await r.json(); // ensure write finished
+    await r.json();
 
     cardElement.style.opacity = '0';
     cardElement.style.transform = 'scale(0.95)';
@@ -231,6 +226,10 @@ function renderVacancies(container, vacancies) {
     const hasDetails = Boolean(v.text_highlighted);
     const originalDetails = hasDetails ? stripTags(String(v.text_highlighted)) : '';
 
+    // Image button (hotfix)
+    const safeImage = sanitizeUrl(v.image_link || '');
+    const imageBtnHTML = (safeImage && safeImage !== '#') ? `<a class="image-link-button" href="${safeImage}" target="_blank" rel="noopener noreferrer">Изображение</a>` : '';
+
     const detailsHTML = hasDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
     const channelHtml = isValid(v.channel) ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
@@ -248,6 +247,7 @@ function renderVacancies(container, vacancies) {
       <div class="card-body">
         <p class="card-summary"></p>
         ${infoWindowHtml}
+        ${imageBtnHTML}
         ${detailsHTML}
       </div>
       <div class="card-footer">
@@ -334,7 +334,7 @@ async function loadVacancies() {
 tabButtons.forEach(button => {
   let pressTimer = null;
   let longPressTriggered = false;
-  const startPress = (e) => {
+  const startPress = () => {
     longPressTriggered = false;
     pressTimer = window.setTimeout(() => {
       longPressTriggered = true;

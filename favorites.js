@@ -1,5 +1,4 @@
-const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
-if (tg) tg.expand();
+// favorites.js — Избранное
 
 // --- SUPABASE SETUP ---
 const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
@@ -11,22 +10,6 @@ const PRIMARY_SKILLS = ['after effects', 'unity', 'монтаж видео', '2d
 
 const container = document.getElementById('favorites-list');
 const searchInputFav = document.getElementById('search-input-fav');
-
-// =========================
-// Helpers
-// =========================
-const debounce = (fn, delay = 250) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); }; };
-const escapeHtml = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
-const stripTags = (html = '') => { const tmp = document.createElement('div'); tmp.innerHTML = html; return tmp.textContent || tmp.innerText || ''; };
-function normalizeUrl(raw = '') { let s = String(raw).trim(); if (!s) return ''; if (/^(t\.me|telegram\.me)\//i.test(s)) s='https://'+s; if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s='https://'+s; try { return new URL(s, window.location.origin).href; } catch { return ''; } }
-function isHttpUrl(u = '') { return /^https?:\/\//i.test(u); }
-function sanitizeUrl(raw = '') { const norm = normalizeUrl(raw); return isHttpUrl(norm) ? norm : ''; }
-function openLink(url) { const safe = sanitizeUrl(url); if (!safe) return; if (tg && typeof tg.openLink === 'function') tg.openLink(safe); else window.open(safe, '_blank', 'noopener'); }
-function formatSmartTime(isoString) { if (!isoString) return ''; const d=new Date(isoString), now=new Date(); const sec=Math.floor((now-d)/1000), min=Math.floor(sec/60); const pad=n=>n.toString().padStart(2,'0'); const months=['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек']; const isSame=now.toDateString()===d.toDateString(); const y=new Date(now); y.setDate(now.getDate()-1); const isY=y.toDateString()===d.toDateString(); if (sec<30) return 'только что'; if (min<60&&min>=1) return `${min} мин назад`; if (isSame) return `сегодня, ${pad(d.getHours())}:${pad(d.getMinutes())}`; if (isY) return `вчера, ${pad(d.getHours())}:${pad(d.getMinutes())}`; return `${d.getDate().toString().padStart(2,'0')} ${months[d.getMonth()]}, ${pad(d.getHours())}:${pad(d.getMinutes())}`; }
-const formatTimestamp = (s) => formatSmartTime(s);
-function containsImageMarker(text = '') { return /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text); }
-function cleanImageMarkers(text = '') { return String(text).replace(/\[\s*изображени[ея]\s*\]/gi,'').replace(/\s{2,}/g,' ').trim(); }
-function pickImageUrl(v, detailsText = '') { const msg=sanitizeUrl(v.message_link||''); const img=sanitizeUrl(v.image_link||''); const allow=(v.has_image===true)||containsImageMarker(detailsText)||containsImageMarker(v.reason||''); if (!allow) return ''; if (msg) return msg; if (img) return img; return ''; }
 
 // =========================
 // SEARCH UI (счётчик, без крестика)
@@ -55,32 +38,28 @@ const favState = { all: [], rendered: 0, pageSize: PAGE_SIZE_FAV, btn: null };
 function makeFavBtn() { const b=document.createElement('button'); b.className='header-button'; b.textContent='Загрузить ещё'; b.style.marginTop='10px'; b.onclick=renderNextFav; return b; }
 function updateFavBtn() { if (!container) return; const total=favState.all.length, rendered=favState.rendered; if (!favState.btn) favState.btn = makeFavBtn(); const btn=favState.btn; if (rendered < total) { if (!btn.parentElement) container.appendChild(btn); btn.disabled=false; } else if (btn.parentElement) { btn.parentElement.remove(); } }
 
-function buildFavCard(vacancy) {
+function buildFavCard(v) {
   const isValid = (val) => val && val !== 'null' && val !== 'не указано';
   const card = document.createElement('div');
   card.className = 'vacancy-card';
-  card.id = `card-${vacancy.id}`;
-  if (vacancy.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
-  else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
+  card.id = `card-${v.id}`;
+  if (v.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
+  else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
   else card.classList.add('category-other');
 
-  let applyIconHtml = '';
-  const safeApply = sanitizeUrl(vacancy.apply_url || '');
-  if (safeApply) {
-    applyIconHtml = `
-      <button class="card-action-btn apply" onclick="openLink('${safeApply}')" aria-label="Откликнуться">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"></line>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-        </svg>
-      </button>`;
-  }
+  const applyBtn = sanitizeUrl(v.apply_url || '') ? `
+    <button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(sanitizeUrl(v.apply_url))}" aria-label="Откликнуться">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="22" y1="2" x2="11" y2="13"></line>
+        <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+      </svg>
+    </button>` : '';
 
   let skillsFooterHtml = '';
-  if (Array.isArray(vacancy.skills) && vacancy.skills.length > 0) {
+  if (Array.isArray(v.skills) && v.skills.length > 0) {
     skillsFooterHtml = `
       <div class="footer-skill-tags">
-        ${vacancy.skills.slice(0, 3).map(skill => {
+        ${v.skills.slice(0, 3).map(skill => {
           const isPrimary = PRIMARY_SKILLS.includes(String(skill).toLowerCase());
           return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${escapeHtml(String(skill))}</span>`;
         }).join('')}
@@ -88,16 +67,16 @@ function buildFavCard(vacancy) {
   }
 
   const infoRows = [];
-  const employment = isValid(vacancy.employment_type) ? vacancy.employment_type : '';
-  const workFormat = isValid(vacancy.work_format) ? vacancy.work_format : '';
+  const employment = isValid(v.employment_type) ? v.employment_type : '';
+  const workFormat = isValid(v.work_format) ? v.work_format : '';
   const formatValue = [employment, workFormat].filter(Boolean).join(' / ');
   if (formatValue) infoRows.push({icon: '📋', label: 'ФОРМАТ', value: formatValue});
-  if (isValid(vacancy.salary_display_text)) infoRows.push({icon: '💰', label: 'ОПЛАТА', value: vacancy.salary_display_text, highlight: true, highlightClass: 'salary'});
-  if (isValid(vacancy.industry) || isValid(vacancy.company_name)) {
-    const industryText = isValid(vacancy.industry) ? vacancy.industry : '';
-    let companyName = isValid(vacancy.company_name) ? vacancy.company_name : '';
-    if (isValid(vacancy.company_url) && companyName) {
-      const safeCompany = sanitizeUrl(vacancy.company_url);
+  if (isValid(v.salary_display_text)) infoRows.push({icon: '💰', label: 'ОПЛАТА', value: v.salary_display_text, highlight: true, highlightClass: 'salary'});
+  if (isValid(v.industry) || isValid(v.company_name)) {
+    const industryText = isValid(v.industry) ? v.industry : '';
+    let companyName = isValid(v.company_name) ? v.company_name : '';
+    if (isValid(v.company_url) && companyName) {
+      const safeCompany = sanitizeUrl(v.company_url);
       if (safeCompany) companyName = `<a href="${safeCompany}" target="_blank" rel="noopener">${escapeHtml(companyName)}</a>`;
       else companyName = escapeHtml(companyName);
     } else {
@@ -117,25 +96,25 @@ function buildFavCard(vacancy) {
     infoGridHtml += '</div>';
   }
 
-  const originalDetailsRaw = vacancy.text_highlighted ? stripTags(String(vacancy.text_highlighted)) : '';
-  const bestImageUrl = pickImageUrl(vacancy, originalDetailsRaw);
+  const originalDetailsRaw = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
+  const bestImageUrl = pickImageUrl(v, originalDetailsRaw);
   const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
   const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
   const hasAnyDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
   const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
-  const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(vacancy.timestamp))}</span>`;
+  const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
 
   card.innerHTML = `
     <div class="card-actions">
-      ${applyIconHtml}
-      <button class="card-action-btn delete" onclick="updateStatus(event, '${vacancy.id}', 'new')" aria-label="Убрать из избранного">
+      ${applyBtn}
+      <button class="card-action-btn delete" data-action="unfavorite" data-id="${v.id}" aria-label="Убрать из избранного">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
-    <div class="card-header"><h3>${escapeHtml(vacancy.category || 'NO_CATEGORY')}</h3></div>
+    <div class="card-header"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
     <div class="card-body">
-      <p class="card-summary">${escapeHtml(vacancy.reason || 'Описание не было сгенерировано.')}</p>
+      <p class="card-summary">${escapeHtml(v.reason || 'Описание не было сгенерировано.')}</p>
       ${infoGridHtml}
       ${detailsHTML}
     </div>
@@ -149,8 +128,7 @@ function buildFavCard(vacancy) {
     detailsEl.innerHTML = attachmentsHTML + escapeHtml(cleanedDetailsText);
   }
 
-  // сделаем поиск быстрее
-  const searchChunks = [vacancy.category, vacancy.reason, vacancy.industry, vacancy.company_name, Array.isArray(vacancy.skills)?vacancy.skills.join(' '):'', cleanedDetailsText].filter(Boolean);
+  const searchChunks = [v.category, v.reason, v.industry, v.company_name, Array.isArray(v.skills)?v.skills.join(' '):'', cleanedDetailsText].filter(Boolean);
   card.dataset.searchText = searchChunks.join(' ').toLowerCase();
 
   return card;
@@ -173,9 +151,7 @@ function renderNextFav() {
   applySearchFav();
 }
 
-// =========================
-// Search + счётчик + пустое состояние
-// =========================
+// Search
 function applySearchFav() {
   const q = (searchInputFav?.value || '').trim();
   const cards = Array.from(container.querySelectorAll('.vacancy-card'));
@@ -199,9 +175,7 @@ function applySearchFav() {
   updateFavStats(visible, total);
 }
 
-// =========================
 // API
-// =========================
 async function updateStatus(event, vacancyId, newStatus) {
   const cardElement = document.getElementById(`card-${vacancyId}`);
   try {
@@ -231,7 +205,7 @@ async function updateStatus(event, vacancyId, newStatus) {
     }
   } catch (error) {
     console.error('Ошибка обновления статуса:', error);
-    if (tg && tg.showAlert) tg.showAlert('Не удалось обновить статус.');
+    safeAlert('Не удалось обновить статус.');
   }
 }
 
@@ -239,29 +213,51 @@ async function loadFavorites() {
   ensureFavSearchUI();
   container.innerHTML = '<p class="empty-list">Загрузка...</p>';
   try {
-    const response = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?status=eq.favorite&select=*`, {
+    const fields = [
+      'id','category','reason','employment_type','work_format','salary_display_text',
+      'industry','company_name','skills','text_highlighted','channel','timestamp',
+      'apply_url','message_link','image_link','has_image'
+    ].join(',');
+    const url = `${SUPABASE_URL}/rest/v1/vacancies?status=eq.favorite&select=${fields}&order=timestamp.desc&limit=200`;
+    const response = await fetch(url, {
       headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
     });
     if (!response.ok) throw new Error(`Ошибка сети: ${response.statusText}`);
     const items = await response.json();
-    if (items) items.sort((a, b) => new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp));
     favState.all = items || [];
     favState.rendered = 0;
     renderNextFav();
     document.dispatchEvent(new CustomEvent('favorites:loaded'));
   } catch (error) {
     console.error('Ошибка загрузки избранного:', error);
-    container.innerHTML = `<p class=\"empty-list\">Ошибка: ${escapeHtml(error.message)}</p>`;
+    container.innerHTML = `<p class="empty-list">Ошибка: ${escapeHtml(error.message)}</p>`;
     document.dispatchEvent(new CustomEvent('favorites:loaded'));
   }
 }
 
-// =========================
-// Pull‑to‑refresh для избранного
-// =========================
+// Делегирование кликов по кнопкам карточек
+container.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+  if (action === 'apply') {
+    openLink(btn.dataset.url);
+  } else if (action === 'unfavorite') {
+    updateStatus(e, btn.dataset.id, 'new');
+  }
+});
+
+// Events
+searchInputFav?.addEventListener('input', debounce(applySearchFav, 200));
+
+// Initial
+ensureFavSearchUI();
+loadFavorites();
+
+// Pull-to-refresh для избранного — оставляем как было
 (function setupPTRFav(){
-  const threshold = 70; // px
-  let startY = 0; let pulling = false; let ready = false; let locked = false; let distance = 0;
+  const threshold = 70;
+  let startY = 0; let pulling = false; let ready = false; let locked = false;
   const bar = document.createElement('div');
   bar.style.cssText = 'position:fixed;left:0;right:0;top:0;height:56px;background:var(--card-color);color:var(--hint-color);border-bottom:var(--border-width) solid var(--border-color);display:flex;align-items:center;justify-content:center;transform:translateY(-100%);transition:transform .2s ease;z-index:9999;font-family:inherit;';
   bar.textContent = 'Потяните вниз для обновления';
@@ -273,13 +269,13 @@ async function loadFavorites() {
   window.addEventListener('touchstart', (e)=>{
     if (locked) return;
     if (window.scrollY > 0) { pulling = false; return; }
-    startY = e.touches[0].clientY; pulling = true; ready = false; distance = 0;
+    startY = e.touches[0].clientY; pulling = true; ready = false;
   }, {passive:true});
 
   window.addEventListener('touchmove', (e)=>{
     if (!pulling || locked) return;
     const y = e.touches[0].clientY;
-    distance = y - startY;
+    const distance = y - startY;
     if (distance > 0) {
       e.preventDefault();
       setBar(Math.min(distance, threshold*1.5));
@@ -292,7 +288,7 @@ async function loadFavorites() {
     if (!pulling || locked) { resetBar(); pulling=false; return; }
     if (ready) {
       locked = true; bar.textContent = 'Обновляю…'; setBar(threshold*1.2);
-      const done = ()=>{ locked=false; ready=false; pulling=false; resetBar(); };
+      const done = ()=>{ locked=false; pulling=false; resetBar(); };
       const onLoaded = ()=>{ document.removeEventListener('favorites:loaded', onLoaded); done(); };
       document.addEventListener('favorites:loaded', onLoaded);
       loadFavorites();
@@ -300,10 +296,3 @@ async function loadFavorites() {
     } else { resetBar(); pulling=false; }
   }, {passive:true});
 })();
-
-// Events
-searchInputFav?.addEventListener('input', debounce(applySearchFav, 200));
-
-// Initial
-ensureFavSearchUI();
-loadFavorites();

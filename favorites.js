@@ -1,8 +1,8 @@
-// favorites.js — страница "Избранное", порционная отрисовка
+// favorites.js — страница "Избранное", порционная отрисовка с подсветкой поиска
 
 const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.APP_CONFIG;
 const {
-  escapeHtml, stripTags, debounce, formatTimestamp,
+  escapeHtml, stripTags, debounce, highlightText, formatTimestamp,
   sanitizeUrl, openLink, containsImageMarker, cleanImageMarkers, pickImageUrl,
   safeAlert
 } = window.utils;
@@ -13,7 +13,7 @@ const PRIMARY_SKILLS = ['after effects', 'unity', 'монтаж видео', '2d
 const container = document.getElementById('favorites-list');
 const searchInputFav = document.getElementById('search-input-fav');
 
-// SEARCH UI
+// === SEARCH UI (счётчик) ===
 let favStatsEl = null;
 function ensureFavSearchUI() {
   const parent = document.getElementById('search-container-fav') || searchInputFav?.parentElement;
@@ -30,7 +30,7 @@ function updateFavStats(visible, total) {
   favStatsEl.textContent = q ? (visible === 0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
 }
 
-// PAGINATION
+// === PAGINATION ===
 const favState = { all: [], rendered: 0, pageSize: PAGE_SIZE_FAV, btn: null };
 function makeFavBtn() { const b=document.createElement('button'); b.className='header-button'; b.textContent='Загрузить ещё'; b.style.marginTop='10px'; b.onclick=renderNextFav; return b; }
 function updateFavBtn() {
@@ -42,17 +42,18 @@ function updateFavBtn() {
   else if (btn.parentElement) { btn.parentElement.remove(); }
 }
 
-function buildFavCard(vacancy) {
+// === CARD ===
+function buildFavCard(v) {
   const isValid = (val) => val && val !== 'null' && val !== 'не указано';
   const card = document.createElement('div');
   card.className = 'vacancy-card';
-  card.id = `card-${vacancy.id}`;
-  if (vacancy.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
-  else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
+  card.id = `card-${v.id}`;
+  if (v.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
+  else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
   else card.classList.add('category-other');
 
   let applyIconHtml = '';
-  const safeApply = sanitizeUrl(vacancy.apply_url || '');
+  const safeApply = sanitizeUrl(v.apply_url || '');
   if (safeApply) {
     applyIconHtml = `
       <button class="card-action-btn apply" onclick="window.utils.openLink('${safeApply}')" aria-label="Откликнуться">
@@ -64,10 +65,10 @@ function buildFavCard(vacancy) {
   }
 
   let skillsFooterHtml = '';
-  if (Array.isArray(vacancy.skills) && vacancy.skills.length > 0) {
+  if (Array.isArray(v.skills) && v.skills.length > 0) {
     skillsFooterHtml = `
       <div class="footer-skill-tags">
-        ${vacancy.skills.slice(0, 3).map(skill => {
+        ${v.skills.slice(0, 3).map(skill => {
           const isPrimary = PRIMARY_SKILLS.includes(String(skill).toLowerCase());
           return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${escapeHtml(String(skill))}</span>`;
         }).join('')}
@@ -75,14 +76,14 @@ function buildFavCard(vacancy) {
   }
 
   const infoRows = [];
-  const employment = isValid(vacancy.employment_type) ? vacancy.employment_type : '';
-  const workFormat = isValid(vacancy.work_format) ? vacancy.work_format : '';
+  const employment = isValid(v.employment_type) ? v.employment_type : '';
+  const workFormat = isValid(v.work_format) ? v.work_format : '';
   const formatValue = [employment, workFormat].filter(Boolean).join(' / ');
   if (formatValue) infoRows.push({icon: '📋', label: 'ФОРМАТ', value: formatValue});
-  if (isValid(vacancy.salary_display_text)) infoRows.push({icon: '💰', label: 'ОПЛАТА', value: vacancy.salary_display_text, highlight: true, highlightClass: 'salary'});
-  if (isValid(vacancy.industry) || isValid(vacancy.company_name)) {
-    const industryText = isValid(vacancy.industry) ? vacancy.industry : '';
-    let companyName = isValid(vacancy.company_name) ? vacancy.company_name : '';
+  if (isValid(v.salary_display_text)) infoRows.push({icon: '💰', label: 'ОПЛАТА', value: v.salary_display_text, highlight: true, highlightClass: 'salary'});
+  if (isValid(v.industry) || isValid(v.company_name)) {
+    const industryText = isValid(v.industry) ? v.industry : '';
+    const companyName = isValid(v.company_name) ? v.company_name : '';
     const sphereValue = `${escapeHtml(industryText)} ${companyName ? `(${escapeHtml(companyName)})` : ''}`.trim();
     if (sphereValue) infoRows.push({icon: '🏢', label: 'СФЕРА', value: sphereValue, highlight: true, highlightClass: 'industry'});
   }
@@ -97,25 +98,28 @@ function buildFavCard(vacancy) {
     infoGridHtml += '</div>';
   }
 
-  const originalDetailsRaw = vacancy.text_highlighted ? stripTags(String(vacancy.text_highlighted)) : '';
-  const bestImageUrl = pickImageUrl(vacancy, originalDetailsRaw);
+  const originalSummary = v.reason || 'Описание не было сгенерировано.';
+  const q = (searchInputFav?.value || '').trim();
+
+  const originalDetailsRaw = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
+  const bestImageUrl = pickImageUrl(v, originalDetailsRaw);
   const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
   const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
   const hasAnyDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
   const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
-  const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(vacancy.timestamp))}</span>`;
+  const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
 
   card.innerHTML = `
     <div class="card-actions">
       ${applyIconHtml}
-      <button class="card-action-btn delete" onclick="updateStatus(event, '${vacancy.id}', 'new')" aria-label="Убрать из избранного">
+      <button class="card-action-btn delete" onclick="updateStatus(event, '${v.id}', 'new')" aria-label="Убрать из избранного">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>
     </div>
-    <div class="card-header"><h3>${escapeHtml(vacancy.category || 'NO_CATEGORY')}</h3></div>
+    <div class="card-header"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
     <div class="card-body">
-      <p class="card-summary">${escapeHtml(vacancy.reason || 'Описание не было сгенерировано.')}</p>
+      <p class="card-summary"></p>
       ${infoGridHtml}
       ${detailsHTML}
     </div>
@@ -124,17 +128,27 @@ function buildFavCard(vacancy) {
       ${timestampHtml}
     </div>`;
 
+  // сохраняем «оригиналы» для подсветки
+  const summaryEl = card.querySelector('.card-summary');
+  if (summaryEl) {
+    summaryEl.dataset.originalSummary = originalSummary;
+    summaryEl.innerHTML = highlightText(originalSummary, q);
+  }
   const detailsEl = card.querySelector('.vacancy-text');
   if (detailsEl) {
-    detailsEl.innerHTML = attachmentsHTML + escapeHtml(cleanedDetailsText);
+    detailsEl.dataset.originalText = cleanedDetailsText;
+    const textHtml = highlightText(cleanedDetailsText, q);
+    detailsEl.innerHTML = attachmentsHTML + textHtml;
   }
 
-  const searchChunks = [vacancy.category, vacancy.reason, vacancy.industry, vacancy.company_name, Array.isArray(vacancy.skills)?vacancy.skills.join(' '):'', cleanedDetailsText].filter(Boolean);
+  // быстрый поиск
+  const searchChunks = [v.category, v.reason, v.industry, v.company_name, Array.isArray(v.skills)?v.skills.join(' '):'', cleanedDetailsText].filter(Boolean);
   card.dataset.searchText = searchChunks.join(' ').toLowerCase();
 
   return card;
 }
 
+// === RENDER ===
 function renderNextFav() {
   const start = favState.rendered;
   const end = Math.min(start + favState.pageSize, favState.all.length);
@@ -152,18 +166,32 @@ function renderNextFav() {
   applySearchFav();
 }
 
-// Search + счётчик + скрытие кнопки при 0 совпадений
+// === SEARCH + подсветка + скрытие кнопки ===
 function applySearchFav() {
   const q = (searchInputFav?.value || '').trim();
   const cards = Array.from(container.querySelectorAll('.vacancy-card'));
   const total = cards.length; let visible = 0;
+
   cards.forEach(card => {
     const haystack = (card.dataset.searchText || card.textContent || '').toLowerCase();
     const match = q === '' || haystack.includes(q.toLowerCase());
     card.style.display = match ? '' : 'none';
     if (match) visible++;
+
+    // подсветка
+    const summaryEl = card.querySelector('.card-summary');
+    const detailsEl = card.querySelector('.vacancy-text');
+    if (summaryEl && summaryEl.dataset.originalSummary !== undefined) {
+      summaryEl.innerHTML = highlightText(summaryEl.dataset.originalSummary || '', q);
+    }
+    if (detailsEl && detailsEl.dataset.originalText !== undefined) {
+      const attachments = detailsEl.querySelector('.attachments');
+      const textHtml = highlightText(detailsEl.dataset.originalText || '', q);
+      detailsEl.innerHTML = (attachments ? attachments.outerHTML : '') + textHtml;
+    }
   });
 
+  // пустое состояние для поиска
   let emptyHint = container.querySelector('.search-empty-hint');
   if (total > 0 && visible === 0) {
     if (!emptyHint) {
@@ -175,19 +203,16 @@ function applySearchFav() {
     }
   } else if (emptyHint) emptyHint.remove();
 
-  // NEW: скрываем/показываем кнопку догрузки
+  // скрыть/показать кнопку догрузки
   if (favState.btn) {
-    if (q && visible === 0) {
-      favState.btn.parentElement?.removeChild(favState.btn);
-    } else {
-      updateFavBtn();
-    }
+    if (q && visible === 0) favState.btn.parentElement?.removeChild(favState.btn);
+    else updateFavBtn();
   }
 
   updateFavStats(visible, total);
 }
 
-// API
+// === API ===
 async function updateStatus(event, vacancyId, newStatus) {
   const cardElement = document.getElementById(`card-${vacancyId}`);
   try {
@@ -221,6 +246,7 @@ async function updateStatus(event, vacancyId, newStatus) {
   }
 }
 
+// === LOAD ===
 async function loadFavorites() {
   ensureFavSearchUI();
   container.innerHTML = '<p class="empty-list">Загрузка...</p>';
@@ -242,7 +268,7 @@ async function loadFavorites() {
   }
 }
 
-// Pull-to-refresh
+// === Pull-to-refresh ===
 (function setupPTRFav(){
   const threshold = 70;
   let startY = 0; let pulling = false; let ready = false; let locked = false;
@@ -285,9 +311,9 @@ async function loadFavorites() {
   }, {passive:true});
 })();
 
-// Events
+// === Events ===
 searchInputFav?.addEventListener('input', debounce(applySearchFav, 200));
 
-// Initial
+// === Init ===
 ensureFavSearchUI();
 loadFavorites();

@@ -1,5 +1,5 @@
 // =================================================================================
-// FAVORITES.JS - REFACTORED
+// FAVORITES.JS - FINAL CORRECTED VERSION
 // =================================================================================
 
 // --- INITIALIZE TELEGRAM ---
@@ -17,7 +17,9 @@ const CATEGORY_MAP = {
 };
 const PAGE_SIZE = 15;
 
+// =================================================================================
 // --- DOM ELEMENTS ---
+// =================================================================================
 const ui = {
     container: document.getElementById('favorites-list'),
     searchInput: document.getElementById('search-input-fav'),
@@ -26,7 +28,10 @@ const ui = {
     cardTemplate: document.getElementById('vacancy-card-template'),
 };
 
+
+// =================================================================================
 // --- STATE MANAGEMENT ---
+// =================================================================================
 const favState = {
     allVacancies: [],
     renderedCount: 0,
@@ -42,9 +47,19 @@ const favState = {
     },
 };
 
+// =================================================================================
 // --- VIEW / RENDERER ---
+// =================================================================================
 const view = {
-    // Helper to format timestamps
+    // --- Helper Functions ---
+    escapeHtml(s = '') {
+        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    },
+    highlightText(text = '', query = '') {
+        if (!query || !text) return this.escapeHtml(text);
+        const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, 'gi');
+        return this.escapeHtml(text).replace(regex, '<mark class="highlight">$1</mark>');
+    },
     formatSmartTime(isoString) {
         if (!isoString) return '';
         const d = new Date(isoString);
@@ -64,44 +79,99 @@ const view = {
         return `${d.getDate().toString().padStart(2, '0')} ${months[d.getMonth()]}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     },
 
-    // --- Card Builder ---
+    // --- Card Builder (Full version) ---
     createCard(v) {
         if (!ui.cardTemplate) return null;
         const card = ui.cardTemplate.content.cloneNode(true).firstElementChild;
-        // This reuses the same template structure as script.js
-        // For brevity, the full card population logic is omitted here,
-        // but it would be identical to the one in the refactored script.js
-        // We will just populate the essential parts for favorites.
+        const cardEls = {
+            card,
+            categoryTitle: card.querySelector('.card-category-title'),
+            summary: card.querySelector('.card-summary'),
+            infoGrid: card.querySelector('.info-grid'),
+            details: card.querySelector('details'),
+            detailsText: card.querySelector('.vacancy-text'),
+            skillTags: card.querySelector('.footer-skill-tags'),
+            channelName: card.querySelector('.channel-name'),
+            timestamp: card.querySelector('.timestamp-footer'),
+            applyBtn: card.querySelector('.apply'),
+            deleteBtn: card.querySelector('.delete'),
+            favoriteBtn: card.querySelector('.favorite'),
+        };
+
+        const isValid = val => val && val !== 'null' && val !== 'не указано';
+        
+        // Remove favorite button, it's not needed on this page
+        if(cardEls.favoriteBtn) cardEls.favoriteBtn.remove();
+        
+        // Set IDs, classes and base data
         card.id = `card-${v.id}`;
         card.dataset.id = v.id;
         card.classList.add(`category-${CATEGORY_MAP[v.category] || 'other'}`);
-        card.querySelector('.card-category-title').textContent = v.category || 'NO_CATEGORY';
-        card.querySelector('.card-summary').textContent = v.reason || '';
-        card.querySelector('.timestamp-footer').textContent = this.formatSmartTime(v.timestamp);
+        cardEls.categoryTitle.textContent = v.category || 'NO_CATEGORY';
+        cardEls.summary.innerHTML = this.highlightText(v.reason, favState.searchQuery);
         
-        // Unfavorite button logic
-        const deleteBtn = card.querySelector('.card-action-btn.delete');
-        deleteBtn.onclick = () => controller.unfavoriteVacancy(v.id);
+        // Info Grid
+        cardEls.infoGrid.innerHTML = '';
+        const infoRows = [
+            { label: 'ФОРМАТ', value: [v.employment_type, v.work_format].filter(isValid).join(' / '), type: 'default' },
+            { label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary' },
+            { label: 'СФЕРА', value: [v.industry, v.company_name ? `(${v.company_name})` : ''].filter(isValid).join(' '), type: 'industry' }
+        ];
 
-        // Apply button
-        const applyBtn = card.querySelector('.card-action-btn.apply');
-        if (v.apply_url) {
-            applyBtn.onclick = () => tg.openLink(v.apply_url);
+        infoRows.forEach(row => {
+            if (isValid(row.value)) {
+                const highlightedValue = this.highlightText(row.value, favState.searchQuery);
+                const valueHtml = `<span class="highlight ${row.type}">${highlightedValue}</span>`;
+                cardEls.infoGrid.innerHTML += `<div class="info-label">${row.label} >></div><div class="info-value">${valueHtml}</div>`;
+            }
+        });
+
+        // Details (full text)
+        const hasDetails = v.text_highlighted || (v.has_image && v.message_link);
+        if (hasDetails) {
+            let detailsContent = '';
+            if(v.has_image && v.message_link) {
+                detailsContent += `<a href="${v.message_link}" target="_blank" class="image-link-button">[ Изображение ]</a><br><br>`;
+            }
+            if(v.text_highlighted) {
+                detailsContent += v.text_highlighted.replace(new RegExp(`(${favState.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, 'gi'), '<mark class="highlight">$1</mark>');
+            }
+            cardEls.detailsText.innerHTML = detailsContent;
         } else {
-            applyBtn.remove();
+            cardEls.details.remove();
+        }
+
+        // Footer
+        if (v.skills && v.skills.length > 0) {
+            cardEls.skillTags.innerHTML = v.skills.slice(0, 3).map(skill => {
+                const isPrimary = PRIMARY_SKILLS.includes(String(skill).toLowerCase());
+                return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${this.escapeHtml(skill)}</span>`;
+            }).join('');
+        }
+        cardEls.channelName.textContent = v.channel || '';
+        cardEls.timestamp.textContent = this.formatSmartTime(v.timestamp);
+        if(!v.channel) card.querySelector('.footer-meta').style.justifyContent = 'flex-end';
+        
+        // Actions
+        cardEls.deleteBtn.onclick = () => controller.unfavoriteVacancy(v.id);
+        if (v.apply_url) {
+            cardEls.applyBtn.onclick = () => tg.openLink(v.apply_url);
+        } else {
+            cardEls.applyBtn.remove();
         }
 
         return card;
     },
-    
+
     // --- Main Render Function ---
     render() {
         ui.container.innerHTML = '';
         const vacanciesToRender = favState.filteredVacancies.slice(0, favState.renderedCount);
 
-        if (vacanciesToRender.length === 0) {
-            const message = favState.searchQuery ? 'Ничего не найдено' : '-- В избранном пусто --';
-            ui.container.innerHTML = `<p class="empty-state">${message}</p>`;
+        if (vacanciesToRender.length === 0 && favState.allVacancies.length === 0) {
+             ui.container.innerHTML = `<div class="empty-state"><p class="empty-state-text">-- В избранном пусто --</p></div>`;
+        } else if (vacanciesToRender.length === 0 && favState.searchQuery) {
+            ui.container.innerHTML = `<div class="empty-state"><p class="empty-state-text">Ничего не найдено по запросу "${this.escapeHtml(favState.searchQuery)}"</p></div>`;
         } else {
             const fragment = document.createDocumentFragment();
             vacanciesToRender.forEach(v => {
@@ -114,12 +184,13 @@ const view = {
         this.updateLoadMoreButton();
         this.updateSearchStats();
     },
-    
+
     renderMore() {
-        const currentlyRendered = favState.renderedCount;
-        const newRenderedCount = Math.min(currentlyRendered + PAGE_SIZE, favState.allVacancies.length);
-        favState.renderedCount = newRenderedCount;
-        this.render();
+        const newRenderedCount = Math.min(favState.renderedCount + PAGE_SIZE, favState.filteredVacancies.length);
+        if (newRenderedCount > favState.renderedCount) {
+            favState.renderedCount = newRenderedCount;
+            this.render();
+        }
     },
 
     updateLoadMoreButton() {
@@ -132,7 +203,7 @@ const view = {
             ui.loadMoreContainer.appendChild(button);
         }
     },
-    
+
     updateSearchStats() {
         if (!ui.searchStats) return;
         if (favState.searchQuery) {
@@ -144,27 +215,40 @@ const view = {
     }
 };
 
+// =================================================================================
+// --- UTILITY FUNCTIONS ---
+// =================================================================================
+const debounce = (fn, delay = 250) => {
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn(...args), delay);
+    };
+};
+
+// =================================================================================
 // --- CONTROLLER ---
+// =================================================================================
 const controller = {
     async init() {
-        ui.container.innerHTML = '<p class="empty-state">Загрузка избранного...</p>';
+        ui.container.innerHTML = `<div class="empty-state"><p class="empty-state-text">Загрузка избранного...</p></div>`;
         this.setupEventListeners();
         try {
             const response = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?status=eq.favorite&select=*&order=created_at.desc`, {
                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
             });
             if (!response.ok) throw new Error('Network error');
-            
+
             favState.allVacancies = (await response.json()).map(v => ({
                 ...v,
-                search_text: [v.category, v.reason, v.industry, v.company_name, ...(v.skills || [])].join(' ')
+                search_text: [v.category, v.reason, v.industry, v.company_name, v.text_highlighted, ...(v.skills || [])].join(' ')
             }));
             
             favState.renderedCount = Math.min(PAGE_SIZE, favState.allVacancies.length);
             view.render();
 
         } catch (e) {
-            ui.container.innerHTML = `<p class="empty-state">Ошибка загрузки: ${e.message}</p>`;
+            ui.container.innerHTML = `<div class="empty-state"><p class="empty-state-text">Ошибка загрузки: ${e.message}</p></div>`;
         }
     },
     
@@ -178,12 +262,13 @@ const controller = {
         try {
             await fetch(`${SUPABASE_URL}/rest/v1/vacancies?id=eq.${id}`, {
                 method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY },
+                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`},
                 body: JSON.stringify({ status: 'new' })
             });
 
-            // Remove from local state and re-render
             favState.allVacancies = favState.allVacancies.filter(v => v.id !== id);
+            // If we remove an item, we might need to adjust the rendered count
+            favState.renderedCount = Math.min(favState.renderedCount, favState.allVacancies.length);
             view.render();
 
         } catch (e) {
@@ -194,25 +279,16 @@ const controller = {
             }
         }
     },
-    
+
     handleSearch: debounce(e => {
         favState.searchQuery = e.target.value.trim();
-        // Reset pagination for new search
         favState.renderedCount = Math.min(PAGE_SIZE, favState.filteredVacancies.length);
         view.render();
-    }, 250),
+    }),
     
     setupEventListeners() {
         ui.searchInput.addEventListener('input', this.handleSearch);
     }
-};
-
-const debounce = (fn, delay) => {
-  let timeoutId;
-  return (...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  };
 };
 
 // --- INITIALIZE THE APP ---

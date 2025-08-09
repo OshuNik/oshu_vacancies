@@ -14,6 +14,9 @@
     --accent-blue: #41A6FF;
 }
 
+/* >>> добавлено: утилитный класс скрытия <<< */
+.hidden { display: none !important; }
+
 body {
     font-family: 'Roboto Mono', monospace;
     background-color: var(--background-color);

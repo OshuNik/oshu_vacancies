@@ -72,16 +72,22 @@ function formatTimestamp(isoString) {
   return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+// Marker in text like "[ Изображение ]", "фото", "картинка", "скрин"
+function containsImageMarker(text = '') {
+  return /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
+}
+
 // Select best URL for image button
-function pickImageUrl(v) {
+function pickImageUrl(v, detailsText = '') {
   const img = typeof v.image_link === 'string' ? v.image_link.trim() : '';
   const msg = typeof v.message_link === 'string' ? v.message_link.trim() : '';
-  const looksLikeImage = /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(img);
-  const safeImg = looksLikeImage ? sanitizeUrl(img) : '';
-  const safeMsg = msg ? sanitizeUrl(msg) : '';
-  // показываем только если реально есть картинка
-  if (v.has_image === true && safeImg) return safeImg;
-  if (v.has_image === true && !safeImg && safeMsg) return safeMsg; // fallback: пост в TG
+  const safeImg = sanitizeUrl(img);
+  const safeMsg = sanitizeUrl(msg);
+  const hasMarker = containsImageMarker(detailsText) || containsImageMarker(v.reason || '');
+
+  // Показать кнопку, если есть реальная картинка в данных ИЛИ по тексту явно есть маркер
+  if (safeImg !== '#' && (v.has_image === true || hasMarker)) return safeImg;
+  if (safeMsg !== '#' && (v.has_image === true || hasMarker)) return safeMsg; // fallback: ссылка на пост TG
   return '';
 }
 
@@ -140,7 +146,7 @@ async function updateStatus(event, vacancyId, newStatus) {
 
     cardElement.style.opacity = '0';
     cardElement.style.transform = 'scale(0.95)';
-    setTimeout(() => {
+    setTimeout(()n=> {
       cardElement.remove();
       if (parentList && parentList.querySelectorAll('.vacancy-card').length === 0) {
         parentList.innerHTML = getEmptyStateHtml('-- Пусто в этой категории --');
@@ -248,14 +254,12 @@ function renderVacancies(container, vacancies) {
     const originalSummary = v.reason || 'Описание не было сгенерировано.';
     const q = (searchInput?.value || '').trim();
 
-    // attachments row
-    let attachmentsHTML = '';
-    const bestImageUrl = pickImageUrl(v);
-    if (bestImageUrl) {
-      attachmentsHTML = `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>`;
-    }
-
     const originalDetailsText = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
+    const bestImageUrl = pickImageUrl(v, originalDetailsText);
+
+    // attachments row
+    const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
+
     const hasAnyDetails = Boolean(originalDetailsText) || Boolean(attachmentsHTML);
     const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 

@@ -81,10 +81,10 @@ function ensureFavSearchUI() {
   const parent = document.getElementById('search-container-fav') || searchInputFav?.parentElement;
   if (!parent || !searchInputFav) return;
 
-  // Удаляем все кнопки внутри контейнера, кроме нашей фирменной
+  // удалим любые старые кнопки внутри контейнера
   parent.querySelectorAll('button:not(.search-clear-btn)').forEach(btn => btn.remove());
 
-  // Создаём единственную кнопку очистки, если её ещё нет
+  // единственная кнопка очистки
   let favClearBtn = parent.querySelector('.search-clear-btn');
   if (!favClearBtn) {
     favClearBtn = document.createElement('button');
@@ -96,7 +96,7 @@ function ensureFavSearchUI() {
     parent.appendChild(favClearBtn);
   }
 
-  // Счётчик результатов — блок под строкой (оставляем один)
+  // счётчик снизу
   const stats = parent.querySelectorAll('.search-stats');
   for (let i = 1; i < stats.length; i++) stats[i].remove();
   if (!stats[0]) {
@@ -263,7 +263,7 @@ async function updateStatus(event, vacancyId, newStatus) {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
+        'Prefer': 'return-minimal'
       },
       body: JSON.stringify({ status: newStatus })
     });

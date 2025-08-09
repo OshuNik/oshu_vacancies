@@ -132,20 +132,26 @@ function pickImageUrl(v, detailsText = '') {
 // =========================
 let searchStatsEl = null;
 let searchClearBtn = null;
+let searchStatsEl = null;
+let searchClearBtn = null;
 function ensureSearchUI() {
   if (!searchContainer || !searchInput) return;
+
+  // Кнопка очистки — внутри контейнера, позиционируется CSS-ом
   if (!searchClearBtn) {
     searchClearBtn = document.createElement('button');
-    searchClearBtn.textContent = '✕';
-    searchClearBtn.title = 'Очистить';
-    searchClearBtn.style.cssText = 'min-width:44px;height:44px;border:var(--border-width) solid var(--border-color);border-radius:8px;background:var(--card-color);cursor:pointer;';
+    searchClearBtn.type = 'button';
+    searchClearBtn.className = 'search-clear-btn';
+    searchClearBtn.setAttribute('aria-label', 'Очистить');
+    searchClearBtn.textContent = '×';
     searchClearBtn.onclick = () => { searchInput.value = ''; applySearch(); searchInput.focus(); };
     searchContainer.appendChild(searchClearBtn);
   }
+
+  // Счётчик — отдельным блоком под строкой
   if (!searchStatsEl) {
     searchStatsEl = document.createElement('div');
-    searchStatsEl.id = 'search-stats';
-    searchStatsEl.style.cssText = 'margin-top:6px;font-size:12px;color:var(--hint-color);';
+    searchStatsEl.className = 'search-stats';
     searchContainer.appendChild(searchStatsEl);
   }
 }

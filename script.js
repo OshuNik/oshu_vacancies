@@ -6,6 +6,7 @@ const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
 // --- END OF SETUP ---
 
+const PAGE_SIZE = 10; // сколько карточек показываем за раз
 const PRIMARY_SKILLS = ['after effects', 'unity', 'монтаж видео', '2d-анимация', 'рилсы', 'premiere pro'];
 
 // Page Elements
@@ -44,9 +45,7 @@ const stripTags = (html = '') => { const tmp = document.createElement('div'); tm
 function normalizeUrl(raw = '') {
   let s = String(raw).trim();
   if (!s) return '';
-  // t.me без протокола → https://t.me/...
   if (/^(t\.me|telegram\.me)\//i.test(s)) s = 'https://' + s;
-  // домен без протокола → добавим https
   if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
   try { return new URL(s, window.location.origin).href; } catch { return ''; }
 }
@@ -88,25 +87,20 @@ function formatSmartTime(isoString) {
   if (!isoString) return '';
   const d = new Date(isoString);
   const now = new Date();
-  const diffMs = now - d;
-  const sec = Math.floor(diffMs / 1000);
+  const sec = Math.floor((now - d) / 1000);
   const min = Math.floor(sec / 60);
-
   const pad = n => n.toString().padStart(2, '0');
-  const months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
-
+  const months = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
   const isSameDay = now.toDateString() === d.toDateString();
   const yest = new Date(now); yest.setDate(now.getDate() - 1);
   const isYesterday = yest.toDateString() === d.toDateString();
-
   if (sec < 30) return 'только что';
   if (min < 60 && min >= 1) return `${min} мин назад`;
   if (isSameDay) return `сегодня, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   if (isYesterday) return `вчера, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
   return `${d.getDate().toString().padStart(2,'0')} ${months[d.getMonth()]}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
-
-function formatTimestamp(isoString) { return formatSmartTime(isoString); }
+const formatTimestamp = (s) => formatSmartTime(s);
 
 // ==== изображение ====
 function containsImageMarker(text = '') {
@@ -121,30 +115,183 @@ function pickImageUrl(v, detailsText = '') {
   const hasMarker = containsImageMarker(detailsText) || containsImageMarker(v.reason || '');
   const allow = (v.has_image === true) || hasMarker;
   if (!allow) return '';
-  if (msg) return msg;  // приоритет — пост
-  if (img) return img;  // fallback — файл
+  if (msg) return msg;
+  if (img) return img;
   return '';
 }
 
 // =========================
-// Search UI (БЕЗ крестика) + счётчик снизу
+// SEARCH UI (счётчик внизу, без крестика)
 // =========================
 let searchStatsEl = null;
 function ensureSearchUI() {
   if (!searchContainer || !searchInput) return;
-  // Только счётчик результатов под строкой — без каких-либо кнопок
   if (!searchStatsEl) {
     searchStatsEl = document.createElement('div');
     searchStatsEl.className = 'search-stats';
     searchContainer.appendChild(searchStatsEl);
   }
 }
-
 function updateSearchStats(visible, total) {
   if (!searchStatsEl) return;
   const q = (searchInput?.value || '').trim();
   if (!q) { searchStatsEl.textContent = ''; return; }
   searchStatsEl.textContent = visible === 0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`;
+}
+
+// =========================
+// PAGINATION STATE
+// =========================
+const state = {
+  data: { main: [], maybe: [], other: [] },
+  rendered: { main: 0, maybe: 0, other: 0 },
+  pageSize: PAGE_SIZE,
+  loadMoreBtns: { main: null, maybe: null, other: null },
+};
+
+function makeLoadMoreBtn(key) {
+  const btn = document.createElement('button');
+  btn.className = 'header-button';
+  btn.textContent = 'Загрузить ещё';
+  btn.style.marginTop = '10px';
+  btn.onclick = () => renderNextChunk(key);
+  return btn;
+}
+
+function updateLoadMoreBtn(key) {
+  const total = state.data[key].length;
+  const rendered = state.rendered[key];
+  const container = containers[key];
+  if (!container) return;
+  if (!state.loadMoreBtns[key]) {
+    state.loadMoreBtns[key] = makeLoadMoreBtn(key);
+  }
+  const btn = state.loadMoreBtns[key];
+  if (rendered < total) {
+    if (!btn.parentElement) container.appendChild(btn);
+    btn.disabled = false;
+  } else if (btn.parentElement) {
+    btn.parentElement.removeChild(btn);
+  }
+}
+
+// создаём DOM-карточку для вакансии
+function buildVacancyCard(v) {
+  const isValid = (val) => val && val !== 'null' && val !== 'не указано';
+  const card = document.createElement('div');
+  card.className = 'vacancy-card';
+  card.id = `card-${v.id}`;
+  if (v.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
+  else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
+  else card.classList.add('category-other');
+
+  let applyIconHtml = '';
+  const safeApply = sanitizeUrl(v.apply_url || '');
+  if (safeApply) {
+    applyIconHtml = `<button class="card-action-btn apply" onclick="openLink('${safeApply}')" aria-label="Откликнуться"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>`;
+  }
+
+  let skillsFooterHtml = '';
+  if (Array.isArray(v.skills) && v.skills.length > 0) {
+    skillsFooterHtml = `<div class="footer-skill-tags">${v.skills.slice(0, 3).map(skill => {
+      const isPrimary = PRIMARY_SKILLS.includes(String(skill).toLowerCase());
+      return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${escapeHtml(String(skill))}</span>`;
+    }).join('')}</div>`;
+  }
+
+  const infoRows = [];
+  const employment = isValid(v.employment_type) ? v.employment_type : '';
+  const workFormat = isValid(v.work_format) ? v.work_format : '';
+  const formatValue = [employment, workFormat].filter(Boolean).join(' / ');
+  if (formatValue) infoRows.push({label: 'ФОРМАТ', value: formatValue, type: 'default'});
+  if (isValid(v.salary_display_text)) infoRows.push({label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary'});
+  const industryText = isValid(v.industry) ? v.industry : '';
+  const companyText = isValid(v.company_name) ? `(${v.company_name})` : '';
+  const sphereValue = `${industryText} ${companyText}`.trim();
+  if (sphereValue) infoRows.push({label: 'СФЕРА', value: sphereValue, type: 'industry'});
+  let infoWindowHtml = '';
+  if (infoRows.length > 0) {
+    infoWindowHtml = '<div class="info-window">' + infoRows.map(row => {
+      return `<div class="info-row info-row--${row.type}"><div class="info-label">${escapeHtml(row.label)} >></div><div class="info-value">${escapeHtml(row.value)}</div></div>`;
+    }).join('') + '</div>';
+  }
+
+  const originalSummary = v.reason || 'Описание не было сгенерировано.';
+  const q = (searchInput?.value || '').trim();
+
+  const originalDetailsRaw = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
+  const bestImageUrl = pickImageUrl(v, originalDetailsRaw);
+  const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
+  const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
+  const hasAnyDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
+  const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
+
+  const channelHtml = isValid(v.channel) ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
+  const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
+  const separator = channelHtml && timestampHtml ? ' • ' : '';
+  const footerMetaHtml = `<div class="footer-meta">${channelHtml}${separator}${timestampHtml}</div>`;
+
+  const cardHTML = `
+    <div class="card-actions">
+      ${applyIconHtml}
+      <button class="card-action-btn favorite" onclick="updateStatus(event, '${v.id}', 'favorite')" aria-label="В избранное"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
+      <button class="card-action-btn delete" onclick="updateStatus(event, '${v.id}', 'deleted')" aria-label="Удалить"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
+    </div>
+    <div class="card-header"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
+    <div class="card-body">
+      <p class="card-summary"></p>
+      ${infoWindowHtml}
+      ${detailsHTML}
+    </div>
+    <div class="card-footer">
+      ${skillsFooterHtml}
+      ${footerMetaHtml}
+    </div>`;
+
+  card.innerHTML = cardHTML;
+
+  // searchable text & originals
+  const searchChunks = [v.category, v.reason, industryText, v.company_name, Array.isArray(v.skills) ? v.skills.join(' ') : '', cleanedDetailsText].filter(Boolean);
+  card.dataset.searchText = searchChunks.join(' ').toLowerCase();
+
+  const summaryEl = card.querySelector('.card-summary');
+  if (summaryEl) {
+    summaryEl.dataset.originalSummary = originalSummary;
+    summaryEl.innerHTML = highlightText(originalSummary, q);
+  }
+  const detailsEl = card.querySelector('.vacancy-text');
+  if (detailsEl) {
+    detailsEl.dataset.originalText = cleanedDetailsText;
+    const textHtml = highlightText(cleanedDetailsText, q);
+    detailsEl.innerHTML = attachmentsHTML + textHtml;
+  }
+
+  return card;
+}
+
+function renderNextChunk(key) {
+  const data = state.data[key];
+  const start = state.rendered[key];
+  const end = Math.min(start + state.pageSize, data.length);
+  const container = containers[key];
+  if (!container) return;
+
+  // если список пустой — показать пустое состояние
+  if (data.length === 0 && start === 0) {
+    container.innerHTML = getEmptyStateHtml('-- Пусто в этой категории --');
+    updateLoadMoreBtn(key);
+    return;
+  }
+
+  const frag = document.createDocumentFragment();
+  for (let i = start; i < end; i++) {
+    frag.appendChild(buildVacancyCard(data[i]));
+  }
+  if (start === 0) container.innerHTML = '';
+  container.appendChild(frag);
+  state.rendered[key] = end;
+  updateLoadMoreBtn(key);
+  applySearch(); // обновим фильтр/подсветку для новых карточек
 }
 
 // =========================
@@ -176,7 +323,6 @@ const applySearch = () => {
     }
   });
 
-  // Плашка "ничего не найдено" (только если карточки есть, но все скрыты)
   let emptyHint = activeList.querySelector('.search-empty-hint');
   if (total > 0 && visible === 0) {
     if (!emptyHint) {
@@ -228,6 +374,10 @@ async function updateStatus(event, vacancyId, newStatus) {
         const currentCount = parseInt((countSpan.textContent || '0').replace(/\(|\)/g, '')) || 0;
         countSpan.textContent = `(${Math.max(0, currentCount - 1)})`;
       }
+      // если после удаления осталось меньше PAGE_SIZE и есть что дорендерить — дорисуем
+      if (categoryKey && state.rendered[categoryKey] < state.data[categoryKey].length) {
+        renderNextChunk(categoryKey);
+      }
     }, 300);
   } catch (error) {
     console.error('Ошибка обновления статуса:', error);
@@ -259,6 +409,9 @@ async function clearCategory(categoryName) {
         activeList.innerHTML = getEmptyStateHtml('-- Пусто в этой категории --');
         const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
         if (categoryKey) counts[categoryKey].textContent = '(0)';
+        state.data[categoryKey] = [];
+        state.rendered[categoryKey] = 0;
+        updateLoadMoreBtn(categoryKey);
       }
     } catch (error) {
       console.error('Ошибка очистки категории:', error);
@@ -267,113 +420,15 @@ async function clearCategory(categoryName) {
   });
 }
 
-function renderVacancies(container, vacancies) {
-  if (!container) return;
-  container.innerHTML = '';
-
-  if (!vacancies || vacancies.length === 0) {
-    container.innerHTML = getEmptyStateHtml('-- Пусто в этой категории --');
-    return;
-  }
-
-  for (const v of vacancies) {
-    const card = document.createElement('div');
-    card.className = 'vacancy-card';
-    card.id = `card-${v.id}`;
-    if (v.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
-    else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
-    else card.classList.add('category-other');
-
-    const isValid = (val) => val && val !== 'null' && val !== 'не указано';
-
-    let applyIconHtml = '';
-    const safeApply = sanitizeUrl(v.apply_url || '');
-    if (safeApply) {
-      applyIconHtml = `<button class="card-action-btn apply" onclick="openLink('${safeApply}')" aria-label="Откликнуться"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>`;
-    }
-
-    let skillsFooterHtml = '';
-    if (Array.isArray(v.skills) && v.skills.length > 0) {
-      skillsFooterHtml = `<div class="footer-skill-tags">${v.skills.slice(0, 3).map(skill => {
-        const isPrimary = PRIMARY_SKILLS.includes(String(skill).toLowerCase());
-        return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${escapeHtml(String(skill))}</span>`;
-      }).join('')}</div>`;
-    }
-
-    const infoRows = [];
-    const employment = isValid(v.employment_type) ? v.employment_type : '';
-    const workFormat = isValid(v.work_format) ? v.work_format : '';
-    const formatValue = [employment, workFormat].filter(Boolean).join(' / ');
-    if (formatValue) infoRows.push({label: 'ФОРМАТ', value: formatValue, type: 'default'});
-    if (isValid(v.salary_display_text)) infoRows.push({label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary'});
-
-    const industryText = isValid(v.industry) ? v.industry : '';
-    const companyText = isValid(v.company_name) ? `(${v.company_name})` : '';
-    const sphereValue = `${industryText} ${companyText}`.trim();
-    if (sphereValue) infoRows.push({label: 'СФЕРА', value: sphereValue, type: 'industry'});
-
-    let infoWindowHtml = '';
-    if (infoRows.length > 0) {
-      infoWindowHtml = '<div class="info-window">' + infoRows.map(row => {
-        return `<div class="info-row info-row--${row.type}"><div class="info-label">${escapeHtml(row.label)} >></div><div class="info-value">${escapeHtml(row.value)}</div></div>`;
-      }).join('') + '</div>';
-    }
-
-    const originalSummary = v.reason || 'Описание не было сгенерировано.';
-    const q = (searchInput?.value || '').trim();
-
-    const originalDetailsRaw = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
-    const bestImageUrl = pickImageUrl(v, originalDetailsRaw);
-    const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
-
-    const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
-
-    const hasAnyDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
-    const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
-
-    const channelHtml = isValid(v.channel) ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
-    const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
-    const separator = channelHtml && timestampHtml ? ' • ' : '';
-    const footerMetaHtml = `<div class="footer-meta">${channelHtml}${separator}${timestampHtml}</div>`;
-
-    const cardHTML = `
-      <div class="card-actions">
-        ${applyIconHtml}
-        <button class="card-action-btn favorite" onclick="updateStatus(event, '${v.id}', 'favorite')" aria-label="В избранное"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
-        <button class="card-action-btn delete" onclick="updateStatus(event, '${v.id}', 'deleted')" aria-label="Удалить"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-      </div>
-      <div class="card-header"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
-      <div class="card-body">
-        <p class="card-summary"></p>
-        ${infoWindowHtml}
-        ${detailsHTML}
-      </div>
-      <div class="card-footer">
-        ${skillsFooterHtml}
-        ${footerMetaHtml}
-      </div>`;
-
-    card.innerHTML = cardHTML;
-
-    // store searchable text & originals
-    const searchChunks = [v.category, v.reason, industryText, v.company_name, Array.isArray(v.skills) ? v.skills.join(' ') : '', cleanedDetailsText].filter(Boolean);
-    card.dataset.searchText = searchChunks.join(' ').toLowerCase();
-
-    const summaryEl = card.querySelector('.card-summary');
-    if (summaryEl) {
-      summaryEl.dataset.originalSummary = originalSummary;
-      summaryEl.innerHTML = highlightText(originalSummary, q);
-    }
-
-    const detailsEl = card.querySelector('.vacancy-text');
-    if (detailsEl) {
-      detailsEl.dataset.originalText = cleanedDetailsText;
-      const textHtml = highlightText(cleanedDetailsText, q);
-      detailsEl.innerHTML = attachmentsHTML + textHtml;
-    }
-
-    container.appendChild(card);
-  }
+// =========================
+// LOAD & SPLIT, затем рендер по частям
+// =========================
+function splitByCategory(items) {
+  return {
+    main: items.filter(i => i.category === 'ТОЧНО ТВОЁ'),
+    maybe: items.filter(i => i.category === 'МОЖЕТ БЫТЬ'),
+    other: items.filter(i => !['ТОЧНО ТВОЁ','МОЖЕТ БЫТЬ'].includes(i.category)),
+  };
 }
 
 async function loadVacancies() {
@@ -400,19 +455,22 @@ async function loadVacancies() {
 
     if (!items || items.length === 0) {
       containers.main.innerHTML = getEmptyStateHtml('Новых вакансий нет');
+      // обнуляем состояние
+      state.data = { main: [], maybe: [], other: [] };
+      state.rendered = { main: 0, maybe: 0, other: 0 };
+      updateLoadMoreBtn('main'); updateLoadMoreBtn('maybe'); updateLoadMoreBtn('other');
     } else {
       items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      const mainVacancies = items.filter(item => item.category === 'ТОЧНО ТВОЁ');
-      const maybeVacancies = items.filter(item => item.category === 'МОЖЕТ БЫТЬ');
-      const otherVacancies = items.filter(item => !['ТОЧНО ТВОЁ', 'МОЖЕТ БЫТЬ'].includes(item.category));
+      state.data = splitByCategory(items);
+      state.rendered = { main: 0, maybe: 0, other: 0 };
 
-      counts.main.textContent = `(${mainVacancies.length})`;
-      counts.maybe.textContent = `(${maybeVacancies.length})`;
-      counts.other.textContent = `(${otherVacancies.length})`;
+      counts.main.textContent = `(${state.data.main.length})`;
+      counts.maybe.textContent = `(${state.data.maybe.length})`;
+      counts.other.textContent = `(${state.data.other.length})`;
 
-      renderVacancies(containers.main, mainVacancies);
-      renderVacancies(containers.maybe, maybeVacancies);
-      renderVacancies(containers.other, otherVacancies);
+      renderNextChunk('main');
+      renderNextChunk('maybe');
+      renderNextChunk('other');
     }
 
     setTimeout(() => {
@@ -512,7 +570,6 @@ refreshBtn?.addEventListener('click', loadVacancies);
       const onLoaded = ()=>{ document.removeEventListener('vacancies:loaded', onLoaded); done(); };
       document.addEventListener('vacancies:loaded', onLoaded);
       loadVacancies();
-      // safety fallback
       setTimeout(()=>{ if (locked) { done(); } }, 8000);
     } else { resetBar(); pulling=false; }
   }, {passive:true});

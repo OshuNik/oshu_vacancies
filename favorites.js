@@ -10,7 +10,6 @@ const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
 const PRIMARY_SKILLS = ['after effects', 'unity', 'монтаж видео', '2d-анимация', 'рилсы', 'premiere pro'];
 
 const container = document.getElementById('favorites-list');
-const searchInputFav = document.getElementById('search-input-fav');
 
 // --- Helpers: sanitize ---
 const escapeHtml = (s = '') => s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
@@ -91,6 +90,10 @@ function renderFavorites(items) {
       }).join('') + '</div>';
     }
 
+    // Image button (hotfix)
+    const safeImage = sanitizeUrl(v.image_link || '');
+    const imageBtnHTML = (safeImage && safeImage !== '#') ? `<a class="image-link-button" href="${safeImage}" target="_blank" rel="noopener noreferrer">Изображение</a>` : '';
+
     const detailsHTML = v.text_highlighted ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;">${v.text_highlighted}</div></details>` : '';
 
     card.innerHTML = `
@@ -104,6 +107,7 @@ function renderFavorites(items) {
       <div class="card-body">
         <p class="card-summary">${escapeHtml(v.reason || 'Описание не было сгенерировано.')}</p>
         ${infoGridHtml}
+        ${imageBtnHTML}
         ${detailsHTML}
       </div>
       <div class="card-footer">
@@ -126,7 +130,7 @@ async function updateStatus(event, vacancyId, newStatus) {
         'Content-Type': 'application/json',
         'Prefer': 'return=representation'
       },
-      body: JSON.stringify({ status: newStatus })
+        body: JSON.stringify({ status: newStatus })
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     const payload = await r.json();

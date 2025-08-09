@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -10,49 +11,16 @@
   <header class="header header-centered">
     <h1>★ Избранное</h1>
     <div class="header-actions">
-      <a href="index.html" class="btn">← Назад</a>
+      <a href="index.html" class="header-button">← Назад</a>
     </div>
   </header>
 
   <div class="search-container">
     <input type="search" id="search-input-fav" class="search-input" placeholder="Поиск по тексту...">
-    <div class="search-stats"></div>
   </div>
 
   <main class="content" id="favorites-list">
       </main>
-  
-  <div class="load-more-wrap">
-      </div>
-
-  <template id="vacancy-card-template">
-    <div class="vacancy-card">
-      <div class="card-actions">
-        <button class="card-action-btn apply" aria-label="Откликнуться">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-        </button>
-        <button class="card-action-btn delete" aria-label="Убрать из избранного">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-        </button>
-      </div>
-      <div class="card-header"><h3 class="card-category-title"></h3></div>
-      <div class="card-body">
-        <p class="card-summary"></p>
-        <div class="info-grid"></div>
-        <details>
-          <summary>Показать полный текст</summary>
-          <div class="vacancy-text"></div>
-        </details>
-      </div>
-      <div class="card-footer">
-        <div class="footer-skill-tags"></div>
-        <div class="footer-meta">
-          <span class="channel-name"></span>
-          <span class="timestamp-footer"></span>
-        </div>
-      </div>
-    </div>
-  </template>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="favorites.js"></script>

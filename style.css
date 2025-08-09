@@ -1,4 +1,3 @@
-/* --- FONTS & ROOT VARIABLES --- */
 @import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
 
 :root {
@@ -15,29 +14,21 @@
     --accent-blue: #41A6FF;
 }
 
-
-/* --- GENERAL STYLES --- */
 body {
     font-family: 'Roboto Mono', monospace;
     background-color: var(--background-color);
     color: var(--text-color);
     margin: 0;
     padding: 15px 15px 120px 15px;
-    -webkit-tap-highlight-color: transparent;
 }
 
-* {
-    box-sizing: border-box;
-}
-
-
-/* --- HEADER --- */
+/* --- Шапка --- */
 .header {
     padding-bottom: 25px;
     text-align: center;
 }
 .header h1 {
-    font-family: 'Press Start 2P', monospace;
+    font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
     font-size: 28px;
     color: var(--text-color);
     margin: 0 0 15px 0;
@@ -53,98 +44,28 @@ body {
 .header-settings .header-actions {
     justify-content: space-between;
 }
-
-
-/* --- LAYOUT & CONTAINERS --- */
-.content {
-    display: block;
+.header-centered .header-actions {
+    justify-content: center;
 }
-.hidden {
-    display: none !important;
-}
-
-
-/* --- BUTTONS (REFACTORED) --- */
-.btn {
-    font-family: 'Roboto Mono', monospace;
+.header-button {
     font-size: 14px;
-    font-weight: 700;
     text-decoration: none;
     color: var(--text-color);
     background-color: var(--card-color);
     padding: 10px 18px;
     border: var(--border-width) solid var(--border-color);
     border-radius: 12px;
-    cursor: pointer;
     box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
     transition: transform 0.1s, box-shadow 0.1s;
 }
-.btn:active {
+.header-button:active {
     transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
     box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
 }
-.btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    filter: grayscale(50%);
-}
 
-.btn--icon {
-    width: 44px;
-    height: 44px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0;
-}
-.btn--icon.save {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-}
-.btn--icon.save svg { stroke: var(--accent-blue); }
-.btn--icon.add {
-    font-family: 'Press Start 2P';
-    flex-shrink: 0;
-    font-size: 24px;
-    background-color: var(--accent-green);
-    color: var(--card-color);
-    border-radius: 8px;
-}
-.btn--delete-all {
-    color: var(--accent-red);
-    border-color: var(--accent-red);
-    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--accent-red);
-    margin-top: 25px;
-    width: 100%;
-}
-.btn--delete-all:active {
-    box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--accent-red);
-}
-.btn--load-more {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 12px;
-    letter-spacing: 0.5px;
-}
-.btn--load-defaults {
-    font-weight: 700;
-    font-size: 15px;
-    margin-bottom: 15px;
-    width: 100%;
-}
-.btn--confirm-cancel {
-    background-color: #e0e0e0;
-}
-.btn--confirm-ok {
-    background-color: var(--accent-red);
-    color: var(--card-color);
-}
-
-/* --- SEARCH --- */
+/* --- Search Bar --- */
 .search-container {
     padding: 0 0 15px 0;
-    position: relative;
 }
 .search-input {
     width: 100%;
@@ -156,26 +77,29 @@ body {
     border: var(--border-width) solid var(--border-color);
     border-radius: 8px;
     box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+    box-sizing: border-box;
     -webkit-appearance: none;
 }
 .search-input:focus {
     outline: none;
     border-color: var(--accent-blue);
 }
-.search-input::-webkit-search-cancel-button {
-    -webkit-appearance: none;
-    appearance: none;
-    display: none;
-}
+/* Полностью прячем системный крестик в <input type="search"> во всех браузерах */
+input[type="search"]::-webkit-search-cancel-button,
+input[type="search"]::-webkit-search-decoration,
+input[type="search"]::-webkit-search-results-button,
+input[type="search"]::-webkit-search-results-decoration { -webkit-appearance: none; appearance: none; display: none; }
+input[type="search"]::-ms-clear { display: none; width: 0; height: 0; }
+/* Если где-то остался кастомный крестик — прячем и его */
+.search-clear-btn { display: none !important; }
+/* Счётчик результатов под строкой поиска */
 .search-stats {
-    margin-top: 8px;
+    margin-top: 6px;
     font-size: 12px;
     color: var(--hint-color);
-    min-height: 1em;
 }
 
-
-/* --- VACANCY CARD --- */
+/* --- Vacancy Card --- */
 .vacancy-card {
     background-color: var(--card-color);
     border: var(--border-width) solid var(--border-color);
@@ -187,7 +111,6 @@ body {
     transition: all 0.3s ease-out;
     overflow: hidden;
 }
-
 .card-header {
     margin-bottom: 12px;
     padding-bottom: 8px;
@@ -204,130 +127,15 @@ body {
     border-radius: 4px;
     letter-spacing: 1.5px;
 }
-.vacancy-card.category-main .card-header h3 { background-color: var(--accent-green); }
-.vacancy-card.category-maybe .card-header h3 { background-color: var(--accent-yellow); }
-.vacancy-card.category-other .card-header h3 { background-color: var(--accent-red); }
-
-.card-summary {
-    font-size: 16px;
-    font-weight: 700;
-    line-height: 1.5;
-    margin: 0 0 8px 0;
-    padding: 0 0 12px 0;
-    position: relative;
-    border-bottom: 2px dashed var(--hint-color);
-    white-space: pre-wrap;
-    text-shadow: 0 0 5px rgba(107, 203, 119, 0.4);
-}
-.card-summary::before {
-    content: '> ';
-    margin-right: 5px;
-}
-.card-summary::after {
-    content: '█';
-    animation: blink 1s step-end infinite;
-    margin-left: 5px;
-    color: var(--accent-green);
-}
-@keyframes blink { 50% { opacity: 0; } }
-
-.info-grid {
-    display: grid;
-    grid-template-columns: max-content 1fr;
-    gap: 12px 10px;
-    align-items: center;
-    margin: 14px 0 0 0;
-    padding: 14px 0 0 0;
-    border-top: 1px dashed var(--hint-color);
-}
-.info-label {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 10px;
-    color: var(--hint-color);
-    letter-spacing: 1px;
-    white-space: nowrap;
-}
-.info-value {
-    font-size: 15px;
-    font-weight: 500;
-    line-height: 1.6;
-    word-break: break-word;
-}
-.info-value a { color: var(--accent-blue); text-decoration: underline; }
-
-.info-value .highlight {
-    display: inline-block;
-    padding: 4px 8px;
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 4px;
-    box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--border-color);
-    background-color: var(--background-color);
-}
-.info-value .highlight.salary { background-color: var(--accent-yellow); }
-.info-value .highlight.industry { background-color: var(--accent-blue); color: var(--card-color); }
-
-.card-body details { margin-top: 20px; }
-.card-body summary {
-    list-style: none;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 5px 0;
-    font-family: 'Roboto Mono', monospace;
-    font-weight: 700;
-    color: var(--hint-color);
-    font-size: 14px;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    cursor: pointer;
-}
-.card-body summary::-webkit-details-marker { display: none; }
-.card-body summary::before {
-    content: '▶';
-    font-size: 12px;
-    color: var(--text-color);
-    transition: transform 0.2s ease-out;
-}
-.card-body summary:hover, .card-body summary:active { color: var(--text-color); }
-.card-body summary:hover::before, .card-body summary:active::before { color: var(--accent-green); }
-details[open] > summary::before { transform: rotate(90deg); }
-
-.vacancy-text {
+.card-body p {
+    margin: 12px 0 10px;
     font-size: 15px;
     line-height: 1.6;
     white-space: pre-wrap;
-    word-wrap: break-word;
-    margin-top: 10px;
 }
-details[open] .vacancy-text {
-    background-color: var(--background-color);
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 8px;
-    padding: 10px 12px;
-    margin-top: 10px;
-}
-.vacancy-text .highlight { background-color: var(--accent-yellow); }
-.vacancy-text strong { font-weight: 700; }
-.vacancy-text a { color: var(--accent-blue); }
-
-.image-link-button {
-    display: inline-block;
-    box-sizing: border-box;
-    margin: 0 0 10px 0;
-    padding: 4px 10px;
-    background-color: var(--card-color);
-    border: var(--border-width) solid var(--accent-blue);
-    border-radius: 4px;
-    color: var(--accent-blue);
-    font-weight: 700;
-    text-align: center;
-    text-decoration: none;
-    font-size: 14px;
-}
-.image-link-button:active {
-    background-color: var(--accent-blue);
-    color: var(--card-color);
-}
+.card-body p:last-child { margin-bottom: 0; }
+.card-body p strong { font-weight: 700; }
+.highlight { background-color: var(--accent-yellow); }
 
 .card-actions {
     position: absolute;
@@ -343,62 +151,18 @@ details[open] .vacancy-text {
     cursor: pointer;
     transition: transform 0.1s ease-out;
 }
-.card-action-btn:active { transform: scale(0.9); }
-.card-action-btn svg { width: 28px; height: 28px; stroke-width: 2.5; }
-.card-action-btn.apply svg { stroke: var(--accent-green); fill: none; }
+.card-action-btn:active {
+    transform: scale(0.9);
+}
+.card-action-btn svg {
+    width: 28px;
+    height: 28px;
+    stroke-width: 2.5;
+}
 .card-action-btn.favorite svg { stroke: var(--accent-blue); fill: none; }
 .card-action-btn.delete svg { stroke: var(--accent-red); fill: none; }
 
-.card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    margin-top: 15px;
-    padding-top: 10px;
-    border-top: 1px dashed var(--hint-color);
-    flex-wrap: wrap;
-    gap: 10px;
-}
-.footer-skill-tags {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 5px;
-    justify-content: flex-start;
-    flex-grow: 1;
-    min-width: 0;
-}
-.footer-skill-tag {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 10px;
-    background-color: var(--background-color);
-    color: var(--text-color);
-    padding: 5px 8px;
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 4px;
-    text-transform: uppercase;
-}
-.footer-skill-tag.primary {
-    background-color: var(--accent-green);
-    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
-}
-.footer-meta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    color: var(--hint-color);
-    text-align: right;
-    white-space: nowrap;
-    font-size: 12px;
-}
-.channel-name {
-    font-weight: 700;
-    max-width: 120px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-
-/* --- BOTTOM TABS --- */
+/* --- Bottom Tabs --- */
 .category-tabs {
     position: fixed;
     bottom: 0;
@@ -430,11 +194,22 @@ details[open] .vacancy-text {
     position: relative;
     top: 10px;
     box-shadow: none;
-    user-select: none;
+    
     -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
 }
-.tab-label { font-size: 13px; }
-.tab-count { font-size: 11px; margin-top: 4px; opacity: 0.8; }
+.tab-label {
+    font-size: 13px;
+}
+.tab-count {
+    font-size: 11px;
+    margin-top: 4px;
+    opacity: 0.8;
+}
 .tab-button.active {
     top: 0;
     padding-top: 12px;
@@ -442,29 +217,24 @@ details[open] .vacancy-text {
     color: var(--text-color);
     box-shadow: var(--shadow-offset) 0px 0px var(--border-color);
 }
-.tab-button.main.active { background-color: var(--accent-green); }
-.tab-button.maybe.active { background-color: var(--accent-yellow); }
-.tab-button.other.active { background-color: var(--accent-red); }
+.tab-button.main.active {
+    background-color: var(--accent-green);
+}
+.tab-button.maybe.active {
+    background-color: var(--accent-yellow);
+}
+.tab-button.other.active {
+    background-color: var(--accent-red);
+}
 
-
-/* --- LOADER & EMPTY STATE --- */
-.empty-state, .search-empty-hint {
-    padding: 60px 20px;
+/* --- Other UI Elements --- */
+.vacancy-list, .settings-tab-content { display: none; }
+.vacancy-list.active, .settings-tab-content.active { display: block; }
+.empty-list { text-align: center; color: var(--hint-color); padding: 30px 0; }
+.loader-container {
+    padding: 50px 20px;
     text-align: center;
-    color: var(--hint-color);
 }
-.empty-state-gif {
-    width: 200px;
-    height: auto;
-    margin-bottom: 15px;
-}
-.empty-state-text {
-    font-family: 'Press Start 2P', monospace;
-    font-size: 14px;
-    margin-top: 25px;
-}
-
-.loader-container { padding: 50px 20px; text-align: center; }
 .progress-bar-outline {
     width: 100%;
     height: 20px;
@@ -479,14 +249,13 @@ details[open] .vacancy-text {
     transition: width 0.5s ease-in-out;
 }
 .loader-text {
-    font-family: 'Press Start 2P', monospace;
+    font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
     font-size: 12px;
     margin-top: 15px;
     color: var(--hint-color);
 }
 
-
-/* --- SETTINGS PAGE --- */
+/* --- Settings Page --- */
 .settings-tabs {
     display: flex;
     gap: 5px;
@@ -503,15 +272,13 @@ details[open] .vacancy-text {
     font-weight: 700;
     border-radius: 8px;
     cursor: pointer;
+    transition: all 0.2s ease;
 }
 .settings-tab-button.active {
     background-color: var(--accent-blue);
     color: var(--card-color);
     box-shadow: 2px 2px 0px var(--border-color);
 }
-.settings-tab-content { display: none; }
-.settings-tab-content.active { display: block; }
-
 .settings-form { display: flex; flex-direction: column; gap: 15px; }
 .settings-form label { font-weight: 700; margin-top: 10px; }
 .settings-form textarea, .settings-form input[type="text"] {
@@ -522,9 +289,8 @@ details[open] .vacancy-text {
     border: var(--border-width) solid var(--border-color);
     background-color: var(--card-color);
     resize: vertical;
-    width: 100%;
+    box-sizing: border-box;
 }
-
 .current-keywords-container {
     background-color: var(--card-color);
     border: var(--border-width) solid var(--border-color);
@@ -547,10 +313,50 @@ details[open] .vacancy-text {
     line-height: 1.6;
     word-break: break-word;
 }
-.add-channel-form { display: flex; gap: 5px; }
-.add-channel-form input { flex-grow: 1; min-width: 0; }
-
-.channels-list { margin-top: 20px; display: flex; flex-direction: column; gap: 10px; }
+.button-load-defaults {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    background-color: var(--card-color);
+    color: var(--text-color);
+    border: var(--border-width) solid var(--border-color);
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+    transition: transform 0.1s, box-shadow 0.1s;
+    margin-bottom: 15px;
+}
+.button-load-defaults:active {
+    transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
+    box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
+}
+.add-channel-form {
+    display: flex;
+    gap: 5px;
+}
+.add-channel-form input {
+    flex-grow: 1;
+    min-width: 0;
+}
+.add-channel-form button {
+    font-family: 'Press Start 2P';
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    font-size: 24px;
+    background-color: var(--accent-green);
+    color: var(--card-color);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 8px;
+    cursor: pointer;
+}
+.channels-list {
+    margin-top: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
 .channel-item {
     display: flex;
     align-items: center;
@@ -560,19 +366,52 @@ details[open] .vacancy-text {
     border: var(--border-width) solid var(--border-color);
     border-radius: 8px;
 }
-.channel-item-info { flex-grow: 1; display: flex; flex-direction: column; min-width: 0; }
-.channel-item-title { font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.channel-item-id { font-size: 13px; color: var(--hint-color); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.channel-item-id:hover { text-decoration: underline; }
-.channel-item-delete { background: none; border: none; padding: 0; cursor: pointer; }
-.channel-item-delete svg { width: 24px; height: 24px; stroke: var(--accent-red); }
-
-.toggle-switch { position: relative; display: inline-block; width: 44px; height: 24px; }
-.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.channel-item-info {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+.channel-item-title {
+    font-weight: 700;
+    font-size: 15px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.channel-item-id {
+    font-size: 13px;
+    color: var(--hint-color);
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.channel-item-id:hover {
+    text-decoration: underline;
+}
+.channel-item-toggle {
+    display: flex;
+    align-items: center;
+}
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+}
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
 .toggle-slider {
     position: absolute;
     cursor: pointer;
-    top: 0; left: 0; right: 0; bottom: 0;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
     background-color: #ccc;
     border: var(--border-width) solid var(--border-color);
     border-radius: 24px;
@@ -590,11 +429,71 @@ details[open] .vacancy-text {
     border-radius: 50%;
     transition: .2s;
 }
-input:checked + .toggle-slider { background-color: var(--accent-green); }
-input:checked + .toggle-slider:before { transform: translateX(20px); }
+input:checked + .toggle-slider {
+    background-color: var(--accent-green);
+}
+input:checked + .toggle-slider:before {
+    transform: translateX(20px);
+}
+.channel-item-delete {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+}
+.channel-item-delete svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--accent-red);
+}
 
+.header-icon-btn {
+    background-color: var(--card-color);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    padding: 0;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+    transition: all 0.1s ease-out;
+}
+.header-icon-btn svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--accent-blue);
+    stroke-width: 2.5;
+}
+.header-icon-btn:active {
+    transform: translate(var(--shadow-offset), var(--shadow-offset));
+    box-shadow: 0px 0px 0px var(--border-color);
+}
+.header-icon-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+.header-settings .header-icon-btn {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+}
 
-/* --- DIALOGS & OVERLAYS --- */
+/* --- Card Header Colors --- */
+.vacancy-card.category-main .card-header h3 {
+    background-color: var(--accent-green);
+}
+.vacancy-card.category-maybe .card-header h3 {
+    background-color: var(--accent-yellow);
+}
+.vacancy-card.category-other .card-header h3 {
+    background-color: var(--accent-red);
+}
+
+/* --- Custom Confirm Dialog --- */
 .custom-confirm-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -625,20 +524,372 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
     justify-content: center;
     gap: 10px;
 }
+.custom-confirm-button {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 10px 18px;
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 12px;
+    background-color: #e0e0e0;
+    color: var(--text-color);
+    cursor: pointer;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+    transition: transform 0.1s, box-shadow 0.1s;
+}
+.custom-confirm-button:active {
+    transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
+    box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
+}
+.custom-confirm-button.ok {
+    background-color: var(--accent-red);
+    color: var(--card-color);
+}
 
-/* --- PULL TO REFRESH BAR --- */
-.ptr-bar {
-    position: fixed;
-    left: 0; right: 0; top: 0;
-    height: 56px;
-    background: var(--card-color);
+.button-delete {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    font-size: 15px;
+    background-color: var(--card-color);
+    color: var(--accent-red);
+    border: var(--border-width) solid var(--accent-red);
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--accent-red);
+    transition: transform 0.1s, box-shadow 0.1s;
+    margin-top: 25px;
+}
+
+.button-delete:active {
+    transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
+    box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--accent-red);
+}
+
+/* --- Стили для пустого состояния --- */
+.empty-state {
+    padding-top: 80px;
+    text-align: center;
+}
+.empty-state-text {
+    font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
+    font-size: 14px;
     color: var(--hint-color);
-    border-bottom: var(--border-width) solid var(--border-color);
+    margin-top: 25px;
+}
+.empty-state-gif {
+    width: 200px;
+    height: auto;
+    margin-bottom: 15px;
+}
+
+/* --- ФИНАЛЬНЫЕ СТИЛИ ДЛЯ КАРТОЧКИ --- */
+
+/* 1. Стиль для сводки в стиле "Терминала" (без фона) */
+.card-summary {
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.5;
+    margin: 0 0 15px 0 !important;
+    padding: 0 0 15px 0 !important;
+    position: relative;
+    border-bottom: 2px dashed var(--hint-color);
+    text-shadow: 0 0 5px rgba(107, 203, 119, 0.4);
+}
+.card-summary::before {
+    content: '> ';
+    margin-right: 5px;
+}
+.card-summary::after {
+    content: '█';
+    animation: blink 1s step-end infinite;
+    margin-left: 5px;
+    color: var(--accent-green);
+}
+
+@keyframes blink {
+    50% { opacity: 0; }
+}
+
+/* 2. Стили для блока характеристик */
+.info-grid {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px 10px;
+    align-items: center;
+    margin: 15px 0 0 0;
+}
+.info-label {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: var(--hint-color);
     display: flex;
     align-items: center;
-    justify-content: center;
-    transform: translateY(-100%);
-    transition: transform .2s ease;
-    z-index: 9999;
-    font-family: inherit;
+    gap: 8px;
+    white-space: nowrap;
+}
+.info-label span {
+    font-family: 'Roboto Mono', monospace;
+    font-size: 18px;
+}
+.info-value {
+    font-size: 15px;
+    font-weight: 500;
+    line-height: 1.5;
+}
+.info-value a {
+    color: var(--accent-blue);
+    text-decoration: underline;
+}
+
+/* 3. Стили для выделения "особых" значений */
+.value-highlight {
+    background-color: var(--background-color);
+    border: var(--border-width) solid var(--border-color);
+    padding: 4px 8px;
+    border-radius: 4px;
+    display: inline-block;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+}
+.value-highlight.salary {
+    background-color: var(--accent-yellow);
+}
+.value-highlight.industry {
+    background-color: var(--accent-blue);
+    color: var(--card-color);
+}
+
+/* 4. Цвет для иконки "Откликнуться" */
+.card-action-btn.apply svg {
+    stroke: var(--accent-green);
+    fill: none;
+}
+
+/* 5. Обновленные стили для подвала карточки и тегов */
+.card-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 15px;
+    padding-top: 10px;
+    border-top: 1px dashed var(--hint-color);
+    flex-wrap: wrap;
+    gap: 10px;
+}
+.footer-skill-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    justify-content: flex-start;
+    flex-grow: 1;
+    min-width: 0;
+}
+.footer-skill-tag {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    font-weight: normal;
+    background-color: var(--background-color);
+    color: var(--text-color);
+    padding: 5px 8px;
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 4px;
+    text-transform: uppercase;
+}
+.footer-skill-tag.primary {
+    background-color: var(--accent-green);
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+}
+.footer-meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--hint-color);
+    text-align: right;
+    white-space: nowrap;
+    font-size: 12px;
+}
+.channel-name {
+    font-weight: 700;
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.timestamp-footer {
+    font-weight: 500;
+}
+
+/* 6. Стилизация для блока "Показать полный текст" */
+.card-body details {
+    margin-top: 20px;
+}
+.card-body summary {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 0;
+    transition: color 0.2s ease;
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    color: var(--hint-color);
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.card-body summary::-webkit-details-marker {
+    display: none;
+}
+.card-body summary::before {
+    content: '▶';
+    font-size: 12px;
+    color: var(--text-color);
+    transition: transform 0.2s ease-out;
+}
+.card-body summary:hover, .card-body summary:active {
+    color: var(--text-color);
+}
+.card-body summary:hover::before, .card-body summary:active::before {
+    color: var(--accent-green);
+}
+details[open] > summary::before {
+    transform: rotate(90deg);
+}
+details[open] .vacancy-text {
+    background-color: var(--background-color);
+    border: var(--border-width) solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px 12px;
+    margin-top: 10px;
+}
+
+/* 7. Стиль для кнопки [Изображение] */
+.image-link-button {
+    display: inline-block;
+    box-sizing: border-box;
+    margin: 0 0 10px 0;
+    padding: 4px 10px;
+    background-color: var(--card-color);
+    border: var(--border-width) solid var(--accent-blue);
+    border-radius: 4px;
+    color: var(--accent-blue);
+    font-weight: 700;
+    text-align: center;
+    text-decoration: none;
+    font-size: 14px;
+}
+.image-link-button:active {
+    background-color: var(--accent-blue);
+    color: var(--card-color);
+}
+
+/* ====== СЕРЕДИНА КАРТОЧКИ (НОВЫЙ РАЗМЕТКА info-window/info-row) ====== */
+
+/* Контейнер характеристик под сводкой */
+.info-window {
+  display: grid;
+  grid-template-columns: max-content 1fr; /* слева метка, справа значение */
+  gap: 12px 10px;
+  align-items: center;
+  margin: 14px 0 0 0;              /* отступ сверху от сводки */
+  padding: 14px 0 0 0;              /* «воздух» сверху */
+  border-top: 1px dashed var(--hint-color); /* разделитель от сводки */
+}
+
+/* Каждая строка — это label + value в тех же колонках */
+.info-row { display: contents; }
+
+/* Метка (ФОРМАТ >>, ОПЛАТА >>, СФЕРА >>) */
+.info-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--hint-color);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+/* Значение — базовый вид */
+.info-value {
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.6;
+}
+.info-value a { color: var(--accent-blue); text-decoration: underline; }
+
+/* Подсветки «важных» значений */
+.info-row--salary .info-value,
+.info-row--industry .info-value {
+  display: inline-block;
+  padding: 4px 8px;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--border-color);
+  background-color: var(--background-color);
+}
+.info-row--salary .info-value { background-color: var(--accent-yellow); }
+.info-row--industry .info-value { background-color: var(--accent-blue); color: var(--card-color); }
+
+/* Небольшая правка для старого варианта (.info-grid) — чтобы и он выглядел единообразно */
+.info-grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 12px 10px;
+  align-items: center;
+  margin: 14px 0 0 0;
+  padding: 14px 0 0 0;
+  border-top: 1px dashed var(--hint-color);
+}
+.info-grid .info-label {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 10px;
+  color: var(--hint-color);
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+.info-grid .info-value { font-size: 15px; font-weight: 500; line-height: 1.6; }
+.info-grid .value-highlight {
+  background-color: var(--background-color);
+  border: var(--border-width) solid var(--border-color);
+  padding: 4px 8px;
+  border-radius: 4px;
+  display: inline-block;
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--border-color);
+}
+.value-highlight.salary { background-color: var(--accent-yellow); }
+.value-highlight.industry { background-color: var(--accent-blue); color: var(--card-color); }
+
+/* Чуть подтянем отступы сводки, чтобы стык был аккуратным */
+.card-summary {
+  margin-bottom: 8px !important;
+  padding-bottom: 12px !important;
+  border-bottom: 2px dashed var(--hint-color);
+}
+
+/* Обёртка и кнопка "Загрузить ещё" */
+.load-more-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 14px 0 6px; /* сверху небольшая дистанция от карточек */
+}
+.load-more-btn {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  padding: 12px 16px;
+  background-color: var(--card-color);
+  color: var(--text-color);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--border-color);
+  cursor: pointer;
+  transition: transform 0.1s, box-shadow 0.1s;
+}
+.load-more-btn:hover { filter: brightness(1.02); }
+.load-more-btn:active {
+  transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
+  box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0 var(--border-color);
+}
+.load-more-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }

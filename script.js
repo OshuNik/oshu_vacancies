@@ -1,6 +1,8 @@
+// script.js — Главная лента, порционная отрисовка и защита запросов
+
 const { SUPABASE_URL, SUPABASE_ANON_KEY, PAGE_SIZE_MAIN, RETRY_OPTIONS } = window.APP_CONFIG;
 const {
-  tg, escapeHtml, stripTags, debounce, highlightText, safeAlert,
+  /* tg, */ escapeHtml, stripTags, debounce, highlightText, safeAlert,
   formatTimestamp, sanitizeUrl, openLink,
   containsImageMarker, cleanImageMarkers, pickImageUrl,
   fetchWithRetry, renderEmptyState, renderError,
@@ -106,7 +108,6 @@ const applySearch = () => {
   } else if (emptyHint) emptyHint.remove();
   updateSearchStats(visible, total);
 
-  // держим кнопку «Загрузить ещё» внизу
   const key = getActiveKey();
   if (key) updateLoadMore(containers[key], listState[key].rendered < listState[key].all.length);
 };
@@ -117,7 +118,6 @@ const listState = {
   maybe: { all: [], rendered: 0, pageSize: PAGE_SIZE_MAIN },
   other: { all: [], rendered: 0, pageSize: PAGE_SIZE_MAIN }
 };
-
 function getActiveKey() {
   const active = document.querySelector('.vacancy-list.active');
   return Object.keys(containers).find(k => containers[k] === active) || null;
@@ -194,7 +194,6 @@ function buildCard(v) {
       ${footerMetaHtml}
     </div>`;
 
-  // searchable data
   const searchChunks = [v.category, v.reason, v.industry, v.company_name, Array.isArray(v.skills) ? v.skills.join(' ') : '', cleanedDetailsText].filter(Boolean);
   card.dataset.searchText = searchChunks.join(' ').toLowerCase();
 
@@ -239,7 +238,7 @@ function renderNextChunk(key) {
   updateLoadMore(container, state.rendered < state.all.length);
 }
 
-// Клики по карточкам (делегирование)
+// Делегирование кликов
 vacanciesContent.addEventListener('click', (e) => {
   const btn = e.target.closest('[data-action]');
   if (!btn) return;
@@ -265,7 +264,7 @@ async function updateStatus(event, id, newStatus) {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
+        'Prefer': 'return-minimal'
       },
       body: JSON.stringify({ status: newStatus })
     });
@@ -276,9 +275,7 @@ async function updateStatus(event, id, newStatus) {
         card.remove();
         if (key) {
           const state = listState[key];
-          // если есть ещё карточки в данных — дорисуем, чтобы сохранить плотность
           if (state.rendered < state.all.length) renderNextChunk(key);
-          // обновим счётчик
           const span = counts[key];
           const current = parseInt((span.textContent || '0').replace(/\(|\)/g,'')) || 0;
           span.textContent = `(${Math.max(0, current-1)})`;
@@ -327,7 +324,6 @@ async function loadVacancies() {
     const items = await response.json();
     finishProgress();
 
-    // подготовим состояние
     Object.values(containers).forEach(c => c.innerHTML = '');
     listState.main = { all: [], rendered: 0, pageSize: PAGE_SIZE_MAIN };
     listState.maybe = { all: [], rendered: 0, pageSize: PAGE_SIZE_MAIN };
@@ -335,9 +331,7 @@ async function loadVacancies() {
 
     if (!items || items.length === 0) {
       renderEmptyState(containers.main, 'Новых вакансий нет');
-      counts.main.textContent = '(0)';
-      counts.maybe.textContent = '(0)';
-      counts.other.textContent = '(0)';
+      counts.main.textContent = '(0)'; counts.maybe.textContent = '(0)'; counts.other.textContent = '(0)';
     } else {
       const main = items.filter(i => i.category === 'ТОЧНО ТВОЁ');
       const maybe = items.filter(i => i.category === 'МОЖЕТ БЫТЬ');
@@ -351,7 +345,6 @@ async function loadVacancies() {
       counts.maybe.textContent = `(${maybe.length})`;
       counts.other.textContent = `(${other.length})`;
 
-      // первая порция в каждую вкладку
       renderNextChunk('main');
       renderNextChunk('maybe');
       renderNextChunk('other');
@@ -369,7 +362,7 @@ async function loadVacancies() {
     }, 200);
 
   } catch (error) {
-    if (error.name === 'AbortError') return; // прервали — тишина
+    if (error.name === 'AbortError') return;
     console.error('Ошибка загрузки:', error);
     renderError(loader, error.message, () => { loadVacancies(); });
     setProgress(100); resetProgress();
@@ -404,7 +397,7 @@ tabButtons.forEach(button => {
 
 searchInput?.addEventListener('input', debounce(applySearch, 250));
 
-// Pull-to-refresh (гард от повторной инициализации)
+// Pull-to-refresh
 (function setupPTR(){
   if (window.__PTR_INITIALIZED__) return; window.__PTR_INITIALIZED__ = true;
   const threshold = 70;

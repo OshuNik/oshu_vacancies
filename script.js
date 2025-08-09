@@ -44,9 +44,7 @@ const stripTags = (html = '') => { const tmp = document.createElement('div'); tm
 function normalizeUrl(raw = '') {
   let s = String(raw).trim();
   if (!s) return '';
-  // t.me без протокола → https://t.me/...
   if (/^(t\.me|telegram\.me)\//i.test(s)) s = 'https://' + s;
-  // домен без протокола → добавим https
   if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
   try { return new URL(s, window.location.origin).href; } catch { return ''; }
 }
@@ -55,7 +53,7 @@ function sanitizeUrl(raw = '') { const norm = normalizeUrl(raw); return isHttpUr
 
 const highlightText = (text = '', q = '') => {
   if (!q) return escapeHtml(text);
-  const rx = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, 'gi');
+  const rx = new RegExp(`(${q.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\$&")})`, 'gi');
   return escapeHtml(text).replace(rx, '<mark class="highlight">$1</mark>');
 };
 
@@ -133,7 +131,7 @@ let searchStatsEl = null;
 function ensureSearchUI() {
   if (!searchContainer || !searchInput) return;
 
-  // Удаляем все кнопки внутри контейнера, кроме нашей фирменной
+  // Удаляем старые кнопки (если были) — чтобы не было дублей
   searchContainer.querySelectorAll('button:not(.search-clear-btn)').forEach(btn => btn.remove());
 
   // Создаём единственную кнопку очистки, если её ещё нет

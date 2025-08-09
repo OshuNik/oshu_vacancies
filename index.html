@@ -1,64 +1,96 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-  />
-  <title>oshu://work — Вакансии</title>
-  <link rel="stylesheet" href="style.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>oshu://work</title>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header">
-    <div class="brand">
-      <span class="brand-dot"></span>
-      <span class="brand-text">oshu://work</span>
+
+<header class="header">
+    <h1>oshu://work</h1>
+    <div id="header-actions" class="header-actions">
+        <a href="favorites.html" class="btn">★ Избранное</a>
+        <a href="settings.html" class="btn">⚙︎ Настройки</a>
     </div>
+</header>
 
-    <div class="search-wrap">
-      <input id="search" class="search" type="text" placeholder="Поиск: компания, индустрия, суть…" />
-      <button id="clearSearch" class="btn btn-ghost" aria-label="Очистить поиск">×</button>
+<div id="search-container" class="search-container">
+    <input type="search" id="search-input" class="search-input" placeholder="Поиск по тексту...">
+    <div class="search-stats"></div>
+</div>
+
+<main class="content" id="vacancies-content">
+    <div id="vacancies-list-main" class="vacancy-list active"></div>
+    <div id="vacancies-list-maybe" class="vacancy-list"></div>
+    <div id="vacancies-list-other" class="vacancy-list"></div>
+</main>
+
+<div id="loader" class="loader-container hidden">
+    <div class="progress-bar-outline">
+        <div id="progress-bar" class="progress-bar"></div>
     </div>
-  </header>
+    <p class="loader-text">Загрузка вакансий...</p>
+</div>
 
-  <main class="container">
-    <div id="cards" class="cards"></div>
-    <div id="sentinel" class="sentinel" aria-hidden="true"></div>
-  </main>
-
-  <template id="card-template">
-    <article class="card">
-      <div class="card-head">
-        <span class="badge" data-badge="category">ТОЧНО ТВОЁ</span>
-        <time class="time" data-time></time>
-      </div>
-
-      <h2 class="title" data-title></h2>
-
-      <div class="info-list">
-        <div class="info-row">
-          <div class="label">Компания</div>
-          <div class="value" data-company>-</div>
+<div id="category-tabs" class="category-tabs">
+    <button class="tab-button main active" data-target="vacancies-list-main" data-category-name="ТОЧНО ТВОЁ">
+        <span class="tab-label">ТОЧНО ТВОЁ</span>
+        <span id="count-main" class="tab-count">(0)</span>
+    </button>
+    <button class="tab-button maybe" data-target="vacancies-list-maybe" data-category-name="МОЖЕТ БЫТЬ">
+        <span class="tab-label">МОЖЕТ БЫТЬ</span>
+        <span id="count-maybe" class="tab-count">(0)</span>
+    </button>
+    <button class="tab-button other" data-target="vacancies-list-other" data-category-name="НЕ ТВОЁ">
+        <span class="tab-label">НЕ ТВОЁ</span>
+        <span id="count-other" class="tab-count">(0)</span>
+    </button>
+</div>
+    
+<div id="custom-confirm-overlay" class="custom-confirm-overlay hidden">
+    <div class="custom-confirm-box">
+        <p id="custom-confirm-text"></p>
+        <div class="custom-confirm-actions">
+            <button id="confirm-btn-cancel" class="btn btn--confirm-cancel">Отмена</button>
+            <button id="confirm-btn-ok" class="btn btn--confirm-ok">OK</button>
         </div>
-        <div class="info-row">
-          <div class="label">Индустрия</div>
-          <div class="value" data-industry>-</div>
-        </div>
-        <div class="info-row">
-          <div class="label">Навыки</div>
-          <div class="value" data-skills>-</div>
-        </div>
-      </div>
+    </div>
+</div>
 
-      <div class="card-actions">
-        <a class="btn btn-primary" data-apply target="_blank" rel="noopener">Откликнуться</a>
-        <button class="btn btn-outline" data-fav>В избранное</button>
-        <button class="btn btn-outline btn-danger" data-delete>Скрыть</button>
+<template id="vacancy-card-template">
+  <div class="vacancy-card"> <div class="card-actions">
+      <button class="card-action-btn apply" aria-label="Откликнуться">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+      <button class="card-action-btn favorite" aria-label="В избранное">
+         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </button>
+      <button class="card-action-btn delete" aria-label="Удалить">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <div class="card-header"><h3 class="card-category-title"></h3></div>
+    <div class="card-body">
+      <p class="card-summary"></p>
+      <div class="info-grid"></div>
+      <details>
+        <summary>Показать полный текст</summary>
+        <div class="vacancy-text"></div>
+      </details>
+    </div>
+    <div class="card-footer">
+      <div class="footer-skill-tags"></div>
+      <div class="footer-meta">
+        <span class="channel-name"></span>
+        <span class="timestamp-footer"></span>
       </div>
-    </article>
-  </template>
+    </div>
+  </div>
+</template>
 
-  <script src="script.js"></script>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="script.js"></script>
 </body>
 </html>

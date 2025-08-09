@@ -72,6 +72,19 @@ function formatTimestamp(isoString) {
   return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
 }
 
+// Select best URL for image button
+function pickImageUrl(v) {
+  const img = typeof v.image_link === 'string' ? v.image_link.trim() : '';
+  const msg = typeof v.message_link === 'string' ? v.message_link.trim() : '';
+  const looksLikeImage = /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(img);
+  const safeImg = looksLikeImage ? sanitizeUrl(img) : '';
+  const safeMsg = msg ? sanitizeUrl(msg) : '';
+  // показываем только если реально есть картинка
+  if (v.has_image === true && safeImg) return safeImg;
+  if (v.has_image === true && !safeImg && safeMsg) return safeMsg; // fallback: пост в TG
+  return '';
+}
+
 // =========================
 // Search (debounced) + highlight
 // =========================
@@ -91,12 +104,10 @@ const applySearch = () => {
       summaryEl.innerHTML = highlightText(summaryEl.dataset.originalSummary || '', q);
     }
     if (detailsEl && detailsEl.dataset.originalText !== undefined) {
-      // Кнопка изображения остаётся как есть; подсвечиваем только текст после неё
-      const imgBtn = detailsEl.querySelector('.image-link-button');
-      const restText = detailsEl.dataset.originalText || '';
-      const textHtml = highlightText(restText, q);
-      if (imgBtn) {
-        detailsEl.innerHTML = imgBtn.outerHTML + textHtml;
+      const attachments = detailsEl.querySelector('.attachments');
+      const textHtml = highlightText(detailsEl.dataset.originalText || '', q);
+      if (attachments) {
+        detailsEl.innerHTML = attachments.outerHTML + textHtml;
       } else {
         detailsEl.innerHTML = textHtml;
       }
@@ -237,15 +248,15 @@ function renderVacancies(container, vacancies) {
     const originalSummary = v.reason || 'Описание не было сгенерировано.';
     const q = (searchInput?.value || '').trim();
 
-    // Подготовим кнопку изображения
-    const safeImage = sanitizeUrl(v.image_link || '');
-    const imageBtnHTML = (safeImage && safeImage !== '#') ? `<a class="image-link-button" href="${safeImage}" target="_blank" rel="noopener noreferrer">Изображение</a>` : '';
+    // attachments row
+    let attachmentsHTML = '';
+    const bestImageUrl = pickImageUrl(v);
+    if (bestImageUrl) {
+      attachmentsHTML = `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>`;
+    }
 
-    // Текст полного описания (без HTML) для подсветки
     const originalDetailsText = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
-
-    // Показываем details, если есть либо текст, либо картинка
-    const hasAnyDetails = Boolean(originalDetailsText) || Boolean(imageBtnHTML);
+    const hasAnyDetails = Boolean(originalDetailsText) || Boolean(attachmentsHTML);
     const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
     const channelHtml = isValid(v.channel) ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
@@ -282,10 +293,9 @@ function renderVacancies(container, vacancies) {
 
     const detailsEl = card.querySelector('.vacancy-text');
     if (detailsEl) {
-      // Сохраняем исходный текст для подсветки и добавляем кнопку изображения внутри блока
       detailsEl.dataset.originalText = originalDetailsText;
       const textHtml = highlightText(originalDetailsText, q);
-      detailsEl.innerHTML = `${imageBtnHTML}${textHtml}`;
+      detailsEl.innerHTML = attachmentsHTML + textHtml;
     }
 
     container.appendChild(card);

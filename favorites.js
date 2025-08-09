@@ -14,7 +14,8 @@ const searchInputFav = document.getElementById('search-input-fav');
 // =========================
 // Helpers (time/url/safe)
 // =========================
-const escapeHtml = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const debounce = (fn, delay = 250) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); }; };
+const escapeHtml = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\'':'&#39;'}[c]));
 const stripTags = (html = '') => { const tmp = document.createElement('div'); tmp.innerHTML = html; return tmp.textContent || tmp.innerText || ''; };
 
 function normalizeUrl(raw = '') {
@@ -75,21 +76,25 @@ function pickImageUrl(v, detailsText = '') {
 // =========================
 // Search UI (крестик/счётчик)
 // =========================
-let favStatsEl = null; let favClearBtn = null;
+let favStatsEl = null;
+let favClearBtn = null;
 function ensureFavSearchUI() {
   if (!searchInputFav) return;
-  const parent = searchInputFav.parentElement || document.getElementById('search-container-fav') || document.body;
+  const parent = document.getElementById('search-container-fav') || searchInputFav.parentElement || document.body;
+
   if (!favClearBtn) {
     favClearBtn = document.createElement('button');
-    favClearBtn.textContent = '✕';
-    favClearBtn.title = 'Очистить';
-    favClearBtn.style.cssText = 'min-width:44px;height:44px;border:var(--border-width) solid var(--border-color);border-radius:8px;background:var(--card-color);cursor:pointer;margin-left:8px;';
+    favClearBtn.type = 'button';
+    favClearBtn.className = 'search-clear-btn';
+    favClearBtn.setAttribute('aria-label', 'Очистить');
+    favClearBtn.textContent = '×';
     favClearBtn.onclick = () => { searchInputFav.value = ''; applySearchFav(); searchInputFav.focus(); };
     parent.appendChild(favClearBtn);
   }
+
   if (!favStatsEl) {
     favStatsEl = document.createElement('div');
-    favStatsEl.style.cssText = 'margin-top:6px;font-size:12px;color:var(--hint-color);';
+    favStatsEl.className = 'search-stats';
     parent.appendChild(favStatsEl);
   }
 }

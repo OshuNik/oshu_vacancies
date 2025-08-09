@@ -663,4 +663,30 @@ details[open] .vacancy-text {
   margin: 0;
 }
 
-#search-stats { margin-left: 2px; }
+/* Поиск: инпут + крестик в одну строку */
+#search-container,
+#search-container-fav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+/* Инпут не растягиваем на 100%, а даём занять всё доступное */
+#search-container .search-input,
+#search-container-fav .search-input,
+#search-container-fav #search-input-fav {
+  flex: 1 1 auto;
+  width: auto;     /* перебивает старое width:100% */
+  min-width: 0;    /* чтобы не раздувало в узких экранах */
+}
+
+/* Кнопка-крестик (если хочешь унифицировать вид) */
+.search-clear-btn {
+  min-width: 44px;
+  height: 44px;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: 8px;
+  background: var(--card-color);
+  cursor: pointer;
+}

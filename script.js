@@ -1,5 +1,5 @@
 // =================================================================================
-// SCRIPT.JS - FINAL & STABLE VERSION
+// SCRIPT.JS - FINAL, STABLE & CORRECTED VERSION
 // =================================================================================
 
 // --- INITIALIZE TELEGRAM ---
@@ -20,6 +20,7 @@ const CATEGORY_MAP = {
 // --- DOM ELEMENTS ---
 // =================================================================================
 const ui = {
+    header: document.querySelector('.header'), // Added for loading screen fix
     loader: document.getElementById('loader'),
     progressBar: document.getElementById('progress-bar'),
     content: document.getElementById('vacancies-content'),
@@ -93,12 +94,24 @@ const api = {
 // --- VIEW / RENDERER ---
 // =================================================================================
 const view = {
-    // --- Progress Bar & Layout Toggles ---
+    // --- Progress Bar & Layout Toggles (FIXED) ---
     setProgress(pct) { if (ui.progressBar) ui.progressBar.style.width = `${Math.max(0, Math.min(100, pct))}%`; },
     startProgress() { this.setProgress(5); },
     finishProgress() { setTimeout(() => this.setProgress(100), 0); },
-    showLoader() { ui.loader.classList.remove('hidden'); ui.content.classList.add('hidden'); },
-    showContent() { ui.loader.classList.add('hidden'); ui.content.classList.remove('hidden'); },
+    showLoader() {
+        ui.header.classList.add('hidden');
+        ui.searchContainer.classList.add('hidden');
+        ui.content.classList.add('hidden');
+        ui.categoryTabs.classList.add('hidden');
+        ui.loader.classList.remove('hidden');
+    },
+    showContent() {
+        ui.loader.classList.add('hidden');
+        ui.header.classList.remove('hidden');
+        ui.searchContainer.classList.remove('hidden');
+        ui.content.classList.remove('hidden');
+        ui.categoryTabs.classList.remove('hidden');
+    },
 
     // --- Confirmation Dialog ---
     showConfirm(message, callback) {
@@ -138,7 +151,7 @@ const view = {
         return `${d.getDate().toString().padStart(2,'0')} ${months[d.getMonth()]}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
     },
 
-    // --- Card Builder ---
+    // --- Card Builder (FIXED) ---
     createCard(v) {
         const card = ui.cardTemplate.content.cloneNode(true).firstElementChild;
         const cardEls = {
@@ -151,28 +164,27 @@ const view = {
         card.id = `card-${v.id}`; card.dataset.id = v.id;
         card.classList.add(`category-${CATEGORY_MAP[v.category] || 'other'}`);
         cardEls.categoryTitle.textContent = v.category || 'NO_CATEGORY';
-        
-        // Use highlightPlainText for fields that are definitely not HTML
         cardEls.summary.innerHTML = this.highlightPlainText(v.reason, appState.searchQuery);
-        
         cardEls.infoGrid.innerHTML = '';
         const infoRows = [
-            { label: 'ФОРМАТ', value: [v.employment_type, v.work_format].filter(isValid).join(' / ') },
-            { label: 'ОПЛАТА', value: v.salary_display_text },
-            { label: 'СФЕРА', value: [v.industry, v.company_name ? `(${v.company_name})` : ''].filter(isValid).join(' ') }
+            { label: 'ФОРМАТ', value: [v.employment_type, v.work_format].filter(isValid).join(' / '), type: 'default' },
+            { label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary' },
+            { label: 'СФЕРА', value: [v.industry, v.company_name ? `(${v.company_name})` : ''].filter(isValid).join(' '), type: 'industry' }
         ];
         infoRows.forEach(row => {
             if (isValid(row.value)) {
-                cardEls.infoGrid.innerHTML += `<div class="info-label">${row.label} >></div><div class="info-value">${this.highlightPlainText(row.value, appState.searchQuery)}</div>`;
+                // This logic is now corrected to add highlight wrappers
+                let valueHtml = this.highlightPlainText(row.value, appState.searchQuery);
+                if (row.type === 'salary' || row.type === 'industry') {
+                    valueHtml = `<span class="highlight ${row.type}">${valueHtml}</span>`;
+                }
+                cardEls.infoGrid.innerHTML += `<div class="info-label">${row.label} >></div><div class="info-value">${valueHtml}</div>`;
             }
         });
-
-        // Use highlightHtml for the field that contains HTML tags
         const hasDetails = v.text_highlighted;
         if (hasDetails) {
             cardEls.detailsText.innerHTML = this.highlightHtml(v.text_highlighted, appState.searchQuery);
         } else { cardEls.details.remove(); }
-        
         if (v.skills && v.skills.length > 0) {
             cardEls.skillTags.innerHTML = v.skills.slice(0, 3).map(skill => `<span class="footer-skill-tag ${PRIMARY_SKILLS.includes(String(skill).toLowerCase()) ? 'primary' : ''}">${this.escapeHtml(skill)}</span>`).join('');
         }
@@ -183,7 +195,7 @@ const view = {
         return card;
     },
 
-    // --- Main Render Function ---
+    // --- Main Render Function (FIXED) ---
     render() {
         const categorizedTotal = { main: 0, maybe: 0, other: 0 };
         appState.allVacancies.forEach(v => {
@@ -194,7 +206,9 @@ const view = {
         ui.counts.maybe.textContent = `(${categorizedTotal.maybe})`;
         ui.counts.other.textContent = `(${categorizedTotal.other})`;
 
-        const activeCategoryName = Object.keys(CATEGORY_MAP).find(key => CATEGORY_MAP[key] === appState.activeTab);
+        const activeCategoryData = Object.entries(CATEGORY_MAP).find(([name, key]) => key === appState.activeTab);
+        const activeCategoryName = activeCategoryData ? activeCategoryData[0] : 'НЕ ТВОЁ';
+        
         const vacanciesForActiveTab = appState.filteredVacancies.filter(v => (CATEGORY_MAP[v.category] || 'other') === appState.activeTab);
         
         const activeContainer = ui.containers[appState.activeTab];
@@ -251,7 +265,7 @@ const controller = {
         button.classList.add('active');
         document.querySelectorAll('.vacancy-list').forEach(list => list.classList.remove('active'));
         document.getElementById(button.dataset.target).classList.add('active');
-        view.render();
+        view.render(); // This call is critical for tab switching
     },
 
     async handleActionClick(e) {
@@ -305,7 +319,7 @@ const controller = {
 
     setupEventListeners() {
         ui.tabButtons.forEach(button => {
-            button.addEventListener('click', this.handleTabClick);
+            button.addEventListener('click', (e) => this.handleTabClick(e));
             let pressTimer = null;
             const startPress = () => { pressTimer = setTimeout(() => this.handleClearCategory(button), 800); };
             const cancelPress = () => clearTimeout(pressTimer);
@@ -315,8 +329,8 @@ const controller = {
             button.addEventListener('touchstart', startPress, { passive: true });
             button.addEventListener('touchend', cancelPress);
         });
-        ui.searchInput.addEventListener('input', this.handleSearch);
-        ui.content.addEventListener('click', this.handleActionClick);
+        ui.searchInput.addEventListener('input', (e) => this.handleSearch(e));
+        ui.content.addEventListener('click', (e) => this.handleActionClick(e));
     }
 };
 

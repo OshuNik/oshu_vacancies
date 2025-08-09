@@ -1,5 +1,5 @@
 // =================================================================================
-// SCRIPT.JS - REFACTORED
+// SCRIPT.JS - FINAL CORRECTED VERSION
 // =================================================================================
 
 // --- INITIALIZE TELEGRAM ---
@@ -15,7 +15,6 @@ const CATEGORY_MAP = {
     'МОЖЕТ БЫТЬ': 'maybe',
     'НЕ ТВОЁ': 'other'
 };
-
 
 // =================================================================================
 // --- DOM ELEMENTS ---
@@ -143,15 +142,18 @@ const view = {
         ui.confirmCancelBtn.onclick = () => { ui.confirmOverlay.classList.add('hidden'); callback(false); };
     },
     
-    // --- Empty State & Helpers ---
+    // --- Helper Functions ---
     getEmptyStateHtml(message) {
         const gifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif';
         return `<div class="empty-state"><img src="${gifUrl}" alt="Dog" class="empty-state-gif" /><p class="empty-state-text">${message}</p></div>`;
     },
+    escapeHtml(s = '') {
+        return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+    },
     highlightText(text = '', query = '') {
-        if (!query || !text) return text;
+        if (!query || !text) return this.escapeHtml(text);
         const regex = new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, 'gi');
-        return text.replace(regex, '<mark class="highlight">$1</mark>');
+        return this.escapeHtml(text).replace(regex, '<mark class="highlight">$1</mark>');
     },
     formatSmartTime(isoString) {
         if (!isoString) return '';
@@ -179,7 +181,7 @@ const view = {
         const card = ui.cardTemplate.content.cloneNode(true).firstElementChild;
         const cardEls = {
             card,
-            header: card.querySelector('.card-header h3'),
+            categoryTitle: card.querySelector('.card-category-title'),
             summary: card.querySelector('.card-summary'),
             infoGrid: card.querySelector('.info-grid'),
             details: card.querySelector('details'),
@@ -188,20 +190,18 @@ const view = {
             channelName: card.querySelector('.channel-name'),
             timestamp: card.querySelector('.timestamp-footer'),
             applyBtn: card.querySelector('.apply'),
-            favBtn: card.querySelector('.favorite'),
-            delBtn: card.querySelector('.delete'),
         };
 
         const isValid = val => val && val !== 'null' && val !== 'не указано';
         
-        // Set IDs and base data
+        // Set IDs, classes and base data
         card.id = `card-${v.id}`;
         card.dataset.id = v.id;
         card.classList.add(`category-${CATEGORY_MAP[v.category] || 'other'}`);
-        cardEls.header.textContent = v.category || 'NO_CATEGORY';
+        cardEls.categoryTitle.textContent = v.category || 'NO_CATEGORY';
         cardEls.summary.innerHTML = this.highlightText(v.reason, appState.searchQuery);
         
-        // Info Grid
+        // Info Grid (Corrected Logic)
         cardEls.infoGrid.innerHTML = '';
         const infoRows = [
             { label: 'ФОРМАТ', value: [v.employment_type, v.work_format].filter(isValid).join(' / '), type: 'default' },
@@ -211,7 +211,8 @@ const view = {
 
         infoRows.forEach(row => {
             if (isValid(row.value)) {
-                const valueHtml = `<span class="highlight ${row.type}">${this.highlightText(row.value, appState.searchQuery)}</span>`;
+                const highlightedValue = this.highlightText(row.value, appState.searchQuery);
+                const valueHtml = `<span class="highlight ${row.type}">${highlightedValue}</span>`;
                 cardEls.infoGrid.innerHTML += `<div class="info-label">${row.label} >></div><div class="info-value">${valueHtml}</div>`;
             }
         });
@@ -224,7 +225,8 @@ const view = {
                 detailsContent += `<a href="${v.message_link}" target="_blank" class="image-link-button">[ Изображение ]</a><br><br>`;
             }
             if(v.text_highlighted) {
-                detailsContent += this.highlightText(v.text_highlighted.replace(/<br>/g, '\n'), appState.searchQuery).replace(/\n/g, '<br>');
+                // The HTML from Supabase is already formatted with <br>, just highlight it.
+                detailsContent += v.text_highlighted.replace(new RegExp(`(${appState.searchQuery.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, 'gi'), '<mark class="highlight">$1</mark>');
             }
             cardEls.detailsText.innerHTML = detailsContent;
         } else {
@@ -235,7 +237,7 @@ const view = {
         if (v.skills && v.skills.length > 0) {
             cardEls.skillTags.innerHTML = v.skills.slice(0, 3).map(skill => {
                 const isPrimary = PRIMARY_SKILLS.includes(String(skill).toLowerCase());
-                return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${skill}</span>`;
+                return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${this.escapeHtml(skill)}</span>`;
             }).join('');
         }
         cardEls.channelName.textContent = v.channel || '';
@@ -250,27 +252,24 @@ const view = {
 
     // --- Main Render Function ---
     render() {
-        console.log("Render triggered");
         // Reset all containers
         Object.values(ui.containers).forEach(c => c.innerHTML = '');
         
-        // Categorize and count
-        const vacancies = appState.filteredVacancies;
-        const categorized = { main: [], maybe: [], other: [] };
-
+        // Filter vacancies for rendering based on current search
+        const vacanciesToRender = appState.filteredVacancies;
+        
+        // Update total counts based on all vacancies
+        const categorizedTotal = { main: 0, maybe: 0, other: 0 };
         appState.allVacancies.forEach(v => {
             const categoryKey = CATEGORY_MAP[v.category] || 'other';
-            if (categorized[categoryKey]) {
-                categorized[categoryKey].push(v);
-            }
+            categorizedTotal[categoryKey]++;
         });
+        ui.counts.main.textContent = `(${categorizedTotal.main})`;
+        ui.counts.maybe.textContent = `(${categorizedTotal.maybe})`;
+        ui.counts.other.textContent = `(${categorizedTotal.other})`;
         
-        ui.counts.main.textContent = `(${categorized.main.length})`;
-        ui.counts.maybe.textContent = `(${categorized.maybe.length})`;
-        ui.counts.other.textContent = `(${categorized.other.length})`;
-        
-        // Render cards
-        vacancies.forEach(v => {
+        // Render cards that match the filter
+        vacanciesToRender.forEach(v => {
             const categoryKey = CATEGORY_MAP[v.category] || 'other';
             const container = ui.containers[categoryKey];
             if (container) {
@@ -289,10 +288,8 @@ const view = {
 
         // Update search stats
         if (ui.searchStats) {
-            const total = appState.allVacancies.length;
-            const visible = vacancies.length;
             if (appState.searchQuery) {
-                ui.searchStats.textContent = `Найдено: ${visible}`;
+                ui.searchStats.textContent = `Найдено: ${vacanciesToRender.length}`;
             } else {
                 ui.searchStats.textContent = '';
             }
@@ -300,6 +297,16 @@ const view = {
     }
 };
 
+// =================================================================================
+// --- UTILITY FUNCTIONS ---
+// =================================================================================
+const debounce = (fn, delay = 250) => {
+    let timeoutId;
+    return (...args) => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => fn(...args), delay);
+    };
+};
 
 // =================================================================================
 // --- CONTROLLERS / EVENT HANDLERS ---
@@ -320,9 +327,11 @@ const controller = {
             
             appState.isLoading = false;
             view.finishProgress();
-            view.showContent(appState.allVacancies.length > 0);
-            view.render();
-            document.dispatchEvent(new CustomEvent('vacancies:loaded'));
+            setTimeout(() => { // Short delay to allow progress bar to finish
+                view.showContent(appState.allVacancies.length > 0);
+                view.render();
+                document.dispatchEvent(new CustomEvent('vacancies:loaded'));
+            }, 300);
         } catch (error) {
             console.error('Initialization failed:', error);
             ui.loader.innerHTML = view.getEmptyStateHtml(`Ошибка загрузки: ${error.message}`);
@@ -342,15 +351,16 @@ const controller = {
     },
 
     async handleActionClick(e) {
-        const card = e.target.closest('.vacancy-card');
-        if (!card) return;
+        const cardAction = e.target.closest('.card-action-btn');
+        if (!cardAction) return;
 
+        const card = cardAction.closest('.vacancy-card');
         const id = card.dataset.id;
         let status = null;
 
-        if (e.target.closest('.favorite')) status = 'favorite';
-        else if (e.target.closest('.delete')) status = 'deleted';
-        else if (e.target.closest('.apply')) {
+        if (cardAction.classList.contains('favorite')) status = 'favorite';
+        else if (cardAction.classList.contains('delete')) status = 'deleted';
+        else if (cardAction.classList.contains('apply')) {
             const vacancy = appState.allVacancies.find(v => v.id === id);
             if (vacancy && vacancy.apply_url && tg) tg.openLink(vacancy.apply_url);
             return;
@@ -363,7 +373,6 @@ const controller = {
 
             try {
                 await api.updateVacancyStatus(id, status);
-                // Remove from local state and re-render
                 appState.allVacancies = appState.allVacancies.filter(v => v.id !== id);
                 view.render();
             } catch (error) {
@@ -378,10 +387,9 @@ const controller = {
     handleSearch: debounce((e) => {
         appState.searchQuery = e.target.value.trim();
         view.render();
-    }, 250),
+    }),
 
-    handleClearCategory(e) {
-        const button = e.currentTarget;
+    handleClearCategory(button) {
         const categoryName = button.dataset.categoryName;
         if (!categoryName) return;
 
@@ -404,9 +412,7 @@ const controller = {
             button.addEventListener('click', this.handleTabClick);
             
             let pressTimer = null;
-            const startPress = () => {
-                pressTimer = setTimeout(() => this.handleClearCategory({currentTarget: button}), 800);
-            };
+            const startPress = () => { pressTimer = setTimeout(() => this.handleClearCategory(button), 800); };
             const cancelPress = () => clearTimeout(pressTimer);
             
             button.addEventListener('mousedown', startPress);
@@ -423,41 +429,9 @@ const controller = {
 
 // --- PULL-TO-REFRESH & INITIALIZATION ---
 (function setupPTR() {
-    const bar = document.createElement('div');
-    bar.className = 'ptr-bar';
-    bar.textContent = 'Потяните для обновления';
-    document.body.appendChild(bar);
-
-    let locked = false;
-    
-    tg.onEvent('mainButtonPressed', () => controller.init()); // Example for a Main Button
-    
-    const handler = () => {
-        if (locked) return;
-        locked = true;
-        bar.textContent = 'Обновляю…';
-        bar.style.transform = `translateY(0)`; // Show bar
-        
-        const done = () => {
-            locked = false;
-            bar.style.transform = 'translateY(-100%)'; // Hide bar
-            bar.textContent = 'Потяните для обновления';
-        };
-        
-        document.addEventListener('vacancies:loaded', done, { once: true });
-        controller.init();
-        setTimeout(() => { if (locked) done(); }, 8000); // Safety timeout
-    };
-    
-    // Simplified PTR logic - a bit different from original but serves the purpose
-    if (tg && tg.enableClosingConfirmation) {
-        tg.enableClosingConfirmation();
-    }
-    // This is a placeholder for a real PTR library or more complex implementation
-    // The previous implementation was very touch-specific and complex.
-    // For a robust solution, a small library is often better.
-    // Let's just reload on a button for now.
-    // You could add a refresh button and hook it to controller.init()
+    // A full pull-to-refresh implementation is complex and can be buggy.
+    // For now, we rely on manual refresh or re-opening the app.
+    // The 'vacancies:loaded' event is dispatched to support this if added later.
 })();
 
 

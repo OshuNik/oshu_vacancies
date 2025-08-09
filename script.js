@@ -35,10 +35,10 @@ const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 
 // =========================
-// Helpers (debounce/sanitize/highlight/progress)
+// Helpers (debounce/sanitize/highlight/progress/time)
 // =========================
 const debounce = (fn, delay = 250) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); }; };
-const escapeHtml = (s = '') => s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const escapeHtml = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const stripTags = (html = '') => { const tmp = document.createElement('div'); tmp.innerHTML = html; return tmp.textContent || tmp.innerText || ''; };
 
 function normalizeUrl(raw = '') {
@@ -46,9 +46,8 @@ function normalizeUrl(raw = '') {
   if (!s) return '';
   // t.me без протокола → https://t.me/...
   if (/^(t\.me|telegram\.me)\//i.test(s)) s = 'https://' + s;
-  // протокол опущен, но это абсолютный домен
+  // домен без протокола → добавим https
   if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
-  // относительные пути → к текущему origin
   try { return new URL(s, window.location.origin).href; } catch { return ''; }
 }
 function isHttpUrl(u = '') { return /^https?:\/\//i.test(u); }
@@ -84,32 +83,78 @@ function showCustomConfirm(message, callback) {
   confirmCancelBtn.onclick = () => { confirmOverlay.classList.add('hidden'); callback(false); };
 }
 
-function formatTimestamp(isoString) {
+// ==== умное время (RU) ====
+function formatSmartTime(isoString) {
   if (!isoString) return '';
-  const date = new Date(isoString);
-  return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const d = new Date(isoString);
+  const now = new Date();
+  const diffMs = now - d;
+  const sec = Math.floor(diffMs / 1000);
+  const min = Math.floor(sec / 60);
+  const hrs = Math.floor(min / 60);
+
+  const pad = n => n.toString().padStart(2, '0');
+  const months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+
+  const isSameDay = now.toDateString() === d.toDateString();
+  const yest = new Date(now); yest.setDate(now.getDate() - 1);
+  const isYesterday = yest.toDateString() === d.toDateString();
+
+  if (sec < 30) return 'только что';
+  if (min < 60 && min >= 1) return `${min} мин назад`;
+  if (isSameDay) return `сегодня, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (isYesterday) return `вчера, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getDate().toString().padStart(2,'0')} ${months[d.getMonth()]}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-// Маркер наличия изображения внутри текста
+function formatTimestamp(isoString) { return formatSmartTime(isoString); }
+
+// ==== изображение ====
 function containsImageMarker(text = '') {
   return /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
 }
-// Удаляем визуальные маркеры, чтобы не дублировались с кнопкой
 function cleanImageMarkers(text = '') {
-  return text.replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
+  return String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
 }
-
-// Выбор URL для кнопки. ТРЕБУЕМ message_link в приоритете
 function pickImageUrl(v, detailsText = '') {
   const msg = sanitizeUrl(v.message_link || '');
   const img = sanitizeUrl(v.image_link || '');
   const hasMarker = containsImageMarker(detailsText) || containsImageMarker(v.reason || '');
-  // Кнопку показываем, если есть message_link|image_link и при этом has_image=true ИЛИ есть маркер в тексте
   const allow = (v.has_image === true) || hasMarker;
   if (!allow) return '';
-  if (msg) return msg;      // всегда в приоритете — переход на пост
-  if (img) return img;      // fallback — прямая картинка
+  if (msg) return msg;  // приоритет — пост
+  if (img) return img;  // fallback — файл
   return '';
+}
+
+// =========================
+// Search UI (крестик, счётчик, "ничего не найдено")
+// =========================
+let searchStatsEl = null;
+let searchClearBtn = null;
+function ensureSearchUI() {
+  if (!searchContainer || !searchInput) return;
+  if (!searchClearBtn) {
+    searchClearBtn = document.createElement('button');
+    searchClearBtn.textContent = '✕';
+    searchClearBtn.title = 'Очистить';
+    searchClearBtn.style.cssText = 'min-width:44px;height:44px;border:var(--border-width) solid var(--border-color);border-radius:8px;background:var(--card-color);cursor:pointer;';
+    searchClearBtn.onclick = () => { searchInput.value = ''; applySearch(); searchInput.focus(); };
+    searchContainer.appendChild(searchClearBtn);
+  }
+  if (!searchStatsEl) {
+    searchStatsEl = document.createElement('div');
+    searchStatsEl.id = 'search-stats';
+    searchStatsEl.style.cssText = 'margin-top:6px;font-size:12px;color:var(--hint-color);';
+    searchContainer.appendChild(searchStatsEl);
+  }
+}
+
+function updateSearchStats(visible, total) {
+  if (!searchStatsEl) return;
+  const q = (searchInput?.value || '').trim();
+  if (!q) { searchStatsEl.textContent = ''; return; }
+  searchStatsEl.textContent = visible === 0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`;
 }
 
 // =========================
@@ -119,11 +164,15 @@ const applySearch = () => {
   const q = (searchInput?.value || '').trim();
   const activeList = document.querySelector('.vacancy-list.active');
   if (!activeList) return;
-  const cards = activeList.querySelectorAll('.vacancy-card');
+  const cards = Array.from(activeList.querySelectorAll('.vacancy-card'));
+  const total = cards.length;
+  let visible = 0;
+
   cards.forEach(card => {
     const haystack = (card.dataset.searchText || card.textContent || '').toLowerCase();
     const match = q === '' || haystack.includes(q.toLowerCase());
     card.style.display = match ? '' : 'none';
+    if (match) visible++;
 
     const summaryEl = card.querySelector('.card-summary');
     const detailsEl = card.querySelector('.vacancy-text');
@@ -136,6 +185,22 @@ const applySearch = () => {
       detailsEl.innerHTML = (attachments ? attachments.outerHTML : '') + textHtml;
     }
   });
+
+  // Плашка "ничего не найдено" только если в списке есть карточки, но отфильтрованы все
+  let emptyHint = activeList.querySelector('.search-empty-hint');
+  if (total > 0 && visible === 0) {
+    if (!emptyHint) {
+      emptyHint = document.createElement('div');
+      emptyHint.className = 'search-empty-hint';
+      emptyHint.style.cssText = 'text-align:center;color:var(--hint-color);padding:30px 0;';
+      emptyHint.textContent = '— Ничего не найдено —';
+      activeList.appendChild(emptyHint);
+    }
+  } else if (emptyHint) {
+    emptyHint.remove();
+  }
+
+  updateSearchStats(visible, total);
 };
 
 // =========================
@@ -232,11 +297,9 @@ function renderVacancies(container, vacancies) {
     const isValid = (val) => val && val !== 'null' && val !== 'не указано';
 
     let applyIconHtml = '';
-    if (isValid(v.apply_url)) {
-      const safeApply = sanitizeUrl(v.apply_url);
-      if (safeApply) {
-        applyIconHtml = `<button class="card-action-btn apply" onclick="openLink('${safeApply}')" aria-label="Откликнуться"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>`;
-      }
+    const safeApply = sanitizeUrl(v.apply_url || '');
+    if (safeApply) {
+      applyIconHtml = `<button class="card-action-btn apply" onclick="openLink('${safeApply}')" aria-label="Откликнуться"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>`;
     }
 
     let skillsFooterHtml = '';
@@ -251,14 +314,13 @@ function renderVacancies(container, vacancies) {
     const employment = isValid(v.employment_type) ? v.employment_type : '';
     const workFormat = isValid(v.work_format) ? v.work_format : '';
     const formatValue = [employment, workFormat].filter(Boolean).join(' / ');
-    if (isValid(formatValue)) infoRows.push({ label: 'ФОРМАТ', value: formatValue, type: 'default' });
-
-    if (isValid(v.salary_display_text)) infoRows.push({ label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary' });
+    if (formatValue) infoRows.push({label: 'ФОРМАТ', value: formatValue, type: 'default'});
+    if (isValid(v.salary_display_text)) infoRows.push({label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary'});
 
     const industryText = isValid(v.industry) ? v.industry : '';
     const companyText = isValid(v.company_name) ? `(${v.company_name})` : '';
     const sphereValue = `${industryText} ${companyText}`.trim();
-    if (sphereValue) infoRows.push({ label: 'СФЕРА', value: sphereValue, type: 'industry' });
+    if (sphereValue) infoRows.push({label: 'СФЕРА', value: sphereValue, type: 'industry'});
 
     let infoWindowHtml = '';
     if (infoRows.length > 0) {
@@ -267,7 +329,6 @@ function renderVacancies(container, vacancies) {
       }).join('') + '</div>';
     }
 
-    // Summary & details
     const originalSummary = v.reason || 'Описание не было сгенерировано.';
     const q = (searchInput?.value || '').trim();
 
@@ -275,7 +336,6 @@ function renderVacancies(container, vacancies) {
     const bestImageUrl = pickImageUrl(v, originalDetailsRaw);
     const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
 
-    // attachments row
     const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
 
     const hasAnyDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
@@ -286,7 +346,7 @@ function renderVacancies(container, vacancies) {
     const separator = channelHtml && timestampHtml ? ' • ' : '';
     const footerMetaHtml = `<div class="footer-meta">${channelHtml}${separator}${timestampHtml}</div>`;
 
-    card.innerHTML = `
+    const cardHTML = `
       <div class="card-actions">
         ${applyIconHtml}
         <button class="card-action-btn favorite" onclick="updateStatus(event, '${v.id}', 'favorite')" aria-label="В избранное"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
@@ -302,6 +362,8 @@ function renderVacancies(container, vacancies) {
         ${skillsFooterHtml}
         ${footerMetaHtml}
       </div>`;
+
+    card.innerHTML = cardHTML;
 
     // store searchable text & originals
     const searchChunks = [v.category, v.reason, industryText, v.company_name, Array.isArray(v.skills) ? v.skills.join(' ') : '', cleanedDetailsText].filter(Boolean);
@@ -325,6 +387,7 @@ function renderVacancies(container, vacancies) {
 }
 
 async function loadVacancies() {
+  ensureSearchUI();
   headerActions.classList.add('hidden');
   vacanciesContent.classList.add('hidden');
   searchContainer.classList.add('hidden');
@@ -371,6 +434,7 @@ async function loadVacancies() {
       if (items && items.length > 0) searchContainer.classList.remove('hidden');
       applySearch();
       resetProgress();
+      document.dispatchEvent(new CustomEvent('vacancies:loaded'));
     }, 250);
 
   } catch (error) {
@@ -378,6 +442,7 @@ async function loadVacancies() {
     loader.innerHTML = `<p class="empty-list">Ошибка: ${escapeHtml(error.message)}</p>`;
     setProgress(100);
     resetProgress();
+    document.dispatchEvent(new CustomEvent('vacancies:loaded'));
   }
 }
 
@@ -417,5 +482,52 @@ tabButtons.forEach(button => {
 searchInput?.addEventListener('input', debounce(applySearch, 250));
 refreshBtn?.addEventListener('click', loadVacancies);
 
+// =========================
+// Pull‑to‑refresh
+// =========================
+(function setupPTR(){
+  const threshold = 70; // px
+  let startY = 0; let pulling = false; let ready = false; let locked = false; let distance = 0;
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;left:0;right:0;top:0;height:56px;background:var(--card-color);color:var(--hint-color);border-bottom:var(--border-width) solid var(--border-color);display:flex;align-items:center;justify-content:center;transform:translateY(-100%);transition:transform .2s ease;z-index:9999;font-family:inherit;';
+  bar.textContent = 'Потяните вниз для обновления';
+  document.body.appendChild(bar);
+
+  const setBar = y => { bar.style.transform = `translateY(${Math.min(0, -100 + (y/0.56))}%)`; };
+  const resetBar = () => { bar.style.transform = 'translateY(-100%)'; };
+
+  window.addEventListener('touchstart', (e)=>{
+    if (locked) return;
+    if (window.scrollY > 0) { pulling = false; return; }
+    startY = e.touches[0].clientY; pulling = true; ready = false; distance = 0;
+  }, {passive:true});
+
+  window.addEventListener('touchmove', (e)=>{
+    if (!pulling || locked) return;
+    const y = e.touches[0].clientY;
+    distance = y - startY;
+    if (distance > 0) {
+      e.preventDefault();
+      setBar(Math.min(distance, threshold*1.5));
+      if (distance > threshold && !ready) { ready = true; bar.textContent = 'Отпустите для обновления'; }
+      if (distance <= threshold && ready) { ready = false; bar.textContent = 'Потяните вниз для обновления'; }
+    }
+  }, {passive:false});
+
+  window.addEventListener('touchend', ()=>{
+    if (!pulling || locked) { resetBar(); pulling=false; return; }
+    if (ready) {
+      locked = true; bar.textContent = 'Обновляю…'; setBar(threshold*1.2);
+      const done = ()=>{ locked=false; ready=false; pulling=false; resetBar(); };
+      const onLoaded = ()=>{ document.removeEventListener('vacancies:loaded', onLoaded); done(); };
+      document.addEventListener('vacancies:loaded', onLoaded);
+      loadVacancies();
+      // safety fallback
+      setTimeout(()=>{ if (locked) { done(); } }, 8000);
+    } else { resetBar(); pulling=false; }
+  }, {passive:true});
+})();
+
 // Initial load
+ensureSearchUI();
 loadVacancies();

@@ -131,7 +131,7 @@ async function updateStatus(event, vacancyId, newStatus) {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
         'Content-Type': 'application/json',
-        'Prefer': 'return=minimal'
+        'Prefer': 'return-minimal,return=minimal'
       },
       body: JSON.stringify({ status: newStatus })
     });
@@ -169,10 +169,11 @@ async function loadVacancies() {
   loader.classList.remove('hidden');
 
   try {
+    // ВНИМАНИЕ: только существующие в БД поля
     const fields = [
       'id','category','reason','employment_type','work_format','salary_display_text',
       'industry','company_name','skills','text_highlighted','channel','timestamp',
-      'apply_url','message_link','image_link','has_image'
+      'apply_url','message_link'
     ].join(',');
     const url = `${SUPABASE_URL}/rest/v1/vacancies?status=eq.new&select=${fields}&order=timestamp.desc&limit=120`;
     const response = await fetch(url, {

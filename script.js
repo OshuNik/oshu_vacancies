@@ -71,6 +71,18 @@ function updateSearchStats(visible, total) {
   const q = (searchInput?.value || '').trim();
   searchStatsEl.textContent = q ? (visible === 0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
 }
+
+const listState = {
+  main: { all: [], rendered: 0, pageSize: PAGE_SIZE_MAIN },
+  maybe: { all: [], rendered: 0, pageSize: PAGE_SIZE_MAIN },
+  other: { all: [], rendered: 0, pageSize: PAGE_SIZE_MAIN }
+};
+function getActiveKey() {
+  const active = document.querySelector('.vacancy-list.active');
+  return Object.keys(containers).find(k => containers[k] === active) || null;
+}
+
+// Search (debounced) + highlight + скрытие кнопки догрузки при 0 совпадений
 const applySearch = () => {
   const q = (searchInput?.value || '').trim();
   const activeList = document.querySelector('.vacancy-list.active');
@@ -78,6 +90,7 @@ const applySearch = () => {
   const cards = Array.from(activeList.querySelectorAll('.vacancy-card'));
   const total = cards.length;
   let visible = 0;
+
   cards.forEach(card => {
     const haystack = (card.dataset.searchText || card.textContent || '').toLowerCase();
     const match = q === '' || haystack.includes(q.toLowerCase());
@@ -106,22 +119,18 @@ const applySearch = () => {
       activeList.appendChild(emptyHint);
     }
   } else if (emptyHint) emptyHint.remove();
+
   updateSearchStats(visible, total);
 
+  // NEW: скрываем кнопку «Загрузить ещё», если по запросу ничего не найдено
   const key = getActiveKey();
-  if (key) updateLoadMore(containers[key], listState[key].rendered < listState[key].all.length);
+  if (key) {
+    const state = listState[key];
+    const hasMore = state.rendered < state.all.length;
+    const shouldHideLoadMore = q !== '' && visible === 0;
+    updateLoadMore(containers[key], shouldHideLoadMore ? false : hasMore);
+  }
 };
-
-// Состояние списков и пагинации
-const listState = {
-  main: { all: [], rendered: 0, pageSize: PAGE_SIZE_MAIN },
-  maybe: { all: [], rendered: 0, pageSize: PAGE_SIZE_MAIN },
-  other: { all: [], rendered: 0, pageSize: PAGE_SIZE_MAIN }
-};
-function getActiveKey() {
-  const active = document.querySelector('.vacancy-list.active');
-  return Object.keys(containers).find(k => containers[k] === active) || null;
-}
 
 // Рендер одной карточки
 function buildCard(v) {

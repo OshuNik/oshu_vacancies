@@ -4,9 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Настройки</title>
-  
   <link rel="stylesheet" href="style.css">
-
 </head>
 <body>
   <header class="header header-settings">
@@ -43,16 +41,12 @@
     <div id="tab-channels" class="settings-tab-content">
       <div class="settings-form">
         <button id="load-defaults-btn" class="button-load-defaults">Загрузить стандартные каналы</button>
-        
         <label for="channel-input">Добавить новый канал:</label>
         <div class="add-channel-form">
           <input type="text" id="channel-input" placeholder="@username или https://t.me/...">
           <button id="add-channel-btn">+</button>
         </div>
-        
-        <div id="channels-list" class="channels-list">
-          </div>
-
+        <div id="channels-list" class="channels-list"></div>
         <button id="delete-all-btn" class="button-delete">Удалить все каналы</button>
       </div>
     </div>
@@ -69,6 +63,7 @@
   </div>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="utils.js"></script>
   <script src="settings.js"></script>
 </body>
 </html>

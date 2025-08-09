@@ -653,3 +653,13 @@ details[open] .vacancy-text {
     font-size: 14px;
 }
 .image-link-button:active { background-color: var(--accent-blue); color: var(--card-color); }
+
+.vacancy-text .attachments {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 10px 0;
+}
+.vacancy-text .image-link-button {
+  margin: 0;
+}
+

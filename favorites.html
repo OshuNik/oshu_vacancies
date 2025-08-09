@@ -1,65 +1,60 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8" />
-  <meta
-    name="viewport"
-    content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
-  />
-  <title>oshu://work — Избранное</title>
-  <link rel="stylesheet" href="style.css" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Избранное</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="app-header">
-    <div class="brand">
-      <span class="brand-dot"></span>
-      <span class="brand-text">oshu://work</span>
-      <span class="brand-sub">избранное</span>
-    </div>
-
-    <div class="search-wrap">
-      <input id="search" class="search" type="text" placeholder="Поиск в избранном…" />
-      <button id="clearSearch" class="btn btn-ghost" aria-label="Очистить поиск">×</button>
+  <header class="header header-centered">
+    <h1>★ Избранное</h1>
+    <div class="header-actions">
+      <a href="index.html" class="btn">← Назад</a>
     </div>
   </header>
 
-  <main class="container">
-    <div id="cards" class="cards"></div>
-    <div id="sentinel" class="sentinel" aria-hidden="true"></div>
-  </main>
+  <div class="search-container">
+    <input type="search" id="search-input-fav" class="search-input" placeholder="Поиск по тексту...">
+    <div class="search-stats"></div>
+  </div>
 
-  <template id="card-template">
-    <article class="card">
-      <div class="card-head">
-        <span class="badge" data-badge="category">ИЗБРАННОЕ</span>
-        <time class="time" data-time></time>
+  <main class="content" id="favorites-list">
+      </main>
+  
+  <div class="load-more-wrap">
       </div>
 
-      <h2 class="title" data-title></h2>
-
-      <div class="info-list">
-        <div class="info-row">
-          <div class="label">Компания</div>
-          <div class="value" data-company>-</div>
-        </div>
-        <div class="info-row">
-          <div class="label">Индустрия</div>
-          <div class="value" data-industry>-</div>
-        </div>
-        <div class="info-row">
-          <div class="label">Навыки</div>
-          <div class="value" data-skills>-</div>
-        </div>
-      </div>
-
+  <template id="vacancy-card-template">
+    <div class="vacancy-card">
       <div class="card-actions">
-        <a class="btn btn-primary" data-apply target="_blank" rel="noopener">Откликнуться</a>
-        <button class="btn btn-outline" data-unfav>Убрать из избранного</button>
-        <button class="btn btn-outline btn-danger" data-delete>Скрыть</button>
+        <button class="card-action-btn apply" aria-label="Откликнуться">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+        </button>
+        <button class="card-action-btn delete" aria-label="Убрать из избранного">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
       </div>
-    </article>
+      <div class="card-header"><h3 class="card-category-title"></h3></div>
+      <div class="card-body">
+        <p class="card-summary"></p>
+        <div class="info-grid"></div>
+        <details>
+          <summary>Показать полный текст</summary>
+          <div class="vacancy-text"></div>
+        </details>
+      </div>
+      <div class="card-footer">
+        <div class="footer-skill-tags"></div>
+        <div class="footer-meta">
+          <span class="channel-name"></span>
+          <span class="timestamp-footer"></span>
+        </div>
+      </div>
+    </div>
   </template>
 
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="favorites.js"></script>
 </body>
 </html>

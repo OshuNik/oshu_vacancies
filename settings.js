@@ -1,5 +1,6 @@
-const tg = window.Telegram.WebApp;
-tg.expand();
+// settings.js — Настройки
+
+const tg = window.tg || null;
 
 // --- SUPABASE SETUP ---
 const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
@@ -22,307 +23,275 @@ const channelInput = document.getElementById('channel-input');
 const channelsListContainer = document.getElementById('channels-list');
 const deleteAllBtn = document.getElementById('delete-all-btn');
 
-// --- НОВЫЕ ЭЛЕМЕНТЫ: Получаем доступ к элементам диалога ---
+// --- Confirm overlay ---
 const confirmOverlay = document.getElementById('custom-confirm-overlay');
 const confirmText = document.getElementById('custom-confirm-text');
 const confirmOkBtn = document.getElementById('confirm-btn-ok');
 const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 
-
-// --- НОВАЯ ФУНКЦИЯ: Копируем сюда функцию кастомного подтверждения ---
 function showCustomConfirm(message, callback) {
-    if (!confirmOverlay) return; // Проверка на случай, если HTML не добавлен
-    confirmText.textContent = message;
-    confirmOverlay.classList.remove('hidden');
-    
-    // Очищаем старые обработчики, чтобы избежать двойных срабатываний
-    confirmOkBtn.onclick = null;
-    confirmCancelBtn.onclick = null;
-
-    confirmOkBtn.onclick = () => {
-        confirmOverlay.classList.add('hidden');
-        callback(true);
-    };
-    confirmCancelBtn.onclick = () => {
-        confirmOverlay.classList.add('hidden');
-        callback(false);
-    };
+  if (!confirmOverlay) return callback(confirm(message));
+  confirmText.textContent = message;
+  confirmOverlay.classList.remove('hidden');
+  confirmOkBtn.onclick = () => { confirmOverlay.classList.add('hidden'); callback(true); };
+  confirmCancelBtn.onclick = () => { confirmOverlay.classList.add('hidden'); callback(false); };
 }
 
-
-// --- TAB SWITCHING LOGIC ---
+// --- TAB SWITCHING ---
 if (settingsTabButtons.length > 0) {
-    settingsTabButtons.forEach(button => {
-        button.addEventListener('click', () => {
-            settingsTabButtons.forEach(btn => btn.classList.remove('active'));
-            settingsTabContents.forEach(content => content.classList.remove('active'));
-            button.classList.add('active');
-            const targetContent = document.getElementById(button.dataset.target);
-            if (targetContent) targetContent.classList.add('active');
-        });
+  settingsTabButtons.forEach(button => {
+    button.addEventListener('click', () => {
+      settingsTabButtons.forEach(btn => btn.classList.remove('active'));
+      settingsTabContents.forEach(content => content.classList.remove('active'));
+      button.classList.add('active');
+      const targetContent = document.getElementById(button.dataset.target);
+      if (targetContent) targetContent.classList.add('active');
     });
+  });
 }
 
-// --- KEYWORD LOGIC ---
+// --- KEYWORDS ---
 async function loadKeywords() {
-    if (!keywordsDisplay) return;
-    saveBtn.disabled = true;
-    keywordsDisplay.textContent = 'Загрузка...';
-    try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/settings?select=keywords`, {
-            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-        });
-        if (!response.ok) throw new Error('Network response was not ok');
-        const data = await response.json();
-        const keywords = data.length > 0 ? data[0].keywords : '';
-        keywordsInput.value = keywords;
-        keywordsDisplay.textContent = keywords || '-- не заданы --';
-    } catch (error) {
-        console.error('Ошибка загрузки ключевых слов:', error);
-        keywordsDisplay.textContent = 'Ошибка загрузки';
-    } finally {
-        saveBtn.disabled = false;
-    }
+  if (!keywordsDisplay) return;
+  saveBtn.disabled = true;
+  keywordsDisplay.textContent = 'Загрузка...';
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/settings?select=keywords`, {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if (!response.ok) throw new Error('Network response was not ok');
+    const data = await response.json();
+    const keywords = data.length > 0 ? data[0].keywords : '';
+    keywordsInput.value = keywords;
+    keywordsDisplay.textContent = keywords || '-- не заданы --';
+  } catch (error) {
+    console.error('Ошибка загрузки ключевых слов:', error);
+    keywordsDisplay.textContent = 'Ошибка загрузки';
+  } finally {
+    saveBtn.disabled = false;
+  }
 }
 
 async function saveKeywords() {
-    if (!keywordsInput) return;
-    const kws = keywordsInput.value.trim();
-    saveBtn.disabled = true;
-    try {
-        await fetch(`${SUPABASE_URL}/rest/v1/settings`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Prefer': 'resolution=merge-duplicates' },
-            body: JSON.stringify({ update_key: 1, keywords: kws })
-        });
-        keywordsDisplay.textContent = kws || '-- не заданы --';
-        tg.showAlert('Ключевые слова сохранены');
-    } catch (error) {
-        console.error('Ошибка при сохранении ключевых слов:', error);
-        tg.showAlert('Ошибка сохранения');
-    } finally {
-        saveBtn.disabled = false;
-    }
+  if (!keywordsInput) return;
+  const kws = keywordsInput.value.trim();
+  saveBtn.disabled = true;
+  try {
+    await fetch(`${SUPABASE_URL}/rest/v1/settings`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Prefer': 'resolution=merge-duplicates,return=minimal'
+      },
+      body: JSON.stringify({ update_key: 1, keywords: kws })
+    });
+    keywordsDisplay.textContent = kws || '-- не заданы --';
+    safeAlert('Ключевые слова сохранены');
+  } catch (error) {
+    console.error('Ошибка при сохранении ключевых слов:', error);
+    safeAlert('Ошибка сохранения');
+  } finally {
+    saveBtn.disabled = false;
+  }
 }
 
-
-// --- CHANNEL LOGIC ---
+// --- CHANNELS ---
 function renderChannel(channel) {
-    const channelItem = document.createElement('div');
-    channelItem.className = 'channel-item';
-    channelItem.dataset.dbId = channel.id;
+  const channelItem = document.createElement('div');
+  channelItem.className = 'channel-item';
+  channelItem.dataset.dbId = channel.id;
 
-    const infoDiv = document.createElement('div');
-    infoDiv.className = 'channel-item-info';
+  const infoDiv = document.createElement('div');
+  infoDiv.className = 'channel-item-info';
 
-    const cleanId = channel.channel_id.replace('@', '');
-    const titleSpan = document.createElement('span');
-    titleSpan.className = 'channel-item-title';
-    titleSpan.textContent = channel.channel_title || cleanId;
+  const cleanId = channel.channel_id.replace('@', '');
+  const titleSpan = document.createElement('span');
+  titleSpan.className = 'channel-item-title';
+  titleSpan.textContent = channel.channel_title || cleanId;
 
-    const idLink = document.createElement('a');
-    idLink.className = 'channel-item-id';
-    idLink.textContent = `@${cleanId}`;
-    idLink.href = `https://t.me/${cleanId}`;
-    idLink.target = '_blank';
+  const idLink = document.createElement('a');
+  idLink.className = 'channel-item-id';
+  idLink.textContent = `@${cleanId}`;
+  idLink.href = `https://t.me/${cleanId}`;
+  idLink.target = '_blank';
 
-    const toggleContainer = document.createElement('div');
-    toggleContainer.className = 'channel-item-toggle';
-    const toggleLabel = document.createElement('label');
-    toggleLabel.className = 'toggle-switch';
-    const toggleInput = document.createElement('input');
-    toggleInput.type = 'checkbox';
-    toggleInput.checked = channel.is_enabled;
-    const toggleSlider = document.createElement('span');
-    toggleSlider.className = 'toggle-slider';
+  const toggleContainer = document.createElement('div');
+  toggleContainer.className = 'channel-item-toggle';
+  const toggleLabel = document.createElement('label');
+  toggleLabel.className = 'toggle-switch';
+  const toggleInput = document.createElement('input');
+  toggleInput.type = 'checkbox';
+  toggleInput.checked = channel.is_enabled;
+  const toggleSlider = document.createElement('span');
+  toggleSlider.className = 'toggle-slider';
 
-    const deleteButton = document.createElement('button');
-    deleteButton.className = 'channel-item-delete';
-    deleteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+  const deleteButton = document.createElement('button');
+  deleteButton.className = 'channel-item-delete';
+  deleteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
 
-    deleteButton.addEventListener('click', async () => {
-        const dbId = channelItem.dataset.dbId;
-        if (!dbId) return;
-        
-        channelItem.style.opacity = '0.5';
-        try {
-            const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?id=eq.${dbId}`, {
-                method: 'DELETE',
-                headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-            });
-            if (!response.ok) throw new Error('Ошибка ответа сети');
-            channelItem.remove();
-        } catch (error) {
-            console.error('Ошибка удаления канала:', error);
-            tg.showAlert('Не удалось удалить канал');
-            channelItem.style.opacity = '1';
-        }
-    });
-
-    toggleInput.addEventListener('change', async (event) => {
-        const dbId = channelItem.dataset.dbId;
-        const is_enabled = event.target.checked;
-        if (!dbId) return;
-
-        try {
-            const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?id=eq.${dbId}`, {
-                method: 'PATCH',
-                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
-                body: JSON.stringify({ is_enabled: is_enabled })
-            });
-             if (!response.ok) throw new Error('Ошибка ответа сети');
-        } catch (error) {
-            console.error('Ошибка обновления статуса канала:', error);
-            tg.showAlert('Не удалось обновить статус');
-            event.target.checked = !is_enabled;
-        }
-    });
-
-    infoDiv.append(titleSpan, idLink);
-    toggleLabel.append(toggleInput, toggleSlider);
-    toggleContainer.append(toggleLabel);
-    channelItem.append(infoDiv, toggleContainer, deleteButton);
-    
-    const emptyListMessage = channelsListContainer.querySelector('.empty-list');
-    if (emptyListMessage) {
-        emptyListMessage.remove();
+  deleteButton.addEventListener('click', async () => {
+    const dbId = channelItem.dataset.dbId;
+    if (!dbId) return;
+    channelItem.style.opacity = '0.5';
+    try {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?id=eq.${dbId}`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+      });
+      if (!response.ok) throw new Error('Ошибка ответа сети');
+      channelItem.remove();
+    } catch (error) {
+      console.error('Ошибка удаления канала:', error);
+      safeAlert('Не удалось удалить канал');
+      channelItem.style.opacity = '1';
     }
-    channelsListContainer.appendChild(channelItem);
+  });
+
+  toggleInput.addEventListener('change', async (event) => {
+    const dbId = channelItem.dataset.dbId;
+    const is_enabled = event.target.checked;
+    if (!dbId) return;
+
+    try {
+      const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?id=eq.${dbId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Prefer': 'return=minimal' },
+        body: JSON.stringify({ is_enabled: is_enabled })
+      });
+      if (!response.ok) throw new Error('Ошибка ответа сети');
+    } catch (error) {
+      console.error('Ошибка обновления статуса канала:', error);
+      safeAlert('Не удалось обновить статус');
+      event.target.checked = !is_enabled;
+    }
+  });
+
+  infoDiv.append(titleSpan, idLink);
+  toggleLabel.append(toggleInput, toggleSlider);
+  toggleContainer.append(toggleLabel);
+  channelItem.append(infoDiv, toggleContainer, deleteButton);
+
+  const emptyListMessage = channelsListContainer.querySelector('.empty-list');
+  if (emptyListMessage) emptyListMessage.remove();
+  channelsListContainer.appendChild(channelItem);
 }
 
 async function addChannel() {
-    let channelId = channelInput.value.trim();
-    if (!channelId) return;
-    
-    if (channelId.includes('t.me/')) {
-        channelId = '@' + channelId.split('t.me/')[1].split('/')[0];
-    }
-    if (!channelId.startsWith('@')) {
-        channelId = '@' + channelId;
-    }
+  let channelId = channelInput.value.trim();
+  if (!channelId) return;
 
-    addChannelBtn.disabled = true;
-    const newChannelData = {
-        channel_id: channelId,
-        channel_title: channelId,
-        is_enabled: true
-    };
+  if (channelId.includes('t.me/')) {
+    channelId = '@' + channelId.split('t.me/')[1].split('/')[0];
+  }
+  if (!channelId.startsWith('@')) channelId = '@' + channelId;
 
-    try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/channels`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Prefer': 'return=representation' },
-            body: JSON.stringify(newChannelData)
-        });
-        if (!response.ok) throw new Error('Канал не найден или ошибка сети');
-        
-        const data = await response.json();
-        renderChannel(data[0]);
-        channelInput.value = '';
-    } catch (error) {
-        console.error('Ошибка добавления канала:', error);
-        tg.showAlert('Не удалось добавить канал. Проверьте правильность имени.');
-    } finally {
-        addChannelBtn.disabled = false;
-    }
+  addChannelBtn.disabled = true;
+  const newChannelData = { channel_id: channelId, channel_title: channelId, is_enabled: true };
+
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/channels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Prefer': 'return=representation' },
+      body: JSON.stringify(newChannelData)
+    });
+    if (!response.ok) throw new Error('Канал не найден или ошибка сети');
+    const data = await response.json();
+    renderChannel(data[0]);
+    channelInput.value = '';
+  } catch (error) {
+    console.error('Ошибка добавления канала:', error);
+    safeAlert('Не удалось добавить канал. Проверьте правильность имени.');
+  } finally {
+    addChannelBtn.disabled = false;
+  }
 }
 
 async function loadChannels() {
-    if (!channelsListContainer) return;
-    channelsListContainer.innerHTML = '<p>Загрузка каналов...</p>';
-    try {
-        const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?select=*`, {
-            headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-        });
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        
-        channelsListContainer.innerHTML = '';
-        if (data && data.length > 0) {
-            data.forEach(item => renderChannel(item));
-        } else {
-            channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
-        }
+  if (!channelsListContainer) return;
+  channelsListContainer.innerHTML = '<p>Загрузка каналов...</p>';
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?select=*`, {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+    });
+    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+    const data = await response.json();
 
-    } catch (error) {
-        console.error('Ошибка загрузки каналов:', error);
-        channelsListContainer.innerHTML = '<p class="empty-list">Не удалось загрузить каналы.</p>';
+    channelsListContainer.innerHTML = '';
+    if (data && data.length > 0) {
+      data.forEach(item => renderChannel(item));
+    } else {
+      channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
     }
+  } catch (error) {
+    console.error('Ошибка загрузки каналов:', error);
+    channelsListContainer.innerHTML = '<p class="empty-list">Не удалось загрузить каналы.</p>';
+  }
 }
 
-// --- EVENT LISTENERS ---
-if (addChannelBtn) {
-    addChannelBtn.addEventListener('click', addChannel);
-}
+// --- EVENTS ---
+addChannelBtn?.addEventListener('click', addChannel);
 
-if (saveBtn) {
-    saveBtn.addEventListener('click', () => {
-        const activeTab = document.querySelector('.settings-tab-content.active');
-        if (activeTab.id === 'tab-keywords') {
-            saveKeywords();
-        } else {
-            tg.showAlert('Изменения в каналах сохраняются автоматически!');
-        }
+saveBtn?.addEventListener('click', () => {
+  const activeTab = document.querySelector('.settings-tab-content.active');
+  if (activeTab.id === 'tab-keywords') {
+    saveKeywords();
+  } else {
+    safeAlert('Изменения в каналах сохраняются автоматически!');
+  }
+});
+
+loadDefaultsBtn?.addEventListener('click', async () => {
+  loadDefaultsBtn.disabled = true;
+  try {
+    const response = await fetch(`${SUPABASE_URL}/rest/v1/default_channels?select=channel_id`, {
+      headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
     });
-}
-
-if (loadDefaultsBtn) {
-    loadDefaultsBtn.addEventListener('click', async () => {
-        loadDefaultsBtn.disabled = true;
-        try {
-            const response = await fetch(`${SUPABASE_URL}/rest/v1/default_channels?select=channel_id`, {
-                 headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-            });
-            if (!response.ok) throw new Error('Не удалось получить стандартные каналы');
-            const defaultChannels = await response.json();
-            if (defaultChannels.length === 0) {
-                tg.showAlert('Список стандартных каналов пуст.');
-                return;
-            }
-            const channelsToUpsert = defaultChannels.map(ch => ({ channel_id: ch.channel_id, is_enabled: true }));
-            await fetch(`${SUPABASE_URL}/rest/v1/channels`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Prefer': 'resolution=merge-duplicates'},
-                body: JSON.stringify(channelsToUpsert)
-            });
-            await loadChannels();
-            tg.showAlert('Стандартные каналы добавлены.');
-        } catch (error) {
-            console.error('Ошибка загрузки стандартных каналов:', error);
-            tg.showAlert('Ошибка загрузки стандартных каналов');
-        } finally {
-            loadDefaultsBtn.disabled = false;
-        }
+    if (!response.ok) throw new Error('Не удалось получить стандартные каналы');
+    const defaultChannels = await response.json();
+    if (defaultChannels.length === 0) {
+      safeAlert('Список стандартных каналов пуст.');
+      return;
+    }
+    const channelsToUpsert = defaultChannels.map(ch => ({ channel_id: ch.channel_id, is_enabled: true }));
+    await fetch(`${SUPABASE_URL}/rest/v1/channels`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Prefer': 'resolution=merge-duplicates,return=minimal'},
+      body: JSON.stringify(channelsToUpsert)
     });
-}
+    await loadChannels();
+    safeAlert('Стандартные каналы добавлены.');
+  } catch (error) {
+    console.error('Ошибка загрузки стандартных каналов:', error);
+    safeAlert('Ошибка загрузки стандартных каналов');
+  } finally {
+    loadDefaultsBtn.disabled = false;
+  }
+});
 
-// ИЗМЕНЕНО: Используем новую функцию подтверждения
-if (deleteAllBtn) {
-    deleteAllBtn.addEventListener('click', () => {
-        const message = 'Вы уверены, что хотите удалить все каналы из базы данных? Это действие необратимо.';
-        
-        showCustomConfirm(message, async (isConfirmed) => {
-            if (isConfirmed) {
-                deleteAllBtn.disabled = true;
-                try {
-                    await fetch(`${SUPABASE_URL}/rest/v1/channels?id=gt.0`, {
-                        method: 'DELETE',
-                        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-                    });
-                    channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
-                    tg.showAlert('Все каналы удалены.');
+// Удаление всех каналов — безопасный фильтр вместо gt.0
+deleteAllBtn?.addEventListener('click', () => {
+  const message = 'Вы уверены, что хотите удалить все каналы из базы данных? Это действие необратимо.';
+  showCustomConfirm(message, async (isConfirmed) => {
+    if (!isConfirmed) return;
+    deleteAllBtn.disabled = true;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/channels?id=not.is.null`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+      });
+      channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
+      safeAlert('Все каналы удалены.');
+    } catch (error) {
+      console.error('Ошибка удаления каналов:', error);
+      safeAlert(String(error));
+    } finally {
+      deleteAllBtn.disabled = false;
+    }
+  });
+});
 
-                } catch (error) {
-                     console.error('Ошибка удаления каналов:', error);
-                     tg.showAlert(String(error));
-                } finally {
-                    deleteAllBtn.disabled = false;
-                }
-            }
-        });
-    });
-}
-
-// Initial load
+// Initial
 loadKeywords();
 loadChannels();

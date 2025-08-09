@@ -77,11 +77,15 @@ function pickImageUrl(v, detailsText = '') {
 // Search UI (крестик/счётчик)
 // =========================
 let favStatsEl = null;
-let favClearBtn = null;
 function ensureFavSearchUI() {
-  if (!searchInputFav) return;
-  const parent = document.getElementById('search-container-fav') || searchInputFav.parentElement || document.body;
+  const parent = document.getElementById('search-container-fav') || searchInputFav?.parentElement;
+  if (!parent || !searchInputFav) return;
 
+  // Удаляем все кнопки внутри контейнера, кроме нашей фирменной
+  parent.querySelectorAll('button:not(.search-clear-btn)').forEach(btn => btn.remove());
+
+  // Создаём единственную кнопку очистки, если её ещё нет
+  let favClearBtn = parent.querySelector('.search-clear-btn');
   if (!favClearBtn) {
     favClearBtn = document.createElement('button');
     favClearBtn.type = 'button';
@@ -92,10 +96,15 @@ function ensureFavSearchUI() {
     parent.appendChild(favClearBtn);
   }
 
-  if (!favStatsEl) {
+  // Счётчик результатов — блок под строкой (оставляем один)
+  const stats = parent.querySelectorAll('.search-stats');
+  for (let i = 1; i < stats.length; i++) stats[i].remove();
+  if (!stats[0]) {
     favStatsEl = document.createElement('div');
     favStatsEl.className = 'search-stats';
     parent.appendChild(favStatsEl);
+  } else {
+    favStatsEl = stats[0];
   }
 }
 function updateFavStats(visible, total) {

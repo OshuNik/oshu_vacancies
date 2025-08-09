@@ -663,19 +663,20 @@ details[open] .vacancy-text {
   margin: 0;
 }
 
-/* Поиск: крестик внутри поля + счётчик под строкой */
+/* === Search (крестик внутри + счётчик под строкой) === */
 #search-container,
 #search-container-fav {
   position: relative;
-  display: block;       /* чтобы счётчик был ниже строки */
+  display: block; /* чтобы счётчик был ниже строки */
+  margin-bottom: 6px;
 }
 
 /* даём место под крестик справа */
 #search-container .search-input,
-#search-container-fav .search-input,
 #search-container #search-input,
+#search-container-fav .search-input,
 #search-container-fav #search-input-fav {
-  padding-right: 42px;
+  padding-right: 46px;
 }
 
 /* сам крестик — внутри инпута, справа */
@@ -690,15 +691,24 @@ details[open] .vacancy-text {
   align-items: center;
   justify-content: center;
   line-height: 1;
+  padding: 0;
   background: var(--card-color);
+  color: var(--hint-color);
   border: var(--border-width) solid var(--border-color);
   border-radius: 6px;
   cursor: pointer;
-  box-shadow: 0 1px 0 var(--border-color);
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--border-color);
   user-select: none;
 }
+.search-clear-btn:hover {
+  color: var(--text-color);
+}
 .search-clear-btn:active {
-  transform: translateY(-50%) scale(0.96);
+  transform: translateY(-50%) translate(
+    calc(var(--shadow-offset) / 2),
+    calc(var(--shadow-offset) / 2)
+  );
+  box-shadow: calc(var(--shadow-offset) / 2) calc(var(--shadow-offset) / 2) 0 var(--border-color);
 }
 
 /* счётчик результатов — под строкой */
@@ -707,3 +717,4 @@ details[open] .vacancy-text {
   font-size: 12px;
   color: var(--hint-color);
 }
+

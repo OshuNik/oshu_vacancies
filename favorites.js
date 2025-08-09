@@ -6,14 +6,13 @@ const SUPABASE_URL = 'https://lwfhtwnfqmdjwzrdznvv.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
 // --- END OF SETUP ---
 
-// Список ваших основных навыков для подсветки/тегов
 const PRIMARY_SKILLS = ['after effects', 'unity', 'монтаж видео', '2d-анимация', 'рилсы', 'premiere pro'];
 
 const container = document.getElementById('favorites-list');
-const searchInputFav = document.getElementById('search-input-fav'); // на будущее
+const searchInputFav = document.getElementById('search-input-fav');
 
 // =========================
-// Helpers
+// Helpers (time/url/safe)
 // =========================
 const escapeHtml = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const stripTags = (html = '') => { const tmp = document.createElement('div'); tmp.innerHTML = html; return tmp.textContent || tmp.innerText || ''; };
@@ -21,9 +20,7 @@ const stripTags = (html = '') => { const tmp = document.createElement('div'); tm
 function normalizeUrl(raw = '') {
   let s = String(raw).trim();
   if (!s) return '';
-  // t.me без протокола → https://t.me/...
   if (/^(t\.me|telegram\.me)\//i.test(s)) s = 'https://' + s;
-  // домен без протокола → добавим https
   if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
   try { return new URL(s, window.location.origin).href; } catch { return ''; }
 }
@@ -37,30 +34,70 @@ function openLink(url) {
   else window.open(safe, '_blank', 'noopener');
 }
 
-function formatTimestamp(isoString) {
+function formatSmartTime(isoString) {
   if (!isoString) return '';
-  const date = new Date(isoString);
-  return date.toLocaleString('ru-RU', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+  const d = new Date(isoString);
+  const now = new Date();
+  const diffMs = now - d;
+  const sec = Math.floor(diffMs / 1000);
+  const min = Math.floor(sec / 60);
+  const pad = n => n.toString().padStart(2, '0');
+  const months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
+  const isSameDay = now.toDateString() === d.toDateString();
+  const yest = new Date(now); yest.setDate(now.getDate()-1);
+  const isYesterday = yest.toDateString() === d.toDateString();
+  if (sec < 30) return 'только что';
+  if (min < 60 && min >= 1) return `${min} мин назад`;
+  if (isSameDay) return `сегодня, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  if (isYesterday) return `вчера, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return `${d.getDate().toString().padStart(2,'0')} ${months[d.getMonth()]}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
+function formatTimestamp(isoString) { return formatSmartTime(isoString); }
 
-// Маркеры наличия изображения в тексте
+// ==== изображение ====
 function containsImageMarker(text = '') {
   return /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
 }
 function cleanImageMarkers(text = '') {
   return String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
 }
-
-// Выбор URL для кнопки (message_link в приоритете, затем image_link)
 function pickImageUrl(v, detailsText = '') {
   const msg = sanitizeUrl(v.message_link || '');
   const img = sanitizeUrl(v.image_link || '');
   const hasMarker = containsImageMarker(detailsText) || containsImageMarker(v.reason || '');
   const allow = (v.has_image === true) || hasMarker;
   if (!allow) return '';
-  if (msg) return msg;   // переход на пост — приоритет
-  if (img) return img;   // fallback — прямая картинка
+  if (msg) return msg;
+  if (img) return img;
   return '';
+}
+
+// =========================
+// Search UI (крестик/счётчик)
+// =========================
+let favStatsEl = null; let favClearBtn = null;
+function ensureFavSearchUI() {
+  if (!searchInputFav) return;
+  const parent = searchInputFav.parentElement || document.getElementById('search-container-fav') || document.body;
+  if (!favClearBtn) {
+    favClearBtn = document.createElement('button');
+    favClearBtn.textContent = '✕';
+    favClearBtn.title = 'Очистить';
+    favClearBtn.style.cssText = 'min-width:44px;height:44px;border:var(--border-width) solid var(--border-color);border-radius:8px;background:var(--card-color);cursor:pointer;margin-left:8px;';
+    favClearBtn.onclick = () => { searchInputFav.value = ''; applySearchFav(); searchInputFav.focus(); };
+    parent.appendChild(favClearBtn);
+  }
+  if (!favStatsEl) {
+    favStatsEl = document.createElement('div');
+    favStatsEl.style.cssText = 'margin-top:6px;font-size:12px;color:var(--hint-color);';
+    parent.appendChild(favStatsEl);
+  }
+}
+function updateFavStats(visible, total) {
+  if (!favStatsEl) return;
+  const q = (searchInputFav?.value || '').trim();
+  if (!q) { favStatsEl.textContent = ''; return; }
+  favStatsEl.textContent = visible === 0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`;
 }
 
 // =========================
@@ -83,7 +120,6 @@ function renderFavorites(items) {
     else if (vacancy.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
     else card.classList.add('category-other');
 
-    // Кнопка отклика
     let applyIconHtml = '';
     const safeApply = sanitizeUrl(vacancy.apply_url || '');
     if (safeApply) {
@@ -96,7 +132,6 @@ function renderFavorites(items) {
         </button>`;
     }
 
-    // Теги навыков
     let skillsFooterHtml = '';
     if (Array.isArray(vacancy.skills) && vacancy.skills.length > 0) {
       skillsFooterHtml = `
@@ -108,7 +143,6 @@ function renderFavorites(items) {
         </div>`;
     }
 
-    // Инфо-рядки
     const isValid = (val) => val && val !== 'null' && val !== 'не указано';
     const infoRows = [];
     const employment = isValid(vacancy.employment_type) ? vacancy.employment_type : '';
@@ -129,7 +163,6 @@ function renderFavorites(items) {
       const sphereValue = `${escapeHtml(industryText)} ${companyName ? `(${companyName})` : ''}`.trim();
       if (sphereValue) infoRows.push({icon: '🏢', label: 'СФЕРА', value: sphereValue, highlight: true, highlightClass: 'industry'});
     }
-    if (isValid(vacancy.channel)) infoRows.push({icon: '📢', label: 'КАНАЛ', value: escapeHtml(vacancy.channel)});
 
     let infoGridHtml = '';
     if (infoRows.length > 0) {
@@ -141,7 +174,6 @@ function renderFavorites(items) {
       infoGridHtml += '</div>';
     }
 
-    // Полный текст + кнопка "Изображение"
     const originalDetailsRaw = vacancy.text_highlighted ? stripTags(String(vacancy.text_highlighted)) : '';
     const bestImageUrl = pickImageUrl(vacancy, originalDetailsRaw);
     const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
@@ -149,10 +181,8 @@ function renderFavorites(items) {
     const hasAnyDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
     const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
-    // Разное внизу карточки
     const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(vacancy.timestamp))}</span>`;
 
-    // Собираем карточку
     card.innerHTML = `
       <div class="card-actions">
         ${applyIconHtml}
@@ -171,7 +201,6 @@ function renderFavorites(items) {
         ${timestampHtml}
       </div>`;
 
-    // наполняем полный текст
     const detailsEl = card.querySelector('.vacancy-text');
     if (detailsEl) {
       detailsEl.innerHTML = attachmentsHTML + escapeHtml(cleanedDetailsText);
@@ -179,6 +208,33 @@ function renderFavorites(items) {
 
     container.appendChild(card);
   }
+}
+
+// =========================
+// Search + счётчик + пустое состояние
+// =========================
+function applySearchFav() {
+  const q = (searchInputFav?.value || '').trim();
+  const cards = Array.from(container.querySelectorAll('.vacancy-card'));
+  const total = cards.length; let visible = 0;
+  cards.forEach(card => {
+    const haystack = (card.textContent || '').toLowerCase();
+    const match = q === '' || haystack.includes(q.toLowerCase());
+    card.style.display = match ? '' : 'none';
+    if (match) visible++;
+  });
+  // Плашка "ничего не найдено"
+  let emptyHint = container.querySelector('.search-empty-hint');
+  if (total > 0 && visible === 0) {
+    if (!emptyHint) {
+      emptyHint = document.createElement('div');
+      emptyHint.className = 'search-empty-hint';
+      emptyHint.style.cssText = 'text-align:center;color:var(--hint-color);padding:30px 0;';
+      emptyHint.textContent = '— Ничего не найдено —';
+      container.appendChild(emptyHint);
+    }
+  } else if (emptyHint) emptyHint.remove();
+  updateFavStats(visible, total);
 }
 
 // =========================
@@ -197,7 +253,6 @@ async function updateStatus(event, vacancyId, newStatus) {
       },
       body: JSON.stringify({ status: newStatus })
     });
-    // анимация удаления
     if (cardElement) {
       cardElement.style.transition = 'opacity 0.3s ease, transform 0.3s ease';
       cardElement.style.opacity = '0';
@@ -216,6 +271,7 @@ async function updateStatus(event, vacancyId, newStatus) {
 }
 
 async function loadFavorites() {
+  ensureFavSearchUI();
   container.innerHTML = '<p class="empty-list">Загрузка...</p>';
   try {
     const response = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?status=eq.favorite&select=*`, {
@@ -225,11 +281,62 @@ async function loadFavorites() {
     const items = await response.json();
     if (items) items.sort((a, b) => new Date(b.created_at || b.timestamp) - new Date(a.created_at || a.timestamp));
     renderFavorites(items);
+    document.dispatchEvent(new CustomEvent('favorites:loaded'));
   } catch (error) {
     console.error('Ошибка загрузки избранного:', error);
-    container.innerHTML = `<p class="empty-list">Ошибка: ${escapeHtml(error.message)}</p>`;
+    container.innerHTML = `<p class=\"empty-list\">Ошибка: ${escapeHtml(error.message)}</p>`;
+    document.dispatchEvent(new CustomEvent('favorites:loaded'));
   }
 }
 
-// Initial load
+// =========================
+// Pull‑to‑refresh для избранного
+// =========================
+(function setupPTRFav(){
+  const threshold = 70; // px
+  let startY = 0; let pulling = false; let ready = false; let locked = false; let distance = 0;
+  const bar = document.createElement('div');
+  bar.style.cssText = 'position:fixed;left:0;right:0;top:0;height:56px;background:var(--card-color);color:var(--hint-color);border-bottom:var(--border-width) solid var(--border-color);display:flex;align-items:center;justify-content:center;transform:translateY(-100%);transition:transform .2s ease;z-index:9999;font-family:inherit;';
+  bar.textContent = 'Потяните вниз для обновления';
+  document.body.appendChild(bar);
+
+  const setBar = y => { bar.style.transform = `translateY(${Math.min(0, -100 + (y/0.56))}%)`; };
+  const resetBar = () => { bar.style.transform = 'translateY(-100%)'; };
+
+  window.addEventListener('touchstart', (e)=>{
+    if (locked) return;
+    if (window.scrollY > 0) { pulling = false; return; }
+    startY = e.touches[0].clientY; pulling = true; ready = false; distance = 0;
+  }, {passive:true});
+
+  window.addEventListener('touchmove', (e)=>{
+    if (!pulling || locked) return;
+    const y = e.touches[0].clientY;
+    distance = y - startY;
+    if (distance > 0) {
+      e.preventDefault();
+      setBar(Math.min(distance, threshold*1.5));
+      if (distance > threshold && !ready) { ready = true; bar.textContent = 'Отпустите для обновления'; }
+      if (distance <= threshold && ready) { ready = false; bar.textContent = 'Потяните вниз для обновления'; }
+    }
+  }, {passive:false});
+
+  window.addEventListener('touchend', ()=>{
+    if (!pulling || locked) { resetBar(); pulling=false; return; }
+    if (ready) {
+      locked = true; bar.textContent = 'Обновляю…'; setBar(threshold*1.2);
+      const done = ()=>{ locked=false; ready=false; pulling=false; resetBar(); };
+      const onLoaded = ()=>{ document.removeEventListener('favorites:loaded', onLoaded); done(); };
+      document.addEventListener('favorites:loaded', onLoaded);
+      loadFavorites();
+      setTimeout(()=>{ if (locked) { done(); } }, 8000);
+    } else { resetBar(); pulling=false; }
+  }, {passive:true});
+})();
+
+// Events
+searchInputFav?.addEventListener('input', debounce(applySearchFav, 200));
+
+// Initial
+ensureFavSearchUI();
 loadFavorites();

@@ -7,7 +7,6 @@ const SUPABASE_ANON_KEY = 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4';
 // --- END OF SETUP ---
 
 const PRIMARY_SKILLS = ['after effects', 'unity', 'монтаж видео', '2d-анимация', 'рилсы', 'premiere pro'];
-const PAGE_SIZE = 10; // сколько карточек грузим за раз
 
 // Page Elements
 const containers = {
@@ -22,7 +21,6 @@ const counts = {
 };
 const tabButtons = document.querySelectorAll('.tab-button');
 const vacancyLists = document.querySelectorAll('.vacancy-list');
-const refreshBtn = document.getElementById('refresh-button');
 const searchInput = document.getElementById('search-input');
 const loader = document.getElementById('loader');
 const progressBar = document.getElementById('progress-bar');
@@ -39,13 +37,15 @@ const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 // Helpers (debounce/sanitize/highlight/progress/time)
 // =========================
 const debounce = (fn, delay = 250) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); }; };
-const escapeHtml = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\'':'&#39;'}[c]));
+const escapeHtml = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
 const stripTags = (html = '') => { const tmp = document.createElement('div'); tmp.innerHTML = html; return tmp.textContent || tmp.innerText || ''; };
 
 function normalizeUrl(raw = '') {
   let s = String(raw).trim();
   if (!s) return '';
+  // t.me без протокола → https://t.me/...
   if (/^(t\.me|telegram\.me)\//i.test(s)) s = 'https://' + s;
+  // домен без протокола → добавим https
   if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
   try { return new URL(s, window.location.origin).href; } catch { return ''; }
 }
@@ -126,7 +126,7 @@ function pickImageUrl(v, detailsText = '') {
 }
 
 // =========================
-// Search UI (без крестика, только счётчик)
+// Search UI (счётчик снизу)
 // =========================
 let searchStatsEl = null;
 function ensureSearchUI() {
@@ -137,6 +137,7 @@ function ensureSearchUI() {
     searchContainer.appendChild(searchStatsEl);
   }
 }
+
 function updateSearchStats(visible, total) {
   if (!searchStatsEl) return;
   const q = (searchInput?.value || '').trim();
@@ -145,234 +146,50 @@ function updateSearchStats(visible, total) {
 }
 
 // =========================
-// LOAD MORE — состояние и стили
+// Search (debounced) + highlight
 // =========================
-const dataByCat = { main: [], maybe: [], other: [] }; // все вакансии
-const stateByCat = {
-  main: { filtered: [], rendered: 0, loadMore: null },
-  maybe: { filtered: [], rendered: 0, loadMore: null },
-  other: { filtered: [], rendered: 0, loadMore: null },
-};
-
-function injectLoadMoreStyles() {
-  if (document.getElementById('load-more-styles')) return;
-  const css = `
-    .load-more-wrap{display:flex;justify-content:center;margin:16px 0 6px}
-    .load-more-btn{font-family:'Roboto Mono',monospace;font-weight:700;font-size:14px;background:var(--card-color);color:var(--text-color);border:var(--border-width) solid var(--border-color);border-radius:12px;padding:12px 16px;cursor:pointer;box-shadow:var(--shadow-offset) var(--shadow-offset) 0 var(--border-color);transition:transform .1s, box-shadow .1s}
-    .load-more-btn:active{transform:translate(calc(var(--shadow-offset)/2),calc(var(--shadow-offset)/2));box-shadow:calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0 var(--border-color)}
-  `;
-  const style = document.createElement('style');
-  style.id = 'load-more-styles';
-  style.textContent = css;
-  document.head.appendChild(style);
-}
-
-function ensureLoadMore(catKey) {
-  injectLoadMoreStyles();
-  const container = containers[catKey];
-  if (!container) return;
-
-  let wrap = container.querySelector('.load-more-wrap');
-  if (!wrap) {
-    wrap = document.createElement('div');
-    wrap.className = 'load-more-wrap';
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'load-more-btn';
-    btn.textContent = 'Загрузить ещё';
-    btn.addEventListener('click', () => renderNextPage(catKey));
-    wrap.appendChild(btn);
-    container.appendChild(wrap);
-    stateByCat[catKey].loadMore = wrap;
-  } else {
-    stateByCat[catKey].loadMore = wrap;
-  }
-  updateLoadMoreVisibility(catKey);
-}
-
-function updateLoadMoreVisibility(catKey) {
-  const st = stateByCat[catKey];
-  const wrap = st.loadMore;
-  if (!wrap) return;
-  if (st.filtered.length === 0) { wrap.style.display = 'none'; return; }
-  wrap.style.display = (st.rendered >= st.filtered.length) ? 'none' : 'flex';
-  // убедиться, что кнопка всегда внизу
-  const container = containers[catKey];
-  if (container && container.lastElementChild !== wrap) container.appendChild(wrap);
-}
-
-function getActiveCatKey() {
-  const activeBtn = document.querySelector('.tab-button.active');
-  if (!activeBtn) return 'main';
-  const target = activeBtn.dataset.target || '';
-  if (target.includes('maybe')) return 'maybe';
-  if (target.includes('other')) return 'other';
-  return 'main';
-}
-
-function vacancySearchText(v) {
-  const parts = [v.category, v.reason, v.industry, v.company_name];
-  if (Array.isArray(v.skills)) parts.push(v.skills.join(' '));
-  if (v.text_highlighted) parts.push(stripTags(String(v.text_highlighted)));
-  return parts.filter(Boolean).join(' ').toLowerCase();
-}
-
-function filterCategory(catKey, q) {
-  const items = dataByCat[catKey] || [];
-  if (!q) return items.slice();
-  const qq = q.toLowerCase();
-  return items.filter(v => vacancySearchText(v).includes(qq));
-}
-
-function clearContainer(catKey) {
-  const el = containers[catKey];
-  if (!el) return;
-  el.innerHTML = '';
-}
-
-function renderFirstPage(catKey, q) {
-  const container = containers[catKey];
-  const st = stateByCat[catKey];
-  if (!container || !st) return;
-
-  container.innerHTML = '';
-  st.filtered = filterCategory(catKey, q);
-  st.rendered = 0;
-
-  if (st.filtered.length === 0) {
-    container.innerHTML = '<div class="search-empty-hint" style="text-align:center;color:var(--hint-color);padding:30px 0;">— Ничего не найдено —</div>';
-    updateLoadMoreVisibility(catKey);
-    return;
-  }
-
-  renderNextPage(catKey, true);
-}
-
-function renderNextPage(catKey, first = false) {
-  const container = containers[catKey];
-  const st = stateByCat[catKey];
-  if (!container || !st) return;
-
+const applySearch = () => {
   const q = (searchInput?.value || '').trim();
-  const slice = st.filtered.slice(st.rendered, st.rendered + PAGE_SIZE);
-  for (const v of slice) {
-    const card = createVacancyCard(v, q);
-    const lm = st.loadMore; // вставлять перед кнопкой
-    if (lm && container.contains(lm)) container.insertBefore(card, lm);
-    else container.appendChild(card);
-  }
-  st.rendered += slice.length;
+  const activeList = document.querySelector('.vacancy-list.active');
+  if (!activeList) return;
+  const cards = Array.from(activeList.querySelectorAll('.vacancy-card'));
+  const total = cards.length;
+  let visible = 0;
 
-  // если это первый рендер — создаём кнопку
-  ensureLoadMore(catKey);
-  updateLoadMoreVisibility(catKey);
+  cards.forEach(card => {
+    const haystack = (card.dataset.searchText || card.textContent || '').toLowerCase();
+    const match = q === '' || haystack.includes(q.toLowerCase());
+    card.style.display = match ? '' : 'none';
+    if (match) visible++;
 
-  // stats только для активной вкладки
-  const active = getActiveCatKey();
-  if (active === catKey) updateSearchStats(Math.min(st.rendered, st.filtered.length), st.filtered.length);
-}
+    const summaryEl = card.querySelector('.card-summary');
+    const detailsEl = card.querySelector('.vacancy-text');
+    if (summaryEl && summaryEl.dataset.originalSummary !== undefined) {
+      summaryEl.innerHTML = highlightText(summaryEl.dataset.originalSummary || '', q);
+    }
+    if (detailsEl && detailsEl.dataset.originalText !== undefined) {
+      const attachments = detailsEl.querySelector('.attachments');
+      const textHtml = highlightText(detailsEl.dataset.originalText || '', q);
+      detailsEl.innerHTML = (attachments ? attachments.outerHTML : '') + textHtml;
+    }
+  });
 
-// =========================
-// РЕНДЕР КАРТОЧКИ
-// =========================
-function createVacancyCard(v, q) {
-  const card = document.createElement('div');
-  card.className = 'vacancy-card';
-  card.id = `card-${v.id}`;
-  if (v.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
-  else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
-  else card.classList.add('category-other');
-
-  const isValid = (val) => val && val !== 'null' && val !== 'не указано';
-
-  let applyIconHtml = '';
-  const safeApply = sanitizeUrl(v.apply_url || '');
-  if (safeApply) {
-    applyIconHtml = `<button class="card-action-btn apply" onclick="openLink('${safeApply}')" aria-label="Откликнуться"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg></button>`;
-  }
-
-  let skillsFooterHtml = '';
-  if (Array.isArray(v.skills) && v.skills.length > 0) {
-    skillsFooterHtml = `<div class="footer-skill-tags">${v.skills.slice(0, 3).map(skill => {
-      const isPrimary = PRIMARY_SKILLS.includes(String(skill).toLowerCase());
-      return `<span class="footer-skill-tag ${isPrimary ? 'primary' : ''}">${escapeHtml(String(skill))}</span>`;
-    }).join('')}</div>`;
+  // Плашка "ничего не найдено" (только если карточки есть, но все скрыты)
+  let emptyHint = activeList.querySelector('.search-empty-hint');
+  if (total > 0 && visible === 0) {
+    if (!emptyHint) {
+      emptyHint = document.createElement('div');
+      emptyHint.className = 'search-empty-hint';
+      emptyHint.style.cssText = 'text-align:center;color:var(--hint-color);padding:30px 0;';
+      emptyHint.textContent = '— Ничего не найдено —';
+      activeList.appendChild(emptyHint);
+    }
+  } else if (emptyHint) {
+    emptyHint.remove();
   }
 
-  const infoRows = [];
-  const employment = isValid(v.employment_type) ? v.employment_type : '';
-  const workFormat = isValid(v.work_format) ? v.work_format : '';
-  const formatValue = [employment, workFormat].filter(Boolean).join(' / ');
-  if (formatValue) infoRows.push({label: 'ФОРМАТ', value: formatValue, type: 'default'});
-  if (isValid(v.salary_display_text)) infoRows.push({label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary'});
-
-  const industryText = isValid(v.industry) ? v.industry : '';
-  const companyText = isValid(v.company_name) ? `(${v.company_name})` : '';
-  const sphereValue = `${industryText} ${companyText}`.trim();
-  if (sphereValue) infoRows.push({label: 'СФЕРА', value: sphereValue, type: 'industry'});
-
-  let infoWindowHtml = '';
-  if (infoRows.length > 0) {
-    infoWindowHtml = '<div class="info-window">' + infoRows.map(row => {
-      return `<div class="info-row info-row--${row.type}"><div class="info-label">${escapeHtml(row.label)} >></div><div class="info-value">${escapeHtml(row.value)}</div></div>`;
-    }).join('') + '</div>';
-  }
-
-  const originalSummary = v.reason || 'Описание не было сгенерировано.';
-
-  const originalDetailsRaw = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
-  const bestImageUrl = pickImageUrl(v, originalDetailsRaw);
-  const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
-
-  const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
-
-  const hasAnyDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
-  const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
-
-  const channelHtml = isValid(v.channel) ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
-  const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
-  const separator = channelHtml && timestampHtml ? ' • ' : '';
-  const footerMetaHtml = `<div class="footer-meta">${channelHtml}${separator}${timestampHtml}</div>`;
-
-  const cardHTML = `
-      <div class="card-actions">
-        ${applyIconHtml}
-        <button class="card-action-btn favorite" onclick="updateStatus(event, '${v.id}', 'favorite')" aria-label="В избранное"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg></button>
-        <button class="card-action-btn delete" onclick="updateStatus(event, '${v.id}', 'deleted')" aria-label="Удалить"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button>
-      </div>
-      <div class="card-header"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
-      <div class="card-body">
-        <p class="card-summary"></p>
-        ${infoWindowHtml}
-        ${detailsHTML}
-      </div>
-      <div class="card-footer">
-        ${skillsFooterHtml}
-        ${footerMetaHtml}
-      </div>`;
-
-  card.innerHTML = cardHTML;
-
-  // store searchable text & originals
-  const summaryEl = card.querySelector('.card-summary');
-  if (summaryEl) {
-    summaryEl.dataset.originalSummary = originalSummary;
-    summaryEl.innerHTML = highlightText(originalSummary, q);
-  }
-
-  const detailsEl = card.querySelector('.vacancy-text');
-  if (detailsEl) {
-    detailsEl.dataset.originalText = cleanedDetailsText;
-    const textHtml = highlightText(cleanedDetailsText, q);
-    detailsEl.innerHTML = attachmentsHTML + textHtml;
-  }
-
-  // сохранить строку для поиска (для совместимости со старым кодом)
-  const searchChunks = [v.category, v.reason, industryText, v.company_name, Array.isArray(v.skills) ? v.skills.join(' ') : '', cleanedDetailsText].filter(Boolean);
-  card.dataset.searchText = searchChunks.join(' ').toLowerCase();
-
-  return card;
-}
+  updateSearchStats(visible, total);
+};
 
 // =========================
 // API functions
@@ -381,7 +198,7 @@ async function updateStatus(event, vacancyId, newStatus) {
   const cardElement = document.getElementById(`card-${vacancyId}`);
   if (!cardElement) return;
   const parentList = cardElement.parentElement;
-  const catKey = Object.keys(containers).find(key => containers[key] === parentList || containers[key].contains(cardElement));
+  const categoryKey = Object.keys(containers).find(key => containers[key] === parentList);
 
   try {
     const r = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?id=eq.${vacancyId}`, {
@@ -397,30 +214,17 @@ async function updateStatus(event, vacancyId, newStatus) {
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
     await r.json();
 
-    // убрать из локальных массивов
-    if (catKey) {
-      dataByCat[catKey] = dataByCat[catKey].filter(v => `card-${v.id}` !== cardElement.id);
-      stateByCat[catKey].filtered = stateByCat[catKey].filtered.filter(v => `card-${v.id}` !== cardElement.id);
-      const span = counts[catKey];
-      if (span) {
-        const current = parseInt((span.textContent || '0').replace(/\(|\)/g, '')) || 1;
-        span.textContent = `(${Math.max(0, current - 1)})`;
-      }
-    }
-
     cardElement.style.opacity = '0';
     cardElement.style.transform = 'scale(0.95)';
     setTimeout(() => {
       cardElement.remove();
-      if (catKey) {
-        // подлить ещё карточек если есть
-        renderNextPage(catKey);
-        // если совсем пусто — показать пустое состояние
-        const st = stateByCat[catKey];
-        if (st.filtered.length === 0 || containers[catKey].querySelectorAll('.vacancy-card').length === 0) {
-          containers[catKey].innerHTML = getEmptyStateHtml('-- Пусто в этой категории --');
-          ensureLoadMore(catKey); // обновим положение кнопки/скроем
-        }
+      if (parentList && parentList.querySelectorAll('.vacancy-card').length === 0) {
+        parentList.innerHTML = getEmptyStateHtml('-- Пусто в этой категории --');
+      }
+      const countSpan = categoryKey ? counts[categoryKey] : null;
+      if (countSpan) {
+        const currentCount = parseInt((countSpan.textContent || '0').replace(/\(|\)/g, '')) || 0;
+        countSpan.textContent = `(${Math.max(0, currentCount - 1)})`;
       }
     }, 300);
   } catch (error) {
@@ -433,13 +237,9 @@ async function updateStatus(event, vacancyId, newStatus) {
 
 async function clearCategory(categoryName) {
   if (!categoryName) return;
-  // маппинг на catKey
-  const map = { 'ТОЧНО ТВОЁ': 'main', 'МОЖЕТ БЫТЬ': 'maybe' };
-  const catKey = map[categoryName] || 'other';
-
   showCustomConfirm(`Вы уверены, что хотите удалить все из категории "${categoryName}"?`, async (isConfirmed) => {
     if (!isConfirmed) return;
-    const activeList = containers[catKey];
+    const activeList = document.querySelector('.vacancy-list.active');
     if (activeList) { activeList.querySelectorAll('.vacancy-card').forEach(card => card.style.opacity = '0'); }
     try {
       const r = await fetch(`${SUPABASE_URL}/rest/v1/vacancies?category=eq.${categoryName}&status=eq.new`, {
@@ -453,13 +253,10 @@ async function clearCategory(categoryName) {
         body: JSON.stringify({ status: 'deleted' })
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      // локально чистим
-      dataByCat[catKey] = [];
-      stateByCat[catKey] = { filtered: [], rendered: 0, loadMore: stateByCat[catKey].loadMore };
       if (activeList) {
         activeList.innerHTML = getEmptyStateHtml('-- Пусто в этой категории --');
-        ensureLoadMore(catKey);
-        counts[catKey].textContent = '(0)';
+        const categoryKey = Object.keys(containers).find(key => containers[key] === activeList);
+        if (categoryKey) counts[categoryKey].textContent = '(0)';
       }
     } catch (error) {
       console.error('Ошибка очистки категории:', error);
@@ -468,21 +265,113 @@ async function clearCategory(categoryName) {
   });
 }
 
-// =========================
-// ЗАГРУЗКА ДАННЫХ
-// =========================
-function categorize(items) {
-  const main = items.filter(i => i.category === 'ТОЧНО ТВОЁ');
-  const maybe = items.filter(i => i.category === 'МОЖЕТ БЫТЬ');
-  const other = items.filter(i => !['ТОЧНО ТВОЁ','МОЖЕТ БЫТЬ'].includes(i.category));
-  return { main, maybe, other };
-}
+function renderVacancies(container, vacancies) {
+  if (!container) return;
+  container.innerHTML = '';
 
-function renderAllFirstPages() {
-  const q = (searchInput?.value || '').trim();
-  ['main','maybe','other'].forEach(k => {
-    renderFirstPage(k, q);
-  });
+  if (!vacancies || vacancies.length === 0) {
+    container.innerHTML = getEmptyStateHtml('-- Пусто в этой категории --');
+    return;
+  }
+
+  for (const v of vacancies) {
+    const card = document.createElement('div');
+    card.className = 'vacancy-card';
+    card.id = `card-${v.id}`;
+    if (v.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
+    else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
+    else card.classList.add('category-other');
+
+    const isValid = (val) => val && val !== 'null' && val !== 'не указано';
+
+    let applyIconHtml = '';
+    const safeApply = sanitizeUrl(v.apply_url || '');
+    if (safeApply) {
+      applyIconHtml = `<button class=\"card-action-btn apply\" onclick=\"openLink('${safeApply}')\" aria-label=\"Откликнуться\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"22\" y1=\"2\" x2=\"11\" y2=\"13\"></line><polygon points=\"22 2 15 22 11 13 2 9 22 2\"></polygon></svg></button>`;
+    }
+
+    let skillsFooterHtml = '';
+    if (Array.isArray(v.skills) && v.skills.length > 0) {
+      skillsFooterHtml = `<div class=\"footer-skill-tags\">${v.skills.slice(0, 3).map(skill => {
+        const isPrimary = PRIMARY_SKILLS.includes(String(skill).toLowerCase());
+        return `<span class=\"footer-skill-tag ${isPrimary ? 'primary' : ''}\">${escapeHtml(String(skill))}</span>`;
+      }).join('')}</div>`;
+    }
+
+    const infoRows = [];
+    const employment = isValid(v.employment_type) ? v.employment_type : '';
+    const workFormat = isValid(v.work_format) ? v.work_format : '';
+    const formatValue = [employment, workFormat].filter(Boolean).join(' / ');
+    if (formatValue) infoRows.push({label: 'ФОРМАТ', value: formatValue, type: 'default'});
+    if (isValid(v.salary_display_text)) infoRows.push({label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary'});
+
+    const industryText = isValid(v.industry) ? v.industry : '';
+    const companyText = isValid(v.company_name) ? `(${v.company_name})` : '';
+    const sphereValue = `${industryText} ${companyText}`.trim();
+    if (sphereValue) infoRows.push({label: 'СФЕРА', value: sphereValue, type: 'industry'});
+
+    let infoWindowHtml = '';
+    if (infoRows.length > 0) {
+      infoWindowHtml = '<div class=\"info-window\">' + infoRows.map(row => {
+        return `<div class=\"info-row info-row--${row.type}\"><div class=\"info-label\">${escapeHtml(row.label)} >>\</div><div class=\"info-value\">${escapeHtml(row.value)}</div></div>`;
+      }).join('') + '</div>';
+    }
+
+    const originalSummary = v.reason || 'Описание не было сгенерировано.';
+    const q = (searchInput?.value || '').trim();
+
+    const originalDetailsRaw = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
+    const bestImageUrl = pickImageUrl(v, originalDetailsRaw);
+    const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
+
+    const attachmentsHTML = bestImageUrl ? `<div class=\"attachments\"><a class=\"image-link-button\" href=\"${bestImageUrl}\" target=\"_blank\" rel=\"noopener noreferrer\">Изображение</a></div>` : '';
+
+    const hasAnyDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
+    const detailsHTML = hasAnyDetails ? `<details><summary>Показать полный текст</summary><div class=\"vacancy-text\" style=\"margin-top:10px;\"></div></details>` : '';
+
+    const channelHtml = isValid(v.channel) ? `<span class=\"channel-name\">${escapeHtml(v.channel)}</span>` : '';
+    const timestampHtml = `<span class=\"timestamp-footer\">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
+    const separator = channelHtml && timestampHtml ? ' • ' : '';
+    const footerMetaHtml = `<div class=\"footer-meta\">${channelHtml}${separator}${timestampHtml}</div>`;
+
+    const cardHTML = `
+      <div class=\"card-actions\">
+        ${applyIconHtml}
+        <button class=\"card-action-btn favorite\" onclick=\"updateStatus(event, '${v.id}', 'favorite')\" aria-label=\"В избранное\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><path d=\"M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z\"/></svg></button>
+        <button class=\"card-action-btn delete\" onclick=\"updateStatus(event, '${v.id}', 'deleted')\" aria-label=\"Удалить\"><svg xmlns=\"http://www.w3.org/2000/svg\" width=\"24\" height=\"24\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><line x1=\"18\" y1=\"6\" x2=\"6\" y2=\"18\"></line><line x1=\"6\" y1=\"6\" x2=\"18\" y2=\"18\"></line></svg></button>
+      </div>
+      <div class=\"card-header\"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
+      <div class=\"card-body\">
+        <p class=\"card-summary\"></p>
+        ${infoWindowHtml}
+        ${detailsHTML}
+      </div>
+      <div class=\"card-footer\">
+        ${skillsFooterHtml}
+        ${footerMetaHtml}
+      </div>`;
+
+    card.innerHTML = cardHTML;
+
+    // store searchable text & originals
+    const searchChunks = [v.category, v.reason, industryText, v.company_name, Array.isArray(v.skills) ? v.skills.join(' ') : '', cleanedDetailsText].filter(Boolean);
+    card.dataset.searchText = searchChunks.join(' ').toLowerCase();
+
+    const summaryEl = card.querySelector('.card-summary');
+    if (summaryEl) {
+      summaryEl.dataset.originalSummary = originalSummary;
+      summaryEl.innerHTML = highlightText(originalSummary, q);
+    }
+
+    const detailsEl = card.querySelector('.vacancy-text');
+    if (detailsEl) {
+      detailsEl.dataset.originalText = cleanedDetailsText;
+      const textHtml = highlightText(cleanedDetailsText, q);
+      detailsEl.innerHTML = attachmentsHTML + textHtml;
+    }
+
+    container.appendChild(card);
+  }
 }
 
 async function loadVacancies() {
@@ -491,7 +380,6 @@ async function loadVacancies() {
   vacanciesContent.classList.add('hidden');
   searchContainer.classList.add('hidden');
   categoryTabs.classList.add('hidden');
-  refreshBtn.classList.add('hidden');
 
   startProgress();
   loader.classList.remove('hidden');
@@ -505,22 +393,23 @@ async function loadVacancies() {
     const items = await response.json();
     finishProgress();
 
+    Object.values(containers).forEach(c => c.innerHTML = '');
+
     if (!items || items.length === 0) {
-      Object.values(containers).forEach(c => c.innerHTML = '');
       containers.main.innerHTML = getEmptyStateHtml('Новых вакансий нет');
-      ['maybe','other'].forEach(k => { containers[k].innerHTML = getEmptyStateHtml('-- Пусто в этой категории --'); });
-      counts.main.textContent = '(0)'; counts.maybe.textContent = '(0)'; counts.other.textContent = '(0)';
     } else {
       items.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-      const { main, maybe, other } = categorize(items);
-      dataByCat.main = main; dataByCat.maybe = maybe; dataByCat.other = other;
+      const mainVacancies = items.filter(item => item.category === 'ТОЧНО ТВОЁ');
+      const maybeVacancies = items.filter(item => item.category === 'МОЖЕТ БЫТЬ');
+      const otherVacancies = items.filter(item => !['ТОЧНО ТВОЁ', 'МОЖЕТ БЫТЬ'].includes(item.category));
 
-      counts.main.textContent = `(${main.length})`;
-      counts.maybe.textContent = `(${maybe.length})`;
-      counts.other.textContent = `(${other.length})`;
+      counts.main.textContent = `(${mainVacancies.length})`;
+      counts.maybe.textContent = `(${maybeVacancies.length})`;
+      counts.other.textContent = `(${otherVacancies.length})`;
 
-      // рендерим первые порции во все вкладки
-      renderAllFirstPages();
+      renderVacancies(containers.main, mainVacancies);
+      renderVacancies(containers.maybe, maybeVacancies);
+      renderVacancies(containers.other, otherVacancies);
     }
 
     setTimeout(() => {
@@ -528,8 +417,8 @@ async function loadVacancies() {
       vacanciesContent.classList.remove('hidden');
       headerActions.classList.remove('hidden');
       categoryTabs.classList.remove('hidden');
-      refreshBtn.classList.remove('hidden');
       if (items && items.length > 0) searchContainer.classList.remove('hidden');
+      applySearch();
       resetProgress();
       document.dispatchEvent(new CustomEvent('vacancies:loaded'));
     }, 250);
@@ -542,15 +431,6 @@ async function loadVacancies() {
     document.dispatchEvent(new CustomEvent('vacancies:loaded'));
   }
 }
-
-// =========================
-// ПОИСК (перерисовка только активной категории)
-// =========================
-const applySearch = () => {
-  const q = (searchInput?.value || '').trim();
-  const active = getActiveCatKey();
-  renderFirstPage(active, q);
-};
 
 // --- EVENT LISTENERS ---
 tabButtons.forEach(button => {
@@ -574,12 +454,7 @@ tabButtons.forEach(button => {
     vacancyLists.forEach(list => list.classList.remove('active'));
     button.classList.add('active');
     document.getElementById(button.dataset.target).classList.add('active');
-
-    // при переключении вкладки — обновить статы и кнопку
-    const active = getActiveCatKey();
-    ensureLoadMore(active);
-    const st = stateByCat[active];
-    updateSearchStats(Math.min(st.rendered, st.filtered.length), st.filtered.length);
+    applySearch();
   };
   button.addEventListener('mousedown', startPress);
   button.addEventListener('mouseup', cancelPress);
@@ -591,7 +466,6 @@ tabButtons.forEach(button => {
 });
 
 searchInput?.addEventListener('input', debounce(applySearch, 250));
-refreshBtn?.addEventListener('click', loadVacancies);
 
 // =========================
 // Pull‑to‑refresh

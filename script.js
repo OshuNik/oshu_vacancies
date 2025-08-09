@@ -38,7 +38,7 @@ const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 // Helpers (debounce/sanitize/highlight/progress/time)
 // =========================
 const debounce = (fn, delay = 250) => { let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), delay); }; };
-const escapeHtml = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
+const escapeHtml = (s = '') => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;','\'':'&#39;'}[c]));
 const stripTags = (html = '') => { const tmp = document.createElement('div'); tmp.innerHTML = html; return tmp.textContent || tmp.innerText || ''; };
 
 function normalizeUrl(raw = '') {
@@ -91,7 +91,6 @@ function formatSmartTime(isoString) {
   const diffMs = now - d;
   const sec = Math.floor(diffMs / 1000);
   const min = Math.floor(sec / 60);
-  const hrs = Math.floor(min / 60);
 
   const pad = n => n.toString().padStart(2, '0');
   const months = ['янв', 'фев', 'мар', 'апр', 'мая', 'июн', 'июл', 'авг', 'сен', 'окт', 'ноя', 'дек'];
@@ -128,16 +127,14 @@ function pickImageUrl(v, detailsText = '') {
 }
 
 // =========================
-// Search UI (крестик, счётчик, "ничего не найдено")
+// Search UI (крестик внутри, счётчик снизу)
 // =========================
-let searchStatsEl = null;
-let searchClearBtn = null;
 let searchStatsEl = null;
 let searchClearBtn = null;
 function ensureSearchUI() {
   if (!searchContainer || !searchInput) return;
 
-  // Кнопка очистки — внутри контейнера, позиционируется CSS-ом
+  // Кнопка очистки — позиционируется в CSS (внутри инпута справа)
   if (!searchClearBtn) {
     searchClearBtn = document.createElement('button');
     searchClearBtn.type = 'button';
@@ -148,7 +145,7 @@ function ensureSearchUI() {
     searchContainer.appendChild(searchClearBtn);
   }
 
-  // Счётчик — отдельным блоком под строкой
+  // Счётчик результатов — блок под строкой
   if (!searchStatsEl) {
     searchStatsEl = document.createElement('div');
     searchStatsEl.className = 'search-stats';
@@ -192,7 +189,7 @@ const applySearch = () => {
     }
   });
 
-  // Плашка "ничего не найдено" только если в списке есть карточки, но отфильтрованы все
+  // Плашка "ничего не найдено" (только если карточки есть, но все скрыты)
   let emptyHint = activeList.querySelector('.search-empty-hint');
   if (total > 0 && visible === 0) {
     if (!emptyHint) {
@@ -445,7 +442,7 @@ async function loadVacancies() {
 
   } catch (error) {
     console.error('Ошибка загрузки:', error);
-    loader.innerHTML = `<p class="empty-list">Ошибка: ${escapeHtml(error.message)}</p>`;
+    loader.innerHTML = `<p class=\"empty-list\">Ошибка: ${escapeHtml(error.message)}</p>`;
     setProgress(100);
     resetProgress();
     document.dispatchEvent(new CustomEvent('vacancies:loaded'));

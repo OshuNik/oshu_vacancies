@@ -1,5 +1,3 @@
-// script.js — Главная лента, порционная отрисовка и защита запросов
-
 const { SUPABASE_URL, SUPABASE_ANON_KEY, PAGE_SIZE_MAIN, RETRY_OPTIONS } = window.APP_CONFIG;
 const {
   tg, escapeHtml, stripTags, debounce, highlightText, safeAlert,

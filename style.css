@@ -663,30 +663,47 @@ details[open] .vacancy-text {
   margin: 0;
 }
 
-/* Поиск: инпут + крестик в одну строку */
+/* Поиск: крестик внутри поля + счётчик под строкой */
 #search-container,
 #search-container-fav {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: nowrap;
+  position: relative;
+  display: block;       /* чтобы счётчик был ниже строки */
 }
 
-/* Инпут не растягиваем на 100%, а даём занять всё доступное */
+/* даём место под крестик справа */
 #search-container .search-input,
 #search-container-fav .search-input,
+#search-container #search-input,
 #search-container-fav #search-input-fav {
-  flex: 1 1 auto;
-  width: auto;     /* перебивает старое width:100% */
-  min-width: 0;    /* чтобы не раздувало в узких экранах */
+  padding-right: 42px;
 }
 
-/* Кнопка-крестик (если хочешь унифицировать вид) */
+/* сам крестик — внутри инпута, справа */
 .search-clear-btn {
-  min-width: 44px;
-  height: 44px;
-  border: var(--border-width) solid var(--border-color);
-  border-radius: 8px;
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
   background: var(--card-color);
+  border: var(--border-width) solid var(--border-color);
+  border-radius: 6px;
   cursor: pointer;
+  box-shadow: 0 1px 0 var(--border-color);
+  user-select: none;
+}
+.search-clear-btn:active {
+  transform: translateY(-50%) scale(0.96);
+}
+
+/* счётчик результатов — под строкой */
+.search-stats {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--hint-color);
 }

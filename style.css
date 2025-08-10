@@ -140,7 +140,7 @@ input[type="search"]::-ms-clear { display: none; width: 0; height: 0; }
 .card-body p strong { font-weight: 700; }
 
 /* Выделение найденного слова (в стиле приложения) */
-mark.highlight {
+mark.highlight, span.highlight {
   background: var(--accent-yellow);
   color: var(--text-color);
   display: inline-block;
@@ -155,7 +155,7 @@ mark.highlight {
 }
 
 /* Опционально — немного усилить в тексте карточек */
-.card-body mark.highlight {
+.card-body mark.highlight, span.highlight {
   font-weight: 700;
 }
 

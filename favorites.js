@@ -21,7 +21,7 @@
 
   const {
     escapeHtml, stripTags, debounce, highlightText, formatTimestamp,
-    openLink, pickImageUrl, safeAlert, fetchWithRetry,
+    allowHttpOrTg, openLink, pickImageUrl, safeAlert, fetchWithRetry,
   } = UTIL;
 
   // --- DOM ---
@@ -78,15 +78,8 @@
     `;
     document.head.appendChild(style);
   })();
-
   // --- Сервисные функции ---
-  function allowHttpOrTg(url) {
-    if (!url) return '';
-    try {
-      const u = new URL(url, window.location.href);
-      if (/^https?:$/.test(u.protocol) || /^tg:$/.test(u.protocol)) return u.href;
-      return '';
-    } catch { return ''; }
+catch { return ''; }
   }
 
   const UNKNOWN = ['не указано', 'n/a', 'none', 'null', '/'];

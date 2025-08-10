@@ -1,8 +1,12 @@
-// utils.js — общие утилиты (без зависимостей)
+// utils.js — общие утилиты (ПОЛНАЯ ВЕРСИЯ)
+// Без зависимостей. Экспортирует window.utils.
 
 (function () {
+  'use strict';
+
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 
+  // --- Безопасность текста ---
   const escapeHtml = (s = '') =>
     String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
@@ -26,23 +30,46 @@
     return escapeHtml(text).replace(rx, '<mark class="highlight">$1</mark>');
   };
 
-  const safeAlert = (msg) => {
-    try { tg?.showAlert?.(String(msg)); } catch { alert(String(msg)); }
+  const safeAlert = (msg = '') => {
+    if (tg && typeof tg.showAlert === 'function') tg.showAlert(String(msg));
+    else alert(String(msg));
   };
 
-  // ---- URL helpers ----
+  // --- Дата/время ---
+  const pad2 = n => String(n).padStart(2, '0');
+  const formatTimestamp = (ts) => {
+    if (!ts) return '';
+    const d = new Date(ts);
+    return `${pad2(d.getDate())}.${pad2(d.getMonth()+1)}.${String(d.getFullYear()).slice(-2)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}`;
+  };
+
+  // --- Работа с изображениями внутри HTML ---
+  function containsImageMarker(s = '') { return /\[\s*Изображение\s*\]/i.test(String(s)); }
+  function cleanImageMarkers(html = '') { return String(html).replace(/\[\s*Изображение\s*\]\s*/gi, ''); }
+  function pickImageUrl(vacancy = {}, html = '') {
+    const fromField = (vacancy.images && vacancy.images[0]) || vacancy.image || '';
+    if (fromField) return fromField;
+    const m = String(html).match(/<img[^>]+src=["']([^"']+)["']/i);
+    return m ? m[1] : '';
+  }
+
+  // --- URL helpers ---
   function normalizeUrl(raw = '') {
     let s = String(raw).trim();
     if (!s) return '';
+    // Поддержка кратких telegram ссылок без схемы
     if (/^(t\.me|telegram\.me)\//i.test(s)) s = 'https://' + s;
-    if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
+    // Домен без схемы → https
+    if (/^[a-z0-9.-]+\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
     try { return new URL(s, window.location.origin).href; } catch { return ''; }
   }
-  const isHttpUrl = (u = '') => /^https?:\/\//i.test(u);
-  const sanitizeUrl = (raw = '') => {
+  function isHttpUrl(u = '') { return /^https?:\/\//i.test(u); }
+  function sanitizeUrl(raw = '') {
     const norm = normalizeUrl(raw);
     return isHttpUrl(norm) ? norm : '';
-  };
+  }
+
+  // Разрешаем https:// и tg://
   function allowHttpOrTg(url = '') {
     if (!url) return '';
     try {
@@ -59,92 +86,49 @@
     else window.open(safe, '_blank', 'noopener,noreferrer');
   }
 
-  // ---- time ----
-  function formatSmartTime(isoString) {
-    if (!isoString) return '';
-    const d = new Date(isoString);
-    const now = new Date();
-    const diffMs = now - d;
-    const sec = Math.floor(diffMs / 1000);
-    const min = Math.floor(sec / 60);
-
-    const pad = n => n.toString().padStart(2, '0');
-    const months = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-
-    const isSameDay = now.toDateString() === d.toDateString();
-    const yest = new Date(now); yest.setDate(now.getDate() - 1);
-    const isYesterday = yest.toDateString() === d.toDateString();
-
-    if (sec < 30) return 'только что';
-    if (min < 60 && min >= 1) return `${min} мин назад`;
-    if (isSameDay) return `сегодня, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    if (isYesterday) return `вчера, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-    return `${d.getDate().toString().padStart(2,'0')} ${months[d.getMonth()]}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
-  const formatTimestamp = (s) => formatSmartTime(s);
-
-  // ---- image markers ----
-  const containsImageMarker = (text = '') =>
-    /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
-  const cleanImageMarkers = (text = '') => String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
-  function pickImageUrl(v, detailsText = '') {
-    const msg = sanitizeUrl(v.message_link || '');
-    const img = sanitizeUrl(v.image_link || '');
-    const allow = (v.has_image === true) || containsImageMarker(detailsText) || containsImageMarker(v.reason || '');
-    if (!allow) return '';
-    if (msg) return msg;
-    if (img) return img;
-    return '';
-  }
-
-  // ---- fetch with retry ----
-  async function fetchWithRetry(url, options = {}, retryCfg = { retries: 0, backoffMs: 300 }) {
-    let attempt = 0;
-    let lastErr = null;
-    while (attempt <= (retryCfg.retries || 0)) {
+  // --- fetch с ретраями ---
+  async function fetchWithRetry(url, opts = {}, retryOptions = { retries: 2, backoffMs: 400 }) {
+    const { retries = 2, backoffMs = 400 } = retryOptions || {};
+    let lastErr;
+    for (let i = 0; i <= retries; i++) {
       try {
-        return await fetch(url, options);
+        const r = await fetch(url, opts);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r;
       } catch (e) {
         lastErr = e;
-        if (attempt === retryCfg.retries) break;
-        await new Promise(r => setTimeout(r, (retryCfg.backoffMs || 300) * Math.pow(2, attempt)));
-        attempt++;
+        if (i === retries) break;
+        await new Promise(res => setTimeout(res, backoffMs * (i + 1)));
       }
     }
-    throw lastErr || new Error('Network error');
+    throw lastErr || new Error('Fetch failed');
   }
 
-  // ---- empty/error ----
-  function renderEmptyState(container, message) {
-    const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif';
-    container.innerHTML = `<div class="empty-state"><img src="${catGifUrl}" class="empty-state-gif" alt=""><p class="empty-state-text">${escapeHtml(message)}</p></div>`;
+  // --- Состояния списка ---
+  function renderEmptyState(container, text = 'Ничего не найдено') {
+    const el = document.createElement('div');
+    el.className = 'empty-state';
+    el.textContent = text;
+    container.appendChild(el);
   }
-  function renderError(container, message, onRetry) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <p class="empty-state-text">Ошибка: ${escapeHtml(message || 'Ошибка сети')}</p>
-        <div class="load-more-wrap"><button class="load-more-btn">Повторить</button></div>
-      </div>`;
-    const btn = container.querySelector('.load-more-btn');
-    btn?.addEventListener('click', () => onRetry?.());
+  function renderError(container, text = 'Ошибка загрузки') {
+    const el = document.createElement('div');
+    el.className = 'error-state';
+    el.textContent = text;
+    container.appendChild(el);
   }
 
-  // ---- Load More button per container ----
   function ensureLoadMore(container, onClick) {
     let wrap = container.querySelector('.load-more-wrap');
-    let btn = container.querySelector('.load-more-btn');
     if (!wrap) {
       wrap = document.createElement('div');
       wrap.className = 'load-more-wrap';
-      btn = document.createElement('button');
-      btn.className = 'load-more-btn';
-      btn.type = 'button';
-      btn.textContent = 'Загрузить ещё';
-      wrap.appendChild(btn);
+      wrap.innerHTML = `<button class="load-more-btn" type="button">Загрузить ещё</button>`;
       container.appendChild(wrap);
     }
+    const btn = wrap.querySelector('.load-more-btn');
     btn.onclick = onClick;
-    return { wrap, btn };
+    return btn;
   }
   function updateLoadMore(container, visible) {
     let wrap = container.querySelector('.load-more-wrap');
@@ -152,11 +136,20 @@
     wrap.style.display = visible ? '' : 'none';
   }
 
+  // --- Экспорт ---
   window.utils = {
-    tg, escapeHtml, stripTags, debounce, highlightText, safeAlert,
-    formatTimestamp, sanitizeUrl, allowHttpOrTg, openLink,
+    tg,
+    // текст/подсветка
+    escapeHtml, stripTags, debounce, highlightText, safeAlert,
+    // время
+    formatTimestamp,
+    // ссылки
+    sanitizeUrl, allowHttpOrTg, openLink,
+    // изображения в тексте
     containsImageMarker, cleanImageMarkers, pickImageUrl,
-    fetchWithRetry, renderEmptyState, renderError,
-    ensureLoadMore, updateLoadMore
-};
+    // сеть
+    fetchWithRetry,
+    // UI helpers
+    renderEmptyState, renderError, ensureLoadMore, updateLoadMore,
+  };
 })();

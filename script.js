@@ -1,5 +1,6 @@
 // script.js — вкладки, бесшовный поиск, постраничная загрузка, PTR как в «Избранном»,
 // мгновенные счётчики на всех вкладках, без миганий при переключении.
+// ✅ Отклик — ТОЛЬКО из v.apply_url; если его нет — кнопки нет.
 
 (function () {
   'use strict';
@@ -42,7 +43,7 @@
     maybe: document.getElementById('count-maybe'),
     other: document.getElementById('count-other'),
   };
-  const tabButtons      = document.querySelectorAll('.tab-button'); // у кнопок data-target
+  const tabButtons      = document.querySelectorAll('.tab-button');
   const vacancyLists    = document.querySelectorAll('.vacancy-list');
   const searchInput     = document.getElementById('search-input');
   const searchContainer = document.getElementById('search-container');
@@ -68,7 +69,6 @@
   const CAT_NAME = { main:'ТОЧНО ТВОЁ', maybe:'МОЖЕТ БЫТЬ' };
   let currentController=null;
 
-  // для «без миганий» нам нужно знать, под какой строкой поиска загружен список
   const state = {
     query: '',
     activeKey: 'main',
@@ -106,7 +106,7 @@
 
   // ---- Helpers ----
   function parseTotal(resp){
-    const cr=resp.headers.get('content-range'); // "0-9/58"
+    const cr=resp.headers.get('content-range');
     if(!cr||!cr.includes('/')) return 0;
     const total=cr.split('/').pop();
     return Number(total)||0;
@@ -157,12 +157,12 @@
     return `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
   }
 
-  // ---- Быстрые счётчики для всех вкладок ----
+  // ---- Быстрые счётчики на все вкладки ----
   async function fetchCount(key, query){
     const p=new URLSearchParams();
-    p.set('select','id'); // тело почти пустое
+    p.set('select','id');
     p.set('status','eq.new');
-    p.set('limit','1');   // чтобы вернулся корректный content-range
+    p.set('limit','1');
     if(key==='main') p.set('category', `eq.${CAT_NAME.main}`);
     else if(key==='maybe') p.set('category', `eq.${CAT_NAME.maybe}`);
     else p.set('category', `not.in.("${CAT_NAME.main}","${CAT_NAME.maybe}")`);
@@ -172,7 +172,6 @@
       p.set('or', orExpr);
     }
     const url = `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
-
     const resp = await fetchWithRetry(url,{
       headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, Prefer:'count=exact' }
     }, RETRY_OPTIONS);
@@ -204,7 +203,9 @@
 
     const isValid = (val)=>val && val!=='null' && val!=='не указано';
 
-    const applyBtn = v.apply_url ? `<button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(sanitizeUrl(v.apply_url))}" aria-label="Откликнуться">
+    // Отклик — строго из apply_url
+    const applyUrl = sanitizeUrl(String(v.apply_url || ''));
+    const applyBtn = applyUrl ? `<button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(applyUrl)}" aria-label="Откликнуться">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
     </button>` : '';
 
@@ -327,7 +328,7 @@
     }
   }
 
-  // ---- Загрузка порций (append) ----
+  // ---- Загрузка порций ----
   async function fetchNext(key){
     const st=state[key];
     const container=containers[key];
@@ -378,7 +379,7 @@
     }
   }
 
-  // ---- Мягкая полная перезагрузка категории (double-buffer, без мигания) ----
+  // ---- Мягкая полная перезагрузка ----
   async function refetchFromZeroSmooth(key){
     const st=state[key], container=containers[key];
     if(!container) return;
@@ -424,7 +425,6 @@
       pinLoadMoreToBottom(container);
       if(state.activeKey===key) updateSearchStats();
 
-      // визуальный индикатор «обновилось»
       flashRefreshed(container);
       document.dispatchEvent(new CustomEvent('feed:loaded'));
     }catch(e){
@@ -440,18 +440,11 @@
     }
   }
 
-  // ---- Поиск (бесшовный) ----
+  // ---- Поиск ----
   const onSearch = debounce(async ()=>{
     state.query = (searchInput?.value||'').trim();
-
-    // счётчики всех вкладок сразу
     fetchCountsAll(state.query);
-
-    // обновляем ТОЛЬКО активную вкладку мягко
     await refetchFromZeroSmooth(state.activeKey);
-
-    // остальные НЕ чистим (чтобы не мигали при переходе), а лишь сбрасываем состояния —
-    // при первом открытии под новый запрос заменим контент мягко.
     ['main','maybe','other'].forEach(key=>{
       if(key!==state.activeKey){
         const st=state[key];
@@ -484,11 +477,9 @@
     showOnly(targetId);
     updateSearchStats();
 
-    // если эта вкладка уже загружалась под текущий запрос — ничего не перезагружаем (никаких миганий)
     const st=state[key];
     if(st.loadedOnce && st.loadedForQuery===state.query) return;
 
-    // если DOM уже есть (старый запрос) — заменим мягко; если пусто — обычная первая подгрузка
     if(containers[key].querySelector('.vacancy-card')){
       await refetchFromZeroSmooth(key);
     }else{
@@ -526,7 +517,7 @@
     btn.addEventListener('pointerleave', cancel);
   });
 
-  // ---- BULK для вкладок ----
+  // ---- BULK helper ----
   async function bulkSetStatusForCategory(key,newStatus){
     const p=new URLSearchParams();
     p.set('status','eq.new');
@@ -547,7 +538,7 @@
     if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
   }
 
-  // ---- Pull-to-Refresh: широкая панель (как в «Избранном») ----
+  // ---- PTR панель ----
   (function setupPTR(){
     const threshold=78;
     let startY=0, pulling=false, ready=false, locked=false;
@@ -593,13 +584,13 @@
         const done=()=>{ locked=false; pulling=false; resetBar(); };
         const onLoaded=()=>{ document.removeEventListener('feed:loaded', onLoaded); done(); };
         document.addEventListener('feed:loaded', onLoaded);
-        refetchFromZeroSmooth(state.activeKey); // мягкое обновление активного списка
+        refetchFromZeroSmooth(state.activeKey);
         setTimeout(()=>{ if(locked) done(); }, 8000);
       }else{ resetBar(); pulling=false; }
     },{passive:true});
   })();
 
-  // ---- Вспышка после обновления (явный индикатор) ----
+  // ---- Вспышка после обновления ----
   (function injectFlashCSS(){
     const style=document.createElement('style');
     style.textContent=`
@@ -611,18 +602,14 @@
   function flashRefreshed(container){
     if(!container) return;
     container.classList.remove('refreshed-flash');
-    // перезапуск анимации
     void container.offsetWidth;
     container.classList.add('refreshed-flash');
   }
 
-  // ---- Prefetch: сразу считаем счётчики и подтягиваем 1-ю страницу скрытых вкладок ----
+  // ---- Prefetch ----
   async function prefetchHidden(){
-    // сначала посчитаем количество во всех вкладках
     fetchCountsAll(state.query);
-    // незаметно подгрузим «maybe» и «other», чтобы при клике ничего не мигало
     ['maybe','other'].forEach(k=>{
-      // не перегружаем сеть — подгружаем только если пусто
       if(!containers[k].querySelector('.vacancy-card')){
         fetchNext(k);
       }
@@ -631,19 +618,16 @@
 
   // ---- Инициализация ----
   async function init(){
-    // скрыть неактивные списки
     Object.keys(containers).forEach(k=>{
       containers[k].style.display = (k===state.activeKey) ? '' : 'none';
     });
 
-    // подсветка активной кнопки
     tabButtons.forEach(b=>{
       const active=(b.dataset.target||'').endsWith('-main');
       b.classList.toggle('active', active);
       b.setAttribute('aria-selected', active ? 'true':'false');
     });
 
-    // старт: счётчики и главная вкладка
     fetchCountsAll(state.query);
     await fetchNext('main');
     prefetchHidden();

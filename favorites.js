@@ -1,5 +1,5 @@
 // favorites.js — вкладка «Избранное» (кликабельные ссылки, tg://, скрытие "не указано",
-// аккуратная перерисовка без мигания, фикс кнопки «Изображение» и фокуса summary)
+// мягкое обновление без мигания, фикс кнопки «Изображение», СТАРЫЙ КРЕСТИК удаления)
 
 (function () {
   'use strict';
@@ -26,7 +26,7 @@
   const container      = document.getElementById('favorites-list');
   const searchInputFav = document.getElementById('search-input-fav');
 
-  // --- Стили (фикс кнопки и миганий фокуса) ---
+  // --- Стили (фикс кнопки, фокуса и позиционирования иконок) ---
   (function injectCSS() {
     const style = document.createElement('style');
     style.textContent = `
@@ -34,7 +34,7 @@
       .vacancy-text a, .card-summary a { text-decoration: underline; color:#1f6feb; word-break: break-word; }
       .vacancy-text a:hover, .card-summary a:hover { opacity:.85; }
 
-      /* Кнопка "Изображение" — чёткий вид */
+      /* Кнопка "Изображение" */
       .image-link-button{
         display:inline-flex; align-items:center; justify-content:center;
         padding:6px 12px; background:#e6f3ff; color:#0b5ed7; font-weight:700;
@@ -46,11 +46,29 @@
       .image-link-button:active{ transform:translateY(2px); box-shadow:0 1px 0 #000; }
       .image-link-button:focus-visible{ outline:3px solid #8ec5ff; outline-offset:2px; }
 
-      /* Убираем странный фокус у summary */
+      /* Summary без синих артефактов */
       details > summary { list-style:none; cursor:pointer; user-select:none; outline:none; }
       details > summary::-webkit-details-marker{ display:none; }
 
-      /* Плавное появление контейнера при обновлении */
+      /* Позиционирование action-иконок */
+      .vacancy-card{ position:relative; overflow:visible; }
+      .card-actions{
+        position:absolute; right:12px; top:12px; display:flex; gap:12px;
+        z-index:2; pointer-events:auto;
+      }
+      .card-action-btn{
+        width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center;
+        background:transparent; border:0; padding:0; cursor:pointer;
+      }
+      .card-action-btn svg{ width:24px; height:24px; }
+
+      /* СТАРЫЙ крестик (как раньше) */
+      .card-action-btn.delete{ color:#ff5b5b; }
+      .card-action-btn.delete .icon-x{
+        stroke: currentColor; stroke-width: 2.5; fill: none;
+      }
+
+      /* Плавная замена при обновлении */
       .fade-swap-enter{ opacity:0; }
       .fade-swap-enter.fade-swap-enter-active{ opacity:1; transition:opacity .18s ease; }
       .fade-swap-exit{ opacity:1; }
@@ -138,12 +156,15 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
       </button>` : '';
 
-    // ТОЛЬКО 2 иконки: отклик + удалить
+    // ТОЛЬКО 2 иконки: отклик + удалить (СТАРЫЙ КРЕСТИК)
     const actionsHtml = `
       <div class="card-actions">
         ${applyBtnHtml}
         <button class="card-action-btn delete" data-action="delete" data-id="${v.id}" aria-label="Удалить">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y="18"></line></svg>
+          <svg class="icon-x" viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
         </button>
       </div>`;
 
@@ -167,7 +188,7 @@
     const summaryText = v.reason || 'Описание не было сгенерировано.';
     const q = (searchInputFav?.value || '').trim();
 
-    // Полный текст: используем HTML с кликабельными ссылками (и убираем «[ Изображение ]»)
+    // Полный текст: HTML с кликабельными ссылками (убираем «[ Изображение ]»)
     const originalDetailsHtml = String(v.text_highlighted || '').replace(/\[\s*Изображение\s*\]\s*/gi, '');
     const bestImageUrl = pickImageUrl(v, originalDetailsHtml);
     const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
@@ -184,6 +205,7 @@
       }</div>`;
     }
     const channelHtml   = v.channel ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
+    theTimestamp:
     const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
     const sep = channelHtml && timestampHtml ? ' • ' : '';
     const footerMetaHtml = `<div class="footer-meta">${channelHtml}${sep}${timestampHtml}</div>`;
@@ -210,7 +232,7 @@
       summaryEl.innerHTML = q ? highlightText(summaryText, q) : escapeHtml(summaryText);
     }
 
-    // Рендер полного текста (сохраняем кликабельные ссылки)
+    // Рендер полного текста
     const detailsEl = card.querySelector('.vacancy-text');
     if (detailsEl) {
       detailsEl.innerHTML = attachmentsHTML + originalDetailsHtml;
@@ -245,7 +267,7 @@
     favState.rendered = end;
 
     updateFavBtn();
-    applySearchFav(); // чтобы учесть фильтр
+    applySearchFav();
   }
 
   // --- Поиск по избранному (локально) ---
@@ -258,7 +280,6 @@
       const hit  = q ? text.includes(q) : true;
       card.hidden = !hit;
 
-      // подсветка только в summary
       const summaryEl = card.querySelector('.card-summary');
       if (summaryEl) {
         const original = summaryEl.dataset.originalSummary || '';
@@ -279,15 +300,11 @@
 
       const url  = `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
 
-      // фикс высоты чтобы не дёргалась верстка
       const keepHeight = container.offsetHeight;
       if (keepHeight) container.style.minHeight = `${keepHeight}px`;
 
       const resp = await fetchWithRetry(url, {
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
-        }
+        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
       }, RETRY_OPTIONS);
       if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
@@ -295,18 +312,14 @@
       favState.all = data || [];
       favState.rendered = 0;
 
-      // рендерим во временный контейнер
       const tmp = document.createElement('div');
       const to = Math.min(favState.pageSize, favState.all.length);
       for (let i = 0; i < to; i++) tmp.appendChild(buildFavCard(favState.all[i]));
 
-      // плавная замена
       const old = container;
-      old.classList.add('fade-swap-exit');
-      void old.offsetWidth; // reflow
+      old.classList.add('fade-swap-exit'); void old.offsetWidth;
       old.classList.add('fade-swap-exit-active');
 
-      // через кадр меняем содержимое и показываем плавно
       setTimeout(() => {
         old.innerHTML = tmp.innerHTML;
         favState.rendered = to;
@@ -314,11 +327,9 @@
         applySearchFav();
 
         old.classList.remove('fade-swap-exit','fade-swap-exit-active');
-        old.classList.add('fade-swap-enter');
-        void old.offsetWidth;
+        old.classList.add('fade-swap-enter'); void old.offsetWidth;
         old.classList.add('fade-swap-enter-active');
 
-        // убираем служебные классы и фикс высоты
         setTimeout(() => {
           old.classList.remove('fade-swap-enter','fade-swap-enter-active');
           old.style.minHeight = '';

@@ -1,4 +1,4 @@
-// script.js — главная лента с СЕРВЕРНОЙ пагинацией и СЕРВЕРНЫМ поиском (фикс 400)
+// script.js — серверная пагинация + серверный поиск (soft-reload + фикc кнопки)
 
 const { SUPABASE_URL, SUPABASE_ANON_KEY, PAGE_SIZE_MAIN, RETRY_OPTIONS, SEARCH_FIELDS } = window.APP_CONFIG;
 const {
@@ -48,9 +48,8 @@ const state = {
 
 // --- построение URL для категории с лимитом/офсетом и поиском ---
 function buildCategoryUrl(key, limit, offset, query) {
-  // безопасный вариант: берём все поля (у вас схема может отличаться)
   const params = new URLSearchParams();
-  params.set('select', '*');
+  params.set('select', '*');                       // безопасно для вашей схемы
   params.set('status', 'eq.new');
   params.set('order', 'timestamp.desc');
   params.set('limit', String(limit));
@@ -61,12 +60,11 @@ function buildCategoryUrl(key, limit, offset, query) {
   } else if (key === 'maybe') {
     params.set('category', `eq.${CAT_NAME.maybe}`);
   } else {
-    // НЕ ТВОЁ: всё, кроме двух — делаем через два AND-фильтра
+    // НЕ ТВОЁ: две проверki AND
     params.append('category', `neq."${CAT_NAME.main}"`);
     params.append('category', `neq."${CAT_NAME.maybe}"`);
   }
 
-  // серверный поиск по нескольким полям
   const q = (query || '').trim();
   if (q) {
     const expr = '(' + SEARCH_FIELDS.map(f => `${f}.ilike.*${q}*`).join(',') + ')';
@@ -84,7 +82,7 @@ function parseTotal(resp) {
   return Number(total) || 0;
 }
 
-// --- отрисовка карточки ---
+// --- карточка ---
 function buildCard(v) {
   const card = document.createElement('div');
   card.className = 'vacancy-card';
@@ -186,9 +184,13 @@ vacanciesContent.addEventListener('click', (e) => {
   }
 });
 
-// --- чтение и отрисовка следующей порции ---
-function parseTotalFromHeaders(resp){ return parseTotal(resp); }
+// --- утилита: держать кнопку «Загрузить ещё» внизу ---
+function pinLoadMoreToBottom(container) {
+  const wrap = container.querySelector('.load-more-wrap');
+  if (wrap) container.appendChild(wrap); // пере-вставим в конец
+}
 
+// --- чтение и отрисовка следующей порции ---
 async function fetchNext(key) {
   const st = state[key];
   const container = containers[key];
@@ -207,7 +209,7 @@ async function fetchNext(key) {
     }, RETRY_OPTIONS);
     if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
-    const total = parseTotalFromHeaders(resp);
+    const total = parseTotal(resp);
     if (Number.isFinite(total)) {
       st.total = total;
       counts[key].textContent = `(${total})`;
@@ -219,6 +221,9 @@ async function fetchNext(key) {
     const frag = document.createDocumentFragment();
     for (const it of items) frag.appendChild(buildCard(it));
     container.appendChild(frag);
+
+    // >>> фикс: кнопка всегда внизу
+    pinLoadMoreToBottom(container);
 
     st.offset += items.length;
     st.items = st.items.concat(items);
@@ -240,16 +245,19 @@ async function fetchNext(key) {
   }
 }
 
-// --- перезагрузка всех категорий ---
-async function reloadAll() {
-  currentController?.abort?.();
-  currentController = new AbortController();
-
+// --- СБРОС СОСТОЯНИЯ (без скрытия интерфейса) ---
+function resetListsKeepUI() {
   for (const k of ['main','maybe','other']) {
     state[k] = { items: [], offset: 0, total: 0, busy: false };
-    containers[k].innerHTML = '';
+    containers[k].innerHTML = '';              // очистили только списки
     counts[k].textContent = '(0)';
   }
+}
+
+// --- полноэкранная загрузка (только старт/пулл-ту-рефреш) ---
+async function initialLoad() {
+  currentController?.abort?.();
+  currentController = new AbortController();
 
   headerActions.classList.add('hidden');
   vacanciesContent.classList.add('hidden');
@@ -258,6 +266,8 @@ async function reloadAll() {
 
   startProgress();
   loader.classList.remove('hidden');
+
+  resetListsKeepUI();
 
   try {
     await Promise.all([ fetchNext('main'), fetchNext('maybe'), fetchNext('other') ]);
@@ -273,6 +283,17 @@ async function reloadAll() {
       document.dispatchEvent(new CustomEvent('vacancies:loaded'));
     }, 200);
   }
+}
+
+// --- мягкая перезагрузка при поиске (без «перезагрузки страницы») ---
+async function softReloadAll() {
+  currentController?.abort?.();
+  currentController = new AbortController();
+
+  // НЕ скрываем интерфейс, НЕ показываем оверлей-лоадер
+  resetListsKeepUI();
+
+  await Promise.all([ fetchNext('main'), fetchNext('maybe'), fetchNext('other') ]);
 }
 
 // --- изменение статуса ---
@@ -304,6 +325,8 @@ async function updateStatus(id, newStatus) {
           if (!parentList.querySelector('.vacancy-card')) {
             renderEmptyState(parentList, '-- Пусто в этой категории --');
             updateLoadMore(parentList, false);
+          } else {
+            pinLoadMoreToBottom(parentList);
           }
         }
       }, 220);
@@ -322,13 +345,16 @@ tabButtons.forEach(button => {
     vacancyLists.forEach(l => l.classList.remove('active'));
     button.classList.add('active');
     document.getElementById(button.dataset.target).classList.add('active');
+    // на всякий случай удержим кнопку внизу активного списка
+    const active = document.querySelector('.vacancy-list.active');
+    if (active) pinLoadMoreToBottom(active);
   });
 });
 
-// ----- поиск (серверный) -----
+// ----- поиск (серверный) — мягко -----
 const onSearch = debounce(() => {
   state.query = (searchInput?.value || '').trim();
-  reloadAll();
+  softReloadAll();               // без скрытия страницы
 }, 300);
 searchInput?.addEventListener('input', onSearch);
 
@@ -346,8 +372,8 @@ searchInput?.addEventListener('input', onSearch);
 
   window.addEventListener('touchstart', (e)=>{ if (locked) return; if (window.scrollY > 0) { pulling=false; return; } startY = e.touches[0].clientY; pulling=true; ready=false; }, {passive:true});
   window.addEventListener('touchmove', (e)=>{ if (!pulling || locked) return; const y = e.touches[0].clientY; const dist = y - startY; if (dist>0){ e.preventDefault(); setBar(Math.min(dist, threshold*1.5)); if (dist>threshold && !ready){ ready=true; bar.textContent='Отпустите для обновления'; } if (dist<=threshold && ready){ ready=false; bar.textContent='Потяните вниз для обновления'; } } }, {passive:false});
-  window.addEventListener('touchend', ()=>{ if (!pulling || locked){ resetBar(); pulling=false; return; } if (ready){ locked=true; bar.textContent='Обновляю…'; setBar(threshold*1.2); const done=()=>{ locked=false; pulling=false; resetBar(); }; const onLoaded=()=>{ document.removeEventListener('vacancies:loaded', onLoaded); done(); }; document.addEventListener('vacancies:loaded', onLoaded); reloadAll(); setTimeout(()=>{ if (locked) done(); }, 8000); } else { resetBar(); pulling=false; } }, {passive:true});
+  window.addEventListener('touchend', ()=>{ if (!pulling || locked){ resetBar(); pulling=false; return; } if (ready){ locked=true; bar.textContent='Обновляю…'; setBar(threshold*1.2); const done=()=>{ locked=false; pulling=false; resetBar(); }; const onLoaded=()=>{ document.removeEventListener('vacancies:loaded', onLoaded); done(); }; document.addEventListener('vacancies:loaded', onLoaded); initialLoad(); setTimeout(()=>{ if (locked) done(); }, 8000); } else { resetBar(); pulling=false; } }, {passive:true});
 })();
 
 // ----- старт -----
-reloadAll();
+initialLoad();

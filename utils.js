@@ -38,14 +38,23 @@
     if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
     try { return new URL(s, window.location.origin).href; } catch { return ''; }
   }
+
   const isHttpUrl = (u = '') => /^https?:\/\//i.test(u);
+  const isTelegramUrl = (u = '') => /^tg:\/\//i.test(u) || /^https?:\/\/t\.me\//i.test(u);
+
   const sanitizeUrl = (raw = '') => {
     const norm = normalizeUrl(raw);
-    return isHttpUrl(norm) ? norm : '';
+    return (isHttpUrl(norm) || isTelegramUrl(norm)) ? norm : '';
   };
+
   function openLink(url) {
     const safe = sanitizeUrl(url);
     if (!safe) return;
+    if (isTelegramUrl(safe)) {
+      if (tg && typeof tg.openTelegramLink === 'function') tg.openTelegramLink(safe);
+      else window.location.href = safe;
+      return;
+    }
     if (tg && typeof tg.openLink === 'function') tg.openLink(safe);
     else window.open(safe, '_blank', 'noopener');
   }
@@ -77,7 +86,10 @@
   // ---- image markers ----
   const containsImageMarker = (text = '') =>
     /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
-  const cleanImageMarkers = (text = '') => String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
+
+  const cleanImageMarkers = (text = '') =>
+    String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
+
   function pickImageUrl(v, detailsText = '') {
     const msg = sanitizeUrl(v.message_link || '');
     const img = sanitizeUrl(v.image_link || '');
@@ -107,35 +119,25 @@
 
   // ---- empty/error ----
   function renderEmptyState(container, message) {
-    const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif';
-    container.innerHTML = `<div class="empty-state"><img src="${catGifUrl}" class="empty-state-gif" alt=""><p class="empty-state-text">${escapeHtml(message)}</p></div>`;
+    if (!container) return;
+    container.innerHTML = `<p class="empty-list">${escapeHtml(message || '-- Пусто --')}</p>`;
   }
-  function renderError(container, message, onRetry) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <p class="empty-state-text">Ошибка: ${escapeHtml(message || 'Ошибка сети')}</p>
-        <div class="load-more-wrap"><button class="load-more-btn">Повторить</button></div>
-      </div>`;
-    const btn = container.querySelector('.load-more-btn');
-    btn?.addEventListener('click', () => onRetry?.());
+  function renderError(container, message) {
+    if (!container) return;
+    container.innerHTML = `<p class="empty-list">${escapeHtml(message || 'Ошибка')}</p>`;
   }
 
-  // ---- Load More button per container ----
+  // ---- Load More helpers ----
   function ensureLoadMore(container, onClick) {
+    if (!container) return;
     let wrap = container.querySelector('.load-more-wrap');
-    let btn = container.querySelector('.load-more-btn');
     if (!wrap) {
       wrap = document.createElement('div');
       wrap.className = 'load-more-wrap';
-      btn = document.createElement('button');
-      btn.className = 'load-more-btn';
-      btn.type = 'button';
-      btn.textContent = 'Загрузить ещё';
-      wrap.appendChild(btn);
+      wrap.innerHTML = `<button class="load-more-btn" type="button">Загрузить ещё</button>`;
       container.appendChild(wrap);
+      wrap.querySelector('button')?.addEventListener('click', onClick);
     }
-    btn.onclick = onClick;
-    return { wrap, btn };
   }
   function updateLoadMore(container, visible) {
     let wrap = container.querySelector('.load-more-wrap');

@@ -1,8 +1,8 @@
 // script.js — вкладки, бесшовный поиск, постраничная загрузка, действия по карточкам
-// ✅ Pull-to-Refresh с анимированным пузырём (стрелка/спиннер/текст)
-// ✅ Табы по data-target, жёсткое скрытие остальных списков
+// ✅ Pull-to-Refresh: широкая панель (как в «Избранном»)
+// ✅ Табы по data-target, скрытие остальных списков (display:none)
 // ✅ Long-press на табе → удалить всю категорию (с подтверждением)
-// ✅ Поиск без мерцаний (double-buffer), перегружается только активная вкладка
+// ✅ Поиск без мерцаний (double-buffer), перезагружается только активная вкладка
 // ✅ «Загрузить ещё» всегда снизу
 
 (function () {
@@ -47,7 +47,7 @@
     other: document.getElementById('count-other'),
   };
 
-  const tabButtons = document.querySelectorAll('.tab-button'); // у кнопок data-target
+  const tabButtons = document.querySelectorAll('.tab-button'); // у кнопок есть data-target
   const vacancyLists = document.querySelectorAll('.vacancy-list');
   const searchInput = document.getElementById('search-input');
   const searchContainer = document.getElementById('search-container');
@@ -116,7 +116,7 @@
 
   // ---- Helpers ----
   function parseTotal(resp) {
-    const cr = resp.headers.get('content-range');
+    const cr = resp.headers.get('content-range'); // "0-9/58"
     if (!cr || !cr.includes('/')) return 0;
     const total = cr.split('/').pop();
     return Number(total) || 0;
@@ -459,11 +459,15 @@
 
       pinLoadMoreToBottom(container);
       if (state.activeKey === key) updateSearchStats();
+
+      // маркер "данные обновились" для PTR
+      document.dispatchEvent(new CustomEvent('feed:loaded'));
     } catch (e) {
       if (e.name !== 'AbortError') {
         console.error('Refetch error:', e);
         renderError(container, e.message, () => refetchFromZeroSmooth(key));
         pinLoadMoreToBottom(container);
+        document.dispatchEvent(new CustomEvent('feed:loaded'));
       }
     } finally {
       container.style.minHeight = '';
@@ -475,7 +479,7 @@
   const onSearch = debounce(() => {
     state.query = (searchInput?.value || '').trim();
     refetchFromZeroSmooth(state.activeKey);      // только активную
-    // остальные сбрасываем «по запросу», DOM не трогаем
+    // остальные сбрасываем «по запросу», DOM не трогаем — обновятся при открытии
     ['main','maybe','other'].forEach((key) => {
       if (key !== state.activeKey) resetCategory(key, false);
     });
@@ -541,148 +545,73 @@
     btn.addEventListener('pointerleave', cancel);
   });
 
-  // ---- Pull-to-Refresh: пузырь со стрелкой/спиннером (как в «Избранном») ----
-  // Состояния: 'pull' (тянем) → 'release' (достигли порога) → 'loading'
-  let ptr = null, ptrArrow = null, ptrSpinner = null, ptrText = null;
-  function ensurePtr() {
-    if (ptr) return ptr;
+  // ---- Pull-to-Refresh: широкая панель (как «Избранное») ----
+  // Состояния: pulling → release → loading
+  (function setupPTRMain(){
+    const threshold = 78; // пикселей до триггера
+    let startY = 0, pulling = false, ready = false, locked = false;
 
-    // контейнер-пузырь
-    ptr = document.createElement('div');
-    ptr.id = 'ptr-bubble';
-    Object.assign(ptr.style, {
-      position: 'fixed',
-      top: '-64px',
-      left: '50%',
-      transform: 'translateX(-50%)',
-      width: '160px',
-      height: '64px',
-      background: '#ffffff',
-      border: '3px solid #000',
-      borderRadius: '16px',
-      boxShadow: '4px 6px 0 #000',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: '10px',
-      fontFamily: 'Inter, system-ui, sans-serif',
-      fontWeight: '700',
-      zIndex: 9999,
-      transition: 'top 180ms cubic-bezier(.2,.9,.2,1), opacity 140ms linear',
-      opacity: '0',
-      pointerEvents: 'none'
-    });
+    const bar = document.createElement('div');
+    // стили похожи на favorites
+    bar.style.cssText = [
+      'position:fixed','left:0','right:0','top:0',
+      'height:56px','background:#fff','color:#333',
+      'border-bottom:3px solid #000','box-shadow:0 2px 0 #000',
+      'transform:translateY(-100%)','transition:transform .2s ease,opacity .14s linear',
+      'z-index:9999','font-family:inherit','font-weight:700',
+      'display:flex','align-items:center','justify-content:center',
+      'letter-spacing:.2px','opacity:0','pointer-events:none'
+    ].join(';');
+    bar.textContent = 'Потяните вниз для обновления';
+    document.body.appendChild(bar);
 
-    // стрелка (SVG)
-    ptrArrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    ptrArrow.setAttribute('viewBox', '0 0 24 24');
-    ptrArrow.setAttribute('width', '24');
-    ptrArrow.setAttribute('height', '24');
-    ptrArrow.innerHTML = `<path d="M12 3v18M5 14l7 7 7-7" stroke="black" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
-    ptrArrow.style.transition = 'transform 150ms ease';
+    const setBar = (y) => {
+      // сходное движение как в избранном
+      const perc = Math.min(0, -100 + (y / 0.56)); // выезд панели
+      bar.style.transform = `translateY(${perc}%)`;
+      bar.style.opacity = y > 6 ? '1' : '0';
+    };
+    const resetBar = () => {
+      bar.style.transform = 'translateY(-100%)';
+      bar.style.opacity = '0';
+    };
 
-    // спиннер (скрыт в pull/release)
-    ptrSpinner = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    ptrSpinner.setAttribute('viewBox', '0 0 24 24');
-    ptrSpinner.setAttribute('width', '24');
-    ptrSpinner.setAttribute('height', '24');
-    ptrSpinner.innerHTML = `<circle cx="12" cy="12" r="9" stroke="#000" stroke-width="3" fill="none" stroke-dasharray="56" stroke-dashoffset="28"></circle>`;
-    ptrSpinner.style.display = 'none';
-    ptrSpinner.style.animation = 'ptr-rot 0.9s linear infinite';
+    window.addEventListener('touchstart', (e)=>{
+      if (locked) return;
+      if (window.scrollY > 0) { pulling = false; return; } // только у верхнего края
+      startY = e.touches[0].clientY; pulling = true; ready = false;
+    }, {passive:true});
 
-    // текст
-    ptrText = document.createElement('span');
-    ptrText.textContent = 'Потяните вниз';
-    ptrText.style.fontSize = '13px';
+    window.addEventListener('touchmove', (e)=>{
+      if (!pulling || locked) return;
+      const y = e.touches[0].clientY;
+      const dist = y - startY;
+      if (dist > 0) {
+        e.preventDefault();           // блок скролла во время PTR
+        setBar(dist);
+        if (dist > threshold && !ready) { ready = true; bar.textContent = 'Отпустите для обновления'; }
+        if (dist <= threshold && ready) { ready = false; bar.textContent = 'Потяните вниз для обновления'; }
+      } else {
+        pulling = false; resetBar();
+      }
+    }, {passive:false});
 
-    // анимация вращения
-    const style = document.createElement('style');
-    style.textContent = `
-      @keyframes ptr-rot { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-    `;
-    document.head.appendChild(style);
-
-    ptr.appendChild(ptrArrow);
-    ptr.appendChild(ptrSpinner);
-    ptr.appendChild(ptrText);
-    document.body.appendChild(ptr);
-
-    return ptr;
-  }
-  function setPtrState(stateName) {
-    ensurePtr();
-    if (stateName === 'pull') {
-      ptrArrow.style.display = '';
-      ptrSpinner.style.display = 'none';
-      ptrText.textContent = 'Потяните вниз';
-    } else if (stateName === 'release') {
-      ptrArrow.style.display = '';
-      ptrSpinner.style.display = 'none';
-      ptrText.textContent = 'Отпустите для обновления';
-    } else if (stateName === 'loading') {
-      ptrArrow.style.display = 'none';
-      ptrSpinner.style.display = '';
-      ptrText.textContent = 'Обновляем...';
-    }
-  }
-  function showPtr(y) {
-    ensurePtr();
-    ptr.style.top = `${-64 + Math.min(64, y)}px`;
-    ptr.style.opacity = y > 4 ? '1' : '0';
-  }
-  function hidePtr() {
-    ensurePtr();
-    ptr.style.top = '-64px';
-    ptr.style.opacity = '0';
-  }
-
-  let pulling = false;
-  let startY = 0;
-  const THRESHOLD = 80; // пикселей до триггера
-
-  window.addEventListener('touchstart', (e) => {
-    if (window.scrollY > 0) return; // только у верхнего края
-    if (e.touches.length !== 1) return;
-    pulling = true;
-    startY = e.touches[0].clientY;
-    setPtrState('pull');
-    showPtr(0);
-  }, { passive: true });
-
-  window.addEventListener('touchmove', (e) => {
-    if (!pulling) return;
-    const dy = e.touches[0].clientY - startY;
-    if (dy <= 0) { pulling = false; hidePtr(); return; }
-    // не даём странице прокручиваться при реальном pull
-    e.preventDefault();
-
-    // прогресс
-    showPtr(dy);
-    const ratio = Math.min(1, dy / THRESHOLD);
-    ptrArrow.style.transform = `rotate(${ratio * 180}deg)`;
-
-    if (dy >= THRESHOLD) setPtrState('release');
-    else setPtrState('pull');
-  }, { passive: false });
-
-  window.addEventListener('touchend', () => {
-    if (!pulling) return;
-    pulling = false;
-
-    // проверим достигнут ли порог
-    const currentTop = parseFloat(ensurePtr().style.top) || -64;
-    const pulled = 64 + currentTop; // сколько пузырь выехал вниз
-    if (pulled >= THRESHOLD) {
-      setPtrState('loading');
-      ptr.style.top = '12px';
-      ptr.style.opacity = '1';
-      refetchFromZeroSmooth(state.activeKey).then(() => {
-        hidePtr();
-      }).catch(() => hidePtr());
-    } else {
-      hidePtr();
-    }
-  });
+    window.addEventListener('touchend', ()=>{
+      if (!pulling || locked) { resetBar(); pulling=false; return; }
+      if (ready) {
+        locked = true; bar.textContent = 'Обновляю…'; setBar(threshold * 1.2);
+        const done = ()=>{ locked=false; pulling=false; resetBar(); };
+        const onLoaded = ()=>{ document.removeEventListener('feed:loaded', onLoaded); done(); };
+        document.addEventListener('feed:loaded', onLoaded);
+        // мягкая перезагрузка активной вкладки
+        refetchFromZeroSmooth(state.activeKey);
+        // таймаут-защита
+        setTimeout(()=>{ if (locked) done(); }, 8000);
+      } else {
+        resetBar(); pulling=false;
+      }
+    }, {passive:true});
+  })();
 
   // ---- Инициализация ----
   function init() {

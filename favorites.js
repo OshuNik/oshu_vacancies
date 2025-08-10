@@ -1,11 +1,12 @@
-// favorites.js — вкладка «Избранное» (полные кликабельные ссылки, tg://, скрытие "не указано")
+// favorites.js — вкладка «Избранное» (кликабельные ссылки, tg://, скрытие "не указано",
+// аккуратная перерисовка без мигания, фикс кнопки «Изображение» и фокуса summary)
 
 (function () {
   'use strict';
 
   // --- Гарантированно берём конфиг и утилиты ---
-  const CFG   = window.APP_CONFIG;
-  const UTIL  = window.utils;
+  const CFG  = window.APP_CONFIG;
+  const UTIL = window.utils;
 
   if (!CFG) { alert('APP_CONFIG не загружен'); return; }
   if (!UTIL) { alert('utils.js не загружен'); return; }
@@ -24,6 +25,39 @@
   // --- DOM ---
   const container      = document.getElementById('favorites-list');
   const searchInputFav = document.getElementById('search-input-fav');
+
+  // --- Стили (фикс кнопки и миганий фокуса) ---
+  (function injectCSS() {
+    const style = document.createElement('style');
+    style.textContent = `
+      /* Ссылки в тексте */
+      .vacancy-text a, .card-summary a { text-decoration: underline; color:#1f6feb; word-break: break-word; }
+      .vacancy-text a:hover, .card-summary a:hover { opacity:.85; }
+
+      /* Кнопка "Изображение" — чёткий вид */
+      .image-link-button{
+        display:inline-flex; align-items:center; justify-content:center;
+        padding:6px 12px; background:#e6f3ff; color:#0b5ed7; font-weight:700;
+        border:3px solid #000; border-radius:12px; line-height:1; text-decoration:none;
+        box-shadow:0 3px 0 #000; transition:transform .08s ease, box-shadow .08s ease, filter .15s ease;
+        outline:none;
+      }
+      .image-link-button:hover{ filter:saturate(1.05) brightness(1.02); }
+      .image-link-button:active{ transform:translateY(2px); box-shadow:0 1px 0 #000; }
+      .image-link-button:focus-visible{ outline:3px solid #8ec5ff; outline-offset:2px; }
+
+      /* Убираем странный фокус у summary */
+      details > summary { list-style:none; cursor:pointer; user-select:none; outline:none; }
+      details > summary::-webkit-details-marker{ display:none; }
+
+      /* Плавное появление контейнера при обновлении */
+      .fade-swap-enter{ opacity:0; }
+      .fade-swap-enter.fade-swap-enter-active{ opacity:1; transition:opacity .18s ease; }
+      .fade-swap-exit{ opacity:1; }
+      .fade-swap-exit.fade-swap-exit-active{ opacity:0; transition:opacity .12s ease; }
+    `;
+    document.head.appendChild(style);
+  })();
 
   // --- Сервисные функции ---
   function allowHttpOrTg(url) {
@@ -109,7 +143,7 @@
       <div class="card-actions">
         ${applyBtnHtml}
         <button class="card-action-btn delete" data-action="delete" data-id="${v.id}" aria-label="Удалить">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y="18"></line></svg>
         </button>
       </div>`;
 
@@ -235,32 +269,63 @@
     updateFavStats();
   }
 
-  // --- API ---
+  // --- API: мягкая перезагрузка без мигания ---
   async function loadFavorites() {
     try {
-      container.innerHTML = '';
-      if (favState.btn?.parentElement) favState.btn.remove();
-      favState.all = []; favState.rendered = 0;
-
       const p = new URLSearchParams();
       p.set('select', '*');
       p.set('status', 'eq.favorite');
       p.set('order', 'timestamp.desc');
 
       const url  = `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+
+      // фикс высоты чтобы не дёргалась верстка
+      const keepHeight = container.offsetHeight;
+      if (keepHeight) container.style.minHeight = `${keepHeight}px`;
+
       const resp = await fetchWithRetry(url, {
         headers: {
           apikey: SUPABASE_ANON_KEY,
           Authorization: `Bearer ${SUPABASE_ANON_KEY}`
         }
       }, RETRY_OPTIONS);
-
       if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
-      const data = await resp.json();
 
+      const data = await resp.json();
       favState.all = data || [];
-      renderNextFav();
-      document.dispatchEvent(new CustomEvent('favorites:loaded'));
+      favState.rendered = 0;
+
+      // рендерим во временный контейнер
+      const tmp = document.createElement('div');
+      const to = Math.min(favState.pageSize, favState.all.length);
+      for (let i = 0; i < to; i++) tmp.appendChild(buildFavCard(favState.all[i]));
+
+      // плавная замена
+      const old = container;
+      old.classList.add('fade-swap-exit');
+      void old.offsetWidth; // reflow
+      old.classList.add('fade-swap-exit-active');
+
+      // через кадр меняем содержимое и показываем плавно
+      setTimeout(() => {
+        old.innerHTML = tmp.innerHTML;
+        favState.rendered = to;
+        updateFavBtn();
+        applySearchFav();
+
+        old.classList.remove('fade-swap-exit','fade-swap-exit-active');
+        old.classList.add('fade-swap-enter');
+        void old.offsetWidth;
+        old.classList.add('fade-swap-enter-active');
+
+        // убираем служебные классы и фикс высоты
+        setTimeout(() => {
+          old.classList.remove('fade-swap-enter','fade-swap-enter-active');
+          old.style.minHeight = '';
+          document.dispatchEvent(new CustomEvent('favorites:loaded'));
+        }, 200);
+      }, 120);
+
     } catch (e) {
       console.error(e);
       container.innerHTML = '<p class="empty-list">Ошибка загрузки избранного.</p>';
@@ -309,10 +374,10 @@
     if (!btn) return;
     const action = btn.dataset.action;
     if (action === 'apply')   openLink(btn.dataset.url);
-    if (action === 'delete')  updateStatus(btn.dataset.id, 'deleted'); // удалить из ленты
+    if (action === 'delete')  updateStatus(btn.dataset.id, 'deleted');
   });
 
-  // --- Pull-to-refresh (как в Избранном и на главной) ---
+  // --- Pull-to-refresh (без мигания) ---
   (function setupPTR(){
     const threshold = 78;
     let startY=0, pulling=false, ready=false, locked=false;
@@ -361,16 +426,6 @@
         setTimeout(()=>{ if (locked) done(); }, 8000);
       } else { resetBar(); pulling=false; }
     },{passive:true});
-  })();
-
-  // --- Стили для ссылок (подчёркивание, разрыв слов) ---
-  (function injectLinkCSS(){
-    const style = document.createElement('style');
-    style.textContent = `
-      .vacancy-text a, .card-summary a { text-decoration: underline; color:#1f6feb; word-break: break-word; }
-      .vacancy-text a:hover, .card-summary a:hover { opacity:.85; }
-    `;
-    document.head.appendChild(style);
   })();
 
   // --- События и старт ---

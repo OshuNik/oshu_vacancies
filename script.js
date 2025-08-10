@@ -1,15 +1,8 @@
-/* script.js — главная страница
- * — Активные ссылки во всём тексте (включая «вшитые» в Telegram/HTML/Markdown).
- * — Кнопка «Откликнуться» только при наличии apply_url (https:// или tg://).
- * — Вкладки, бесшовный поиск, анимированный pull-to-refresh, счётчики, Load More,
- *   долгий тап по вкладке — массовое удаление категории, кастомный confirm.
- * — ВАЖНО: строки ФОРМАТ/ОПЛАТА/СФЕРА скрываются, если значение «не указано» или пусто.
- */
-
+/* script.js — главная лента */
 (function () {
   'use strict';
 
-  // -------- Конфиг / утилиты --------
+  // ---- Конфиг / утилиты ----
   const {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -33,17 +26,17 @@
     highlightText,
   } = window.utils || {};
 
-  // Разрешаем https:// и tg:// в кнопке отклика
+  // Разрешаем https:// и tg:// для «Откликнуться»
   function allowHttpOrTg(url) {
     if (!url) return '';
     try {
-      const u = new URL(url, window.location.href);
+      const u = new URL(url, location.href);
       if (/^https?:$/.test(u.protocol) || /^tg:$/.test(u.protocol)) return u.href;
       return '';
     } catch { return ''; }
   }
 
-  // -------- DOM --------
+  // ---- DOM ----
   const containers = {
     main:  document.getElementById('vacancies-list-main'),
     maybe: document.getElementById('vacancies-list-maybe'),
@@ -54,17 +47,18 @@
     maybe: document.getElementById('count-maybe'),
     other: document.getElementById('count-other'),
   };
-  const tabButtons      = document.querySelectorAll('.tab-button');
-  const vacancyLists    = document.querySelectorAll('.vacancy-list');
-  const searchInput     = document.getElementById('search-input');
-  const searchContainer = document.getElementById('search-container');
-  const vacanciesContent= document.getElementById('vacancies-content');
-  // Loader + верхняя панель
-  const loaderEl       = document.getElementById('loader');
-  const progressBarEl  = document.getElementById('progress-bar');
-  const loaderTextEl   = loaderEl ? loaderEl.querySelector('.loader-text') : null;
-  const headerActions  = document.getElementById('header-actions');
-  const categoryTabsEl = document.getElementById('category-tabs');
+  const tabButtons       = document.querySelectorAll('.tab-button');
+  const vacancyLists     = document.querySelectorAll('.vacancy-list');
+  const searchInput      = document.getElementById('search-input');
+  const searchContainer  = document.getElementById('search-container');
+  const vacanciesContent = document.getElementById('vacancies-content');
+
+  // Загрузка (показываем только верхнюю панель и полосу)
+  const loaderEl      = document.getElementById('loader');
+  const progressBarEl = document.getElementById('progress-bar');
+  const loaderTextEl  = loaderEl ? loaderEl.querySelector('.loader-text') : null;
+  const headerActions = document.getElementById('header-actions');
+  const categoryTabsEl= document.getElementById('category-tabs');
 
   function setProgress(pct, text){
     try{
@@ -72,31 +66,27 @@
         const v = Math.max(1, Math.min(100, Number(pct)||0));
         progressBarEl.style.width = v + '%';
       }
-      if(text && loaderTextEl){ loaderTextEl.textContent = String(text); }
+      if(text && loaderTextEl) loaderTextEl.textContent = String(text);
     }catch{}
   }
   function showLoader(){
-    try{
-      loaderEl?.classList.remove('hidden');
-      searchContainer?.classList.add('hidden');
-      categoryTabsEl?.classList.add('hidden');
-      vacanciesContent?.classList.add('hidden');
-      headerActions?.classList.add('hidden');
-      setProgress(10, 'Вакансии загружаются...');
-    }catch{}
+    loaderEl?.classList.remove('hidden');
+    searchContainer?.classList.add('hidden');
+    categoryTabsEl?.classList.add('hidden');
+    vacanciesContent?.classList.add('hidden');
+    headerActions?.classList.add('hidden');
+    setProgress(10, 'Вакансии загружаются...');
   }
   function hideLoader(){
-    try{
-      loaderEl?.classList.add('hidden');
-      searchContainer?.classList.remove('hidden');
-      categoryTabsEl?.classList.remove('hidden');
-      vacanciesContent?.classList.remove('hidden');
-      headerActions?.classList.remove('hidden');
-      setProgress(0);
-    }catch{}
+    loaderEl?.classList.add('hidden');
+    searchContainer?.classList.remove('hidden');
+    categoryTabsEl?.classList.remove('hidden');
+    vacanciesContent?.classList.remove('hidden');
+    headerActions?.classList.remove('hidden');
+    setProgress(0);
   }
 
-  // -------- Состояние --------
+  // ---- Состояние ----
   const state = {
     activeKey: 'main',
     query: '',
@@ -105,7 +95,7 @@
     other: { offset:0, total:0, busy:false, loadedOnce:false, loadedForQuery:'' },
   };
 
-  // -------- Поисковая панель: «Найдено: X из Y» --------
+  // ---- «Найдено: X из Y» ----
   let searchStatsEl;
   function ensureSearchUI(){
     if (!searchStatsEl) {
@@ -125,7 +115,7 @@
     searchStatsEl.textContent = q ? (visible===0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
   }
 
-  // -------- Abort helper --------
+  // ---- Abort ----
   let currentController;
   function abortCurrent(){
     if(currentController){ try{ currentController.abort(); }catch{} }
@@ -133,19 +123,16 @@
     return currentController;
   }
 
-  // -------- Helpers --------
+  // ---- Helpers ----
   function parseTotal(resp){
-    const cr=resp.headers.get('content-range');
-    if(!cr||!cr.includes('/')) return 0;
-    const total=cr.split('/').pop();
+    const cr = resp.headers.get('content-range'); // формат: "0-19/123"
+    if(!cr || !cr.includes('/')) return 0;
+    const total = cr.split('/').pop();
     return Number(total)||0;
   }
   function keyFromTargetId(targetId){
-    if (targetId.endsWith('-main'))  return 'main';
-    if (targetId.endsWith('-maybe')) return 'maybe';
-    if (targetId.endsWith('-other')) return 'other';
-    if (/main$/i.test(targetId))  return 'main';
-    if (/maybe$/i.test(targetId)) return 'maybe';
+    if (/-main$/.test(targetId))  return 'main';
+    if (/-maybe$/.test(targetId)) return 'maybe';
     return 'other';
   }
   function clearContainer(el){
@@ -167,7 +154,7 @@
     wrap.style.background='linear-gradient(to top, rgba(240,240,240,1), rgba(240,240,240,0.2))';
   }
 
-  // -------- API: counts --------
+  // ---- Запросы: COUNT ----
   async function fetchCount(category, q){
     const p = new URLSearchParams();
     p.set('select','*');
@@ -181,7 +168,13 @@
     }
     const url = `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
     const resp = await fetchWithRetry(url,{
-      headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, Prefer:'count=exact' }
+      headers:{
+        apikey:SUPABASE_ANON_KEY,
+        Authorization:`Bearer ${SUPABASE_ANON_KEY}`,
+        Prefer:'count=exact',
+        'Range-Unit':'items',
+        Range:'0-0'
+      }
     }, RETRY_OPTIONS);
     if(!resp.ok) throw new Error('count failed');
     return parseTotal(resp);
@@ -199,12 +192,10 @@
       state.main.total  = cMain||0;
       state.maybe.total = cMaybe||0;
       state.other.total = cOther||0;
-    }catch(e){
-      console.warn('fetchCountsAll',e);
-    }
+    }catch(e){ console.warn('fetchCountsAll',e); }
   }
 
-  // -------- API: список --------
+  // ---- Запросы: список ----
   function buildQueryParams(key, q){
     const p = new URLSearchParams();
     p.set('select','*');
@@ -217,11 +208,7 @@
       const orExpr = '('+SEARCH_FIELDS.map(f=>`${f}.ilike.*${q}*`).join(',')+')';
       p.set('or', orExpr);
     }
-    const limit = PAGE_SIZE_MAIN || 20;
-    const from = state[key].offset;
-    const to   = from + limit - 1;
-    p.set('range', `${from}-${to}`);
-    return p.toString();
+    return p.toString(); // ВАЖНО: без ?range=... (даёт 400)
   }
 
   async function fetchNext(key){
@@ -231,10 +218,20 @@
     st.busy=true;
 
     try{
-      const p = buildQueryParams(key, state.query);
+      const limit = PAGE_SIZE_MAIN || 20;
+      const from  = st.offset;
+      const to    = from + limit - 1;
+
+      const p   = buildQueryParams(key, state.query);
       const url = `${SUPABASE_URL}/rest/v1/vacancies?${p}`;
       const resp = await fetchWithRetry(url, {
-        headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, Prefer:'count=exact' },
+        headers:{
+          apikey:SUPABASE_ANON_KEY,
+          Authorization:`Bearer ${SUPABASE_ANON_KEY}`,
+          Prefer:'count=exact',
+          'Range-Unit':'items',
+          Range:`${from}-${to}`
+        },
         signal: abortCurrent().signal
       }, RETRY_OPTIONS);
       if(!resp.ok) throw new Error('load failed');
@@ -267,9 +264,7 @@
         pinLoadMoreToBottom(container);
         document.dispatchEvent(new CustomEvent('feed:loaded'));
       }
-    }finally{
-      st.busy=false;
-    }
+    }finally{ st.busy=false; }
   }
 
   async function refetchFromZeroSmooth(key){
@@ -281,14 +276,23 @@
     st.loadedOnce=false; st.loadedForQuery=state.query||'';
     clearContainer(container);
 
-    // заглушка высоты, чтобы не прыгало
     container.style.minHeight = container.offsetHeight+'px';
 
     try{
-      const p = buildQueryParams(key, state.query);
+      const limit = PAGE_SIZE_MAIN || 20;
+      const from  = 0;
+      const to    = limit - 1;
+
+      const p   = buildQueryParams(key, state.query);
       const url = `${SUPABASE_URL}/rest/v1/vacancies?${p}`;
       const resp = await fetchWithRetry(url, {
-        headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, Prefer:'count=exact' },
+        headers:{
+          apikey:SUPABASE_ANON_KEY,
+          Authorization:`Bearer ${SUPABASE_ANON_KEY}`,
+          Prefer:'count=exact',
+          'Range-Unit':'items',
+          Range:`${from}-${to}`
+        },
         signal: abortCurrent().signal
       }, RETRY_OPTIONS);
       if(!resp.ok) throw new Error('reload failed');
@@ -326,7 +330,7 @@
     }
   }
 
-  // -------- Поиск --------
+  // ---- Поиск ----
   const onSearch = debounce(async ()=>{
     state.query = (searchInput?.value||'').trim();
     fetchCountsAll(state.query);
@@ -341,7 +345,7 @@
   }, 220);
   searchInput?.addEventListener('input', onSearch);
 
-  // -------- Переключение вкладок --------
+  // ---- Переключение вкладок ----
   function showOnly(targetId){
     vacancyLists.forEach(list=>{
       list.classList.remove('active');
@@ -371,30 +375,28 @@
   }
   tabButtons.forEach(btn=>{
     btn.addEventListener('click', ()=> activateTabByTarget(btn.dataset.target));
-    // Долгий тап по вкладке — массовое удаление
+    // Долгий тап — массовое удаление
     let t;
     btn.addEventListener('pointerdown', ()=>{ t=setTimeout(()=>massDeleteForTab(btn), 700); });
     ['pointerup','pointerleave','pointercancel'].forEach(ev=>btn.addEventListener(ev, ()=>clearTimeout(t)));
   });
 
-  // -------- Прелоад подсеток --------
+  // ---- Подгружаем скрытые вкладки ----
   function prefetchHidden(){
     ['maybe','other'].forEach(k=>{
       const st=state[k];
-      if(!st.loadedOnce && containers[k]?.offsetHeight===0){ // скрыта
+      if(!st.loadedOnce && containers[k]?.offsetHeight===0){
         fetchNext(k);
       }
     });
   }
 
-  // -------- Карточка --------
+  // ---- Рендер карточки ----
   function renderCard(v){
     const q = state.query || '';
 
-    // Сводка
     const summaryText = String(v.summary || '').trim();
 
-    // Полный текст, без маркеров [Изображение]
     const originalDetailsHtml = String(v.details_html || '').replace(/\[\s*Изображение\s*\]\s*/gi,'');
     const bestImageUrl = pickImageUrl(v, originalDetailsHtml);
     const attachmentsHTML = bestImageUrl
@@ -415,7 +417,7 @@
     const channelHtml = v.channel ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
     const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp || v.created_at || v.updated_at))}</span>`;
 
-    // Инфо-блок: показываем ТОЛЬКО осмысленные значения
+    // Инфо-блок: только осмысленные значения
     const infoRows=[];
     const joinMeaningful=(...vals)=>vals.map(x=>String(x||'').trim()).filter(x=>x && !/^не\s*указано$/i.test(x)).join(' · ');
     const isMeaningful=(x)=>!!String(x||'').trim() && !/^не\s*указано$/i.test(String(x||'').trim());
@@ -440,9 +442,9 @@
         </div>`).join('')+'</div>';
     }
 
-    const footerMetaHtml = `<div class="footer-meta">
-      ${channelHtml}
-      ${timestampHtml}
+    const footerMetaHtml = `<div class="card-footer">
+      ${skillsFooterHtml}
+      <div class="footer-meta">${channelHtml}${timestampHtml}</div>
     </div>`;
 
     const applyUrl = allowHttpOrTg(String(v.apply_url || ''));
@@ -472,27 +474,24 @@
       <div class="card-body">
         <p class="card-summary"></p>
         ${infoWindowHtml}
-        ${detailsHTML}
+        ${hasDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : ''}
       </div>
-      <div class="card-footer">
-        ${skillsFooterHtml}
-        ${footerMetaHtml}
-      </div>
+      ${footerMetaHtml}
     `;
 
     const summaryEl = card.querySelector('.card-summary');
     if(summaryEl){
       summaryEl.dataset.originalSummary = summaryText;
-      summaryEl.innerHTML = q ? highlightText(summaryText, q) : escapeHtml(summaryText);
+      summaryEl.innerHTML = (state.query ? highlightText(summaryText, state.query) : escapeHtml(summaryText));
     }
     const detailsEl = card.querySelector('.vacancy-text');
     if(detailsEl){
-      detailsEl.innerHTML = attachmentsHTML + originalDetailsHtml;
+      detailsEl.innerHTML = (bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${escapeHtml(bestImageUrl)}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '') + originalDetailsHtml;
     }
     return card;
   }
 
-  // -------- Действия по карточкам --------
+  // ---- Действия карточек ----
   vacanciesContent?.addEventListener('click',(e)=>{
     const btn=e.target.closest('[data-action]');
     if(!btn) return;
@@ -502,7 +501,7 @@
     if(action==='delete')   updateStatus(btn.dataset.id,'deleted');
   });
 
-  // -------- Массовое удаление по вкладке --------
+  // ---- Массовое удаление по вкладке ----
   function massDeleteForTab(btn){
     const tabName = btn?.dataset?.categoryName || 'этой категории';
     showCustomConfirm(`Удалить все вакансии из «${tabName}»?`)
@@ -513,7 +512,7 @@
       });
   }
 
-  // -------- Кастомный confirm --------
+  // ---- Кастомный confirm ----
   const confirmOverlay   = document.getElementById('custom-confirm-overlay');
   const confirmText      = document.getElementById('custom-confirm-text');
   const confirmOkBtn     = document.getElementById('confirm-btn-ok');
@@ -535,7 +534,7 @@
     });
   }
 
-  // -------- Обновление статуса --------
+  // ---- Обновление статуса ----
   async function updateStatus(id, newStatus){
     try{
       const url = `${SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
@@ -550,7 +549,6 @@
       }, RETRY_OPTIONS);
       if(!resp.ok) throw new Error('update failed');
 
-      // Удаляем карточку из текущего списка
       const card = vacanciesContent.querySelector(`.vacancy-card .card-action-btn[data-id="${id}"]`)?.closest('.vacancy-card');
       if(card) card.remove();
       updateSearchStats();
@@ -561,7 +559,7 @@
     }
   }
 
-  // -------- Массовое обновление статусов по вкладке --------
+  // ---- Массовое обновление статусов по вкладке ----
   async function bulkUpdateStatusByTab(key, newStatus){
     try{
       const p = new URLSearchParams();
@@ -591,7 +589,7 @@
     }
   }
 
-  // -------- Визуал «обновлено» --------
+  // ---- Визуал «обновлено» ----
   function flashRefreshed(container){
     try{
       container.style.scrollBehavior='auto';
@@ -601,7 +599,7 @@
     }catch{}
   }
 
-  // -------- Инициализация --------
+  // ---- Инициализация ----
   async function init(){
     Object.keys(containers).forEach(k=>{
       containers[k].style.display = (k===state.activeKey) ? '' : 'none';
@@ -629,8 +627,6 @@
     setTimeout(hideLoader, 200);
   }
 
-  document.readyState==='loading'
-    ? document.addEventListener('DOMContentLoaded', init)
-    : init();
+  document.readyState==='loading' ? document.addEventListener('DOMContentLoaded', init) : init();
 
 })();

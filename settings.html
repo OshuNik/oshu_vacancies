@@ -7,14 +7,16 @@
 
   <meta http-equiv="Content-Security-Policy"
         content="default-src 'self' https://*.supabase.co https://telegram.org https://fonts.googleapis.com https://fonts.gstatic.com data: blob:;
-                 img-src 'self' data: https://*;
+                 img-src 'self' data: https:;
                  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
                  font-src https://fonts.gstatic.com 'self';
                  script-src 'self' https://telegram.org;">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://lwfhtwnfqmdjwzrdznvv.supabase.co">
-  <link rel="icon" href="/favicon.ico">
+
+  <!-- относительный путь, как на главной -->
+  <link rel="icon" href="./favicon.ico">
 
   <link rel="stylesheet" href="style.css">
 </head>
@@ -23,8 +25,10 @@
     <h1>⚙︎ Настройки</h1>
     <div class="header-actions">
       <a href="index.html" class="header-button">← Назад</a>
-      <button id="save-button" class="header-icon-btn">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button id="save-button" class="header-icon-btn" aria-label="Сохранить ключевые слова">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"
+             viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
           <polyline points="17 21 17 13 7 13 7 21"></polyline>
           <polyline points="7 3 7 8 15 8"></polyline>
@@ -42,7 +46,7 @@
     <div id="tab-keywords" class="settings-tab-content active">
       <div class="current-keywords-container">
         <p class="current-keywords-label">Текущие ключевые слова:</p>
-        <p id="current-keywords-display" class="current-keywords-list">Загрузка...</p>
+        <p id="current-keywords-display" class="current-keywords-list">Загрузка.</p>
       </div>
       <div class="settings-form">
         <label for="keywords-input">Изменить список (через запятую):</label>
@@ -52,31 +56,29 @@
 
     <div id="tab-channels" class="settings-tab-content">
       <div class="settings-form">
-        <button id="load-defaults-btn" class="button-load-defaults">Загрузить стандартные каналы</button>
-        <label for="channel-input">Добавить новый канал:</label>
-        <div class="add-channel-form">
-          <input type="text" id="channel-input" placeholder="@username или https://t.me/...">
-          <button id="add-channel-btn">+</button>
-        </div>
-        <div id="channels-list" class="channels-list"></div>
-        <button id="delete-all-btn" class="button-delete">Удалить все каналы</button>
+        <label for="channel-input">Добавить канал (@name или ссылка):</label>
+        <input id="channel-input" type="text" placeholder="@design_jobs или https://t.me/design_jobs">
+        <button id="add-channel-btn" class="button-load-defaults">Добавить</button>
+        <button id="load-defaults-btn" class="button-load-defaults">Загрузить стандартные</button>
+        <button id="delete-all-btn" class="button-danger">Удалить все</button>
       </div>
+      <div id="channels-list" class="channels-list"></div>
     </div>
   </main>
 
-  <div id="custom-confirm-overlay" class="custom-confirm-overlay hidden">
-    <div class="custom-confirm-box">
-      <p id="custom-confirm-text"></p>
-      <div class="custom-confirm-actions">
-        <button id="confirm-btn-cancel" class="custom-confirm-button">Отмена</button>
-        <button id="confirm-btn-ok" class="custom-confirm-button ok">OK</button>
+  <!-- Кастомный confirm -->
+  <div id="custom-confirm-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="overlay-card">
+      <p id="custom-confirm-text">Вы уверены?</p>
+      <div class="overlay-actions">
+        <button id="confirm-btn-ok" class="btn-ok">Да</button>
+        <button id="confirm-btn-cancel" class="btn-cancel">Нет</button>
       </div>
     </div>
   </div>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="config.js"></script>
-  <script src="utils.js"></script>
   <script src="settings.js"></script>
 </body>
 </html>

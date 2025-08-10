@@ -1,4 +1,4 @@
-// script.js — мягкий серверный поиск без мерцаний + счётчик «Найдено: X из Y» + long/double-tap очистка + фикс кнопки
+// script.js — мягкий серверный поиск без мерцаний + счётчик «Найдено: X из Y» + long/double-tap очистка + фикс вкладки «НЕ ТВОЁ»
 
 const { SUPABASE_URL, SUPABASE_ANON_KEY, PAGE_SIZE_MAIN, RETRY_OPTIONS, SEARCH_FIELDS } = window.APP_CONFIG;
 const {
@@ -46,7 +46,7 @@ function showCustomConfirm(message){
   });
 }
 
-// ----- Прогресс (используется только на первом запуске / pull-to-refresh) -----
+// ----- Прогресс -----
 const setProgress=(p=0)=>{ if(progressBar) progressBar.style.width=Math.max(0,Math.min(100,p))+'%'; };
 const startProgress=()=>setProgress(5);
 const finishProgress=()=>setTimeout(()=>setProgress(100),0);
@@ -83,6 +83,15 @@ function updateSearchStats(){
   searchStatsEl.textContent = q ? (visible===0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
 }
 
+// ===== helper: синхронизируем видимость списков =====
+function syncTabVisibility(){
+  const active = document.querySelector('.vacancy-list.active') || containers.main;
+  vacancyLists.forEach(list=>{
+    const on = list === active;
+    list.style.display = on ? '' : 'none';
+  });
+}
+
 // ===== построение URL =====
 function buildCategoryUrl(key, limit, offset, query){
   const p=new URLSearchParams();
@@ -99,7 +108,7 @@ function buildCategoryUrl(key, limit, offset, query){
   return `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
 }
 function parseTotal(resp){
-  const cr=resp.headers.get('content-range'); // "0-9/58"
+  const cr=resp.headers.get('content-range');
   if(!cr||!cr.includes('/')) return 0;
   const total=cr.split('/').pop();
   return Number(total)||0;
@@ -236,12 +245,6 @@ async function fetchNext(key){
     updateLoadMore(container, hasMore);
     btn.disabled = !hasMore;
 
-    if(st.total===0 && st.offset===0){
-      renderEmptyState(container,'-- Пусто в этой категории --');
-      updateLoadMore(container,false);
-    }
-
-    // обновим счётчик для активной вкладки
     const active = document.querySelector('.vacancy-list.active');
     if(active===container) updateSearchStats();
 
@@ -254,7 +257,7 @@ async function fetchNext(key){
   }
 }
 
-// ===== МЯГКАЯ ПЕРЕЗАГРУЗКА КАТЕГОРИИ (без очистки до готовности) =====
+// ===== МЯГКАЯ ПЕРЕЗАГРУЗКА КАТЕГОРИИ =====
 async function reloadCategory(key){
   const container=containers[key];
   const st = state[key] = { offset:0, total:0, busy:false };
@@ -272,7 +275,6 @@ async function reloadCategory(key){
 
     const items=await resp.json();
 
-    // готовим новые узлы в off-DOM
     const newChildren=[];
     if(items.length===0){
       const tmp=document.createElement('div');
@@ -282,7 +284,6 @@ async function reloadCategory(key){
       for(const it of items) newChildren.push(buildCard(it));
     }
 
-    // атомарная замена содержимого без промежуточной очистки → без мерцания
     container.replaceChildren(...newChildren);
     pinLoadMoreToBottom(container);
 
@@ -293,7 +294,6 @@ async function reloadCategory(key){
     updateLoadMore(container, hasMore);
     btn.disabled = !hasMore;
 
-    // обновим счётчик для активной вкладки
     const active=document.querySelector('.vacancy-list.active');
     if(active===container) updateSearchStats();
 
@@ -312,7 +312,7 @@ async function softReloadAll(){
   updateSearchStats();
 }
 
-// ===== Первый запуск (c экраном загрузки) =====
+// ===== Первый запуск =====
 async function initialLoad(){
   currentController?.abort?.();
   currentController = new AbortController();
@@ -334,6 +334,7 @@ async function initialLoad(){
       headerActions.classList.remove('hidden');
       categoryTabs.classList.remove('hidden');
       searchContainer.classList.remove('hidden');
+      syncTabVisibility();              // <-- важно: прячем неактивные списки
       resetProgress();
       updateSearchStats();
       document.dispatchEvent(new CustomEvent('vacancies:loaded'));
@@ -391,10 +392,17 @@ tabButtons.forEach(button=>{
     if(active && (now-lastTap)<400){ clearCategory(categoryName,key); lastTap=0; return; }
     lastTap=now;
 
+    // переключение
     tabButtons.forEach(b=>b.classList.remove('active'));
-    vacancyLists.forEach(l=>l.classList.remove('active'));
     button.classList.add('active');
-    document.getElementById(button.dataset.target).classList.add('active');
+
+    const targetId = button.dataset.target;
+    vacancyLists.forEach(list=>{
+      const on = (list.id === targetId);
+      list.classList.toggle('active', on);
+      list.style.display = on ? '' : 'none';     // <-- фикс: показываем только выбранную вкладку
+    });
+
     pinLoadMoreToBottom(document.querySelector('.vacancy-list.active'));
     updateSearchStats();
   });
@@ -449,4 +457,5 @@ searchInput?.addEventListener('input',onSearch);
 
 // ===== старт =====
 ensureSearchUI();
+syncTabVisibility();          // на всякий случай сразу синхронизируем
 initialLoad();

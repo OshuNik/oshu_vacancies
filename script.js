@@ -1,6 +1,7 @@
-// script.js — вкладки, бесшовный поиск, постраничная загрузка, PTR, счётчики, индикатор обновления
-// Важно: кнопка «Откликнуться» — ТОЛЬКО из v.apply_url; если его нет — кнопки нет.
-// Фикс: если карточек не осталось, «Загрузить ещё» прячется сразу (и при refetch с нулём).
+// script.js — вкладки, бесшовный поиск, PTR, счётчики, индикатор обновления
+// Отклик — ТОЛЬКО из v.apply_url (если пусто — кнопки нет).
+// Фикс пустых состояний: после PTR/удалений всегда показываем заглушку (собака),
+// «Загрузить ещё» прячем сразу.
 
 (function () {
   'use strict';
@@ -125,6 +126,22 @@
     el.innerHTML='';
     if(lm) el.appendChild(lm);
   }
+  function hideLoadMore(container){
+    updateLoadMore?.(container,false);
+    const lm = container?.querySelector('.load-more-wrap');
+    if (lm) lm.remove();
+  }
+  function showEmpty(container, message){
+    // гарантированно показываем заглушку и убираем «Загрузить ещё»
+    hideLoadMore(container);
+    if (typeof renderEmptyState === 'function') {
+      renderEmptyState(container, message);
+    } else {
+      container.innerHTML = `<div class="empty-state"><p class="empty-state-text">${escapeHtml(message||'Пусто')}</p></div>`;
+    }
+    // фикс для странных состояний скролла после PTR
+    try { window.scrollTo({top:0, behavior:'auto'}); } catch {}
+  }
   function resetCategory(key, clearDom=true){
     const st=state[key];
     st.offset=0; st.total=0; st.busy=false; st.loadedOnce=false; st.loadedForQuery='';
@@ -134,11 +151,6 @@
   function pinLoadMoreToBottom(container){
     const wrap=container?.querySelector('.load-more-wrap');
     if(wrap) container.appendChild(wrap);
-  }
-  function hideLoadMore(container){
-    updateLoadMore?.(container, false);
-    const lm = container?.querySelector('.load-more-wrap');
-    if (lm) lm.remove();
   }
 
   // ---- API URLs ----
@@ -209,8 +221,7 @@
     const isValid = (val)=>val && val!=='null' && val!=='не указано';
 
     // Отклик — строго из apply_url
-    const applyUrlRaw = v.apply_url ? String(v.apply_url) : '';
-    const applyUrl = sanitizeUrl(applyUrlRaw);
+    const applyUrl = sanitizeUrl(String(v.apply_url || ''));
     const applyBtn = applyUrl ? `<button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(applyUrl)}" aria-label="Откликнуться">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
     </button>` : '';
@@ -327,11 +338,10 @@
       const k = state.activeKey;
       if (state[k].total > 0) state[k].total -= 1;
       counts[k].textContent = `(${state[k].total})`;
+
       const cont = containers[k];
-      // если карточек больше нет — скрываем Load More и показываем пусто
       if (cont && cont.querySelectorAll('.vacancy-card').length === 0) {
-        hideLoadMore(cont);
-        renderEmptyState(cont, '-- Пусто в этой категории --');
+        showEmpty(cont, '-- Пусто в этой категории --');
       }
       updateSearchStats();
     }catch(err){
@@ -373,8 +383,7 @@
       if(btn) btn.disabled=!hasMore;
 
       if(st.total===0 && st.offset===0){
-        renderEmptyState(container,'-- Пусто в этой категории --');
-        hideLoadMore(container);
+        showEmpty(container,'-- Пусто в этой категории --');
       }
 
       if(state.activeKey===key) updateSearchStats();
@@ -428,10 +437,8 @@
 
       if(counts[key]) counts[key].textContent=`(${st.total})`;
 
-      // если пусто — не показываем «Загрузить ещё»
       if (st.total === 0) {
-        hideLoadMore(container);
-        renderEmptyState(container,'-- Пусто в этой категории --');
+        showEmpty(container,'-- Пусто в этой категории --');
       } else {
         const {btn}=ensureLoadMore(container,()=>fetchNext(key));
         const hasMore = st.offset < st.total;
@@ -523,7 +530,7 @@
           clearContainer(containers[key]);
           state[key]={ offset:0,total:0,busy:false,loadedOnce:false,loadedForQuery:'' };
           counts[key].textContent='(0)';
-          hideLoadMore(containers[key]);
+          showEmpty(containers[key],'-- Пусто в этой категории --');
           if(state.activeKey===key) updateSearchStats();
           safeAlert('Готово: категория очищена.');
         }catch(e){ console.error(e); safeAlert('Ошибка: не получилось удалить категорию.'); }

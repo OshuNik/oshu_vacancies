@@ -1,5 +1,7 @@
-// favorites.js — вкладка «Избранное» (кликабельные ссылки, tg://, скрытие "не указано",
-// мягкое обновление без мигания, фикс кнопки «Изображение», СТАРЫЙ КРЕСТИК удаления)
+// favorites.js — вкладка «Избранное»
+// кликабельные ссылки, tg://, скрытие "не указано",
+// мягкое обновление без мигания, фикс кнопки «Изображение»,
+// СТАРЫЙ КРЕСТИК удаления (исправлено y2="18"), убрана метка theTimestamp:
 
 (function () {
   'use strict';
@@ -62,7 +64,7 @@
       }
       .card-action-btn svg{ width:24px; height:24px; }
 
-      /* СТАРЫЙ крестик (как раньше) */
+      /* СТАРЫЙ крестик */
       .card-action-btn.delete{ color:#ff5b5b; }
       .card-action-btn.delete .icon-x{
         stroke: currentColor; stroke-width: 2.5; fill: none;
@@ -156,7 +158,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
       </button>` : '';
 
-    // ТОЛЬКО 2 иконки: отклик + удалить (СТАРЫЙ КРЕСТИК)
+    // ТОЛЬКО 2 иконки: отклик + удалить (СТАРЫЙ КРЕСТИК, исправлен y2)
     const actionsHtml = `
       <div class="card-actions">
         ${applyBtnHtml}
@@ -205,7 +207,6 @@
       }</div>`;
     }
     const channelHtml   = v.channel ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
-    theTimestamp:
     const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
     const sep = channelHtml && timestampHtml ? ' • ' : '';
     const footerMetaHtml = `<div class="footer-meta">${channelHtml}${sep}${timestampHtml}</div>`;

@@ -1,4 +1,4 @@
-/* script.js — главная страница (ПОЛНАЯ ВЕРСИЯ)
+/* script.js — главная страница (ПОЛНАЯ ВЕРСИЯ, RPC POST фикс)
  * — Активные ссылки во всём тексте (включая «вшитые» в Telegram/HTML/Markdown).
  * — Кнопка «Откликнуться» только при наличии apply_url (https:// или tg://).
  * — Вкладки, поиск по тексту, счётчики, пагинация/Load More, кастомный confirm.
@@ -152,44 +152,42 @@
     state.isLoading = false;
   }
 
-  // -------- Fetch --------
-  function buildQueryParams({ category, page, pageSize, q }) {
-    const params = new URLSearchParams();
-
-    // фильтр по категории
-    if (category) params.set('category', category);
-    // пагинация
-    params.set('page', String(page));
-    params.set('page_size', String(pageSize));
-    // поиск на бэке (если доступно)
-    if (q) {
-      params.set('q', q);
-      params.set('fields', (SEARCH_FIELDS || []).join(','));
-    }
-    return params.toString();
+  // -------- Fetch (RPC: POST, не GET) --------
+  function buildRpcBody({ category, page, pageSize, q }) {
+    const body = {
+      category,
+      page,
+      page_size: pageSize,
+    };
+    if (q) body.q = q; // если функция поддерживает поиск
+    if (Array.isArray(SEARCH_FIELDS) && SEARCH_FIELDS.length) body.fields = SEARCH_FIELDS.join(',');
+    return body;
   }
 
   async function fetchVacancies(categoryKey, page) {
     const pageSize = PAGE_SIZE_MAIN || 20;
-    const params = buildQueryParams({
-      category: categoryKey,
-      page,
-      pageSize,
-      q: state.query
-    });
-
-    const url = `${SUPABASE_URL}/rest/v1/rpc/get_vacancies_paginated?${params}`;
+    const url = `${SUPABASE_URL}/rest/v1/rpc/get_vacancies_paginated`;
     const headers = {
       'apikey': SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`
+      'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json'
     };
 
     const controller = new AbortController();
     state.abortController = controller;
 
-    const resp = await fetchWithRetry(url, { headers, signal: controller.signal }, RETRY_OPTIONS);
-    const data = await resp.json(); // { items: [], total: number }
-    return data;
+    const resp = await fetchWithRetry(
+      url,
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(buildRpcBody({ category: categoryKey, page, pageSize, q: state.query })),
+        signal: controller.signal,
+      },
+      RETRY_OPTIONS
+    );
+    const data = await resp.json(); // ожидаем { items: [], total: number }
+    return data || { items: [], total: 0 };
   }
 
   // -------- Рендер карточки --------

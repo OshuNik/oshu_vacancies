@@ -1,4 +1,4 @@
-// script.js — главная лента с СЕРВЕРНОЙ пагинацией и СЕРВЕРНЫМ поиском
+// script.js — главная лента с СЕРВЕРНОЙ пагинацией и СЕРВЕРНЫМ поиском (фикс 400)
 
 const { SUPABASE_URL, SUPABASE_ANON_KEY, PAGE_SIZE_MAIN, RETRY_OPTIONS, SEARCH_FIELDS } = window.APP_CONFIG;
 const {
@@ -38,49 +38,35 @@ const resetProgress = ()=>setTimeout(()=>setProgress(0),200);
 
 // ===== серверная модель данных =====
 const CAT_NAME = { main: 'ТОЧНО ТВОЁ', maybe: 'МОЖЕТ БЫТЬ' };
+let currentController = null;
 const state = {
-  query: '',      // активный поисковый запрос
-  // по категориям
+  query: '',
   main: { items: [], offset: 0, total: 0, busy: false },
   maybe:{ items: [], offset: 0, total: 0, busy: false },
   other:{ items: [], offset: 0, total: 0, busy: false },
 };
-// общий AbortController, чтобы прервать при новом поиске
-let currentController = null;
-let inFlight = false;
-
-// --- helpers: active tab key ---
-function getActiveKey() {
-  const active = document.querySelector('.vacancy-list.active');
-  return Object.keys(containers).find(k => containers[k] === active) || 'main';
-}
 
 // --- построение URL для категории с лимитом/офсетом и поиском ---
 function buildCategoryUrl(key, limit, offset, query) {
-  const fields = [
-    'id','category','reason','employment_type','work_format','salary_display_text',
-    'industry','company_name','skills','text_highlighted','channel','timestamp',
-    'apply_url','message_link','has_image','image_link'
-  ].join(',');
-
+  // безопасный вариант: берём все поля (у вас схема может отличаться)
   const params = new URLSearchParams();
-  params.set('select', fields);
+  params.set('select', '*');
   params.set('status', 'eq.new');
   params.set('order', 'timestamp.desc');
   params.set('limit', String(limit));
   params.set('offset', String(offset));
 
-  // фильтр категории
   if (key === 'main') {
     params.set('category', `eq.${CAT_NAME.main}`);
   } else if (key === 'maybe') {
     params.set('category', `eq.${CAT_NAME.maybe}`);
   } else {
-    // все, кроме двух первых
-    params.set('category', `not.in.("ТОЧНО ТВОЁ","МОЖЕТ БЫТЬ")`);
+    // НЕ ТВОЁ: всё, кроме двух — делаем через два AND-фильтра
+    params.append('category', `neq."${CAT_NAME.main}"`);
+    params.append('category', `neq."${CAT_NAME.maybe}"`);
   }
 
-  // поиск (ilike) по нескольким полям
+  // серверный поиск по нескольким полям
   const q = (query || '').trim();
   if (q) {
     const expr = '(' + SEARCH_FIELDS.map(f => `${f}.ilike.*${q}*`).join(',') + ')';
@@ -92,7 +78,7 @@ function buildCategoryUrl(key, limit, offset, query) {
 
 // --- чтение total из Content-Range ---
 function parseTotal(resp) {
-  const cr = resp.headers.get('content-range'); // например: "0-9/58"
+  const cr = resp.headers.get('content-range'); // "0-9/58"
   if (!cr || !cr.includes('/')) return 0;
   const total = cr.split('/').pop();
   return Number(total) || 0;
@@ -200,7 +186,9 @@ vacanciesContent.addEventListener('click', (e) => {
   }
 });
 
-// --- серверная подгрузка следующей порции для категории ---
+// --- чтение и отрисовка следующей порции ---
+function parseTotalFromHeaders(resp){ return parseTotal(resp); }
+
 async function fetchNext(key) {
   const st = state[key];
   const container = containers[key];
@@ -213,27 +201,21 @@ async function fetchNext(key) {
       headers: {
         'apikey': SUPABASE_ANON_KEY,
         'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-        'Prefer': 'count=exact' // нужно для Content-Range
+        'Prefer': 'count=exact'
       },
       signal: currentController?.signal
     }, RETRY_OPTIONS);
     if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
-    // total по фильтру
-    const total = parseTotal(resp);
+    const total = parseTotalFromHeaders(resp);
     if (Number.isFinite(total)) {
       st.total = total;
-      // обновляем счётчик вкладки
-      const span = counts[key];
-      if (span) span.textContent = `(${total})`;
+      counts[key].textContent = `(${total})`;
     }
 
     const items = await resp.json();
-    if (st.offset === 0) {
-      container.innerHTML = '';
-    }
+    if (st.offset === 0) container.innerHTML = '';
 
-    // рисуем
     const frag = document.createDocumentFragment();
     for (const it of items) frag.appendChild(buildCard(it));
     container.appendChild(frag);
@@ -241,12 +223,10 @@ async function fetchNext(key) {
     st.offset += items.length;
     st.items = st.items.concat(items);
 
-    // показать/скрыть кнопку «Загрузить ещё»
     const { btn } = ensureLoadMore(container, () => fetchNext(key));
     updateLoadMore(container, st.offset < st.total);
     btn.disabled = !(st.offset < st.total);
 
-    // пустая вкладка
     if (st.total === 0 && st.offset === 0) {
       renderEmptyState(container, '-- Пусто в этой категории --');
       updateLoadMore(container, false);
@@ -260,13 +240,11 @@ async function fetchNext(key) {
   }
 }
 
-// --- полная перезагрузка (смена поиска/первый запуск) ---
+// --- перезагрузка всех категорий ---
 async function reloadAll() {
-  // отменяем всё предыдущее
   currentController?.abort?.();
   currentController = new AbortController();
 
-  // сбрасываем стейты
   for (const k of ['main','maybe','other']) {
     state[k] = { items: [], offset: 0, total: 0, busy: false };
     containers[k].innerHTML = '';
@@ -282,13 +260,7 @@ async function reloadAll() {
   loader.classList.remove('hidden');
 
   try {
-    // параллельно стягиваем первые страницы трёх категорий
-    await Promise.all([
-      fetchNext('main'),
-      fetchNext('maybe'),
-      fetchNext('other')
-    ]);
-
+    await Promise.all([ fetchNext('main'), fetchNext('maybe'), fetchNext('other') ]);
     finishProgress();
   } finally {
     setTimeout(() => {
@@ -296,7 +268,6 @@ async function reloadAll() {
       vacanciesContent.classList.remove('hidden');
       headerActions.classList.remove('hidden');
       categoryTabs.classList.remove('hidden');
-      // показываем поиск, даже если по итогу пусто
       searchContainer.classList.remove('hidden');
       resetProgress();
       document.dispatchEvent(new CustomEvent('vacancies:loaded'));
@@ -304,7 +275,7 @@ async function reloadAll() {
   }
 }
 
-// --- изменение статуса (favorite/deleted) ---
+// --- изменение статуса ---
 async function updateStatus(id, newStatus) {
   const card = document.getElementById(`card-${id}`);
   try {
@@ -320,7 +291,6 @@ async function updateStatus(id, newStatus) {
     });
     if (!r.ok) throw new Error(`HTTP ${r.status}`);
 
-    // убираем карточку локально
     if (card) {
       const parentList = card.parentElement;
       const key = Object.keys(containers).find(k => containers[k] === parentList);
@@ -330,8 +300,6 @@ async function updateStatus(id, newStatus) {
         if (key) {
           state[key].total = Math.max(0, state[key].total - 1);
           counts[key].textContent = `(${state[key].total})`;
-
-          // если после удаления карточек меньше, чем может отрисоваться — подтягиваем ещё
           if (state[key].offset < state[key].total) fetchNext(key);
           if (!parentList.querySelector('.vacancy-card')) {
             renderEmptyState(parentList, '-- Пусто в этой категории --');
@@ -357,14 +325,14 @@ tabButtons.forEach(button => {
   });
 });
 
-// ----- поиск (СЕРВЕРНЫЙ): просто перезагружаем три колонки с новым q -----
+// ----- поиск (серверный) -----
 const onSearch = debounce(() => {
   state.query = (searchInput?.value || '').trim();
   reloadAll();
 }, 300);
 searchInput?.addEventListener('input', onSearch);
 
-// ----- pull-to-refresh остался прежний (перезагрузка всего) -----
+// ----- pull-to-refresh -----
 (function setupPTR(){
   if (window.__PTR_INITIALIZED__) return; window.__PTR_INITIALIZED__ = true;
   const threshold = 70;

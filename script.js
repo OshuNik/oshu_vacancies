@@ -1,13 +1,14 @@
-// script.js — главная страница
-// Вкладки, бесшовный поиск, постраничная загрузка, PTR с анимацией,
-// счётчики, кастомный confirm, кликабельные ссылки в тексте.
-// Кнопка «Откликнуться» — ТОЛЬКО если есть v.apply_url.
-// Пустые списки показывают заглушку (собака) и скрывают «Загрузить ещё».
+/* script.js — главная страница
+ * — Активные ссылки во всём тексте (включая «вшитые» в Telegram/HTML/Markdown).
+ * — Отклик кнопкой только при наличии apply_url (поддерживает https:// и tg://).
+ * — Вкладки, бесшовный поиск, анимированный pull-to-refresh, счётчики, Load More,
+ *   длинный тап по вкладке — массовое удаление категории, кастомный confirm.
+ */
 
 (function () {
   'use strict';
 
-  // ---- Конфиг/утилиты ----
+  // -------- Конфиг и утилиты (из window.APP_CONFIG / window.utils) --------
   const {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -21,7 +22,6 @@
     debounce,
     safeAlert,
     formatTimestamp,
-    sanitizeUrl,
     openLink,
     pickImageUrl,
     fetchWithRetry,
@@ -31,7 +31,19 @@
     updateLoadMore,
   } = window.utils || {};
 
-  // ---- DOM ----
+  // Локальный санитайзер для кнопки «Откликнуться»: разрешаем https:// и tg://
+  function allowHttpOrTg(url) {
+    if (!url) return '';
+    try {
+      const u = new URL(url, window.location.href);
+      if (/^https?:$/.test(u.protocol) || /^tg:$/.test(u.protocol)) return u.href;
+      return '';
+    } catch {
+      return '';
+    }
+  }
+
+  // -------- DOM --------
   const containers = {
     main:  document.getElementById('vacancies-list-main'),
     maybe: document.getElementById('vacancies-list-maybe'),
@@ -48,7 +60,7 @@
   const searchContainer = document.getElementById('search-container');
   const vacanciesContent= document.getElementById('vacancies-content');
 
-  // кастомный confirm (общий для всей страницы)
+  // Кастомный confirm
   const confirmOverlay   = document.getElementById('custom-confirm-overlay');
   const confirmText      = document.getElementById('custom-confirm-text');
   const confirmOkBtn     = document.getElementById('confirm-btn-ok');
@@ -64,7 +76,7 @@
     });
   }
 
-  // ---- Состояние ----
+  // -------- Состояние --------
   const CAT_NAME = { main:'ТОЧНО ТВОЁ', maybe:'МОЖЕТ БЫТЬ' };
   let currentController=null;
 
@@ -76,7 +88,7 @@
     other: { offset:0, total:0, busy:false, loadedOnce:false, loadedForQuery:'' },
   };
 
-  // ---- Статистика поиска под строкой ----
+  // -------- Статистика поиска --------
   let searchStatsEl=null;
   function ensureSearchUI(){
     if(!searchContainer) return;
@@ -96,14 +108,14 @@
     searchStatsEl.textContent = q ? (visible===0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
   }
 
-  // ---- Abort helper ----
+  // -------- Abort helper --------
   function abortCurrent(){
     if(currentController){ try{ currentController.abort(); }catch{} }
     currentController = new AbortController();
     return currentController;
   }
 
-  // ---- Helpers ----
+  // -------- Helpers --------
   function parseTotal(resp){
     const cr=resp.headers.get('content-range');
     if(!cr||!cr.includes('/')) return 0;
@@ -124,23 +136,17 @@
     el.innerHTML='';
     if(lm) el.appendChild(lm);
   }
-  function resetCategory(key, clearDom=true){
-    const st=state[key];
-    st.offset=0; st.total=0; st.busy=false; st.loadedOnce=false; st.loadedForQuery='';
-    if(clearDom) clearContainer(containers[key]);
-    hideLoadMore(containers[key]);
+  function hideLoadMore(container){
+    updateLoadMore?.(container, false);
+    const lm=container?.querySelector('.load-more-wrap');
+    if(lm) lm.remove();
   }
   function pinLoadMoreToBottom(container){
     const wrap=container?.querySelector('.load-more-wrap');
     if(wrap) container.appendChild(wrap);
   }
-  function hideLoadMore(container){
-    updateLoadMore?.(container, false);
-    const lm = container?.querySelector('.load-more-wrap');
-    if (lm) lm.remove();
-  }
 
-  // ---- API URLs ----
+  // -------- API URLs --------
   function buildCategoryUrl(key, limit, offset, query){
     const p=new URLSearchParams();
     p.set('select','*');
@@ -161,7 +167,7 @@
     return `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
   }
 
-  // ---- Быстрые счётчики ----
+  // -------- Счётчики --------
   async function fetchCount(key, query){
     const p=new URLSearchParams();
     p.set('select','id');
@@ -195,7 +201,7 @@
     }catch(e){ console.warn('counts err', e); }
   }
 
-  // ---- Карточка ----
+  // -------- Карточка --------
   function buildCard(v){
     const card=document.createElement('div');
     card.className='vacancy-card';
@@ -207,9 +213,8 @@
 
     const isValid = (val)=>val && val!=='null' && val!=='не указано';
 
-    // Отклик — строго из apply_url
-    const applyUrlRaw = v.apply_url ? String(v.apply_url) : '';
-    const applyUrl = sanitizeUrl(applyUrlRaw);
+    // Отклик — строго из apply_url (разрешаем https:// и tg://)
+    const applyUrl = allowHttpOrTg(String(v.apply_url || ''));
     const applyBtn = applyUrl ? `<button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(applyUrl)}" aria-label="Откликнуться">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
     </button>` : '';
@@ -233,8 +238,9 @@
     const q = state.query;
     const summaryText = v.reason || 'Описание не было сгенерировано.';
 
-    // ВАЖНО: берём HTML из БД как есть — все ссылки кликабельны
-    const originalDetailsHtml = String(v.text_highlighted || '');
+    // ВАЖНО: берём HTML из БД как есть — все ссылки кликабельны (в том числе вшитые).
+    // Убираем артефакт "[ Изображение ]", если встречается.
+    const originalDetailsHtml = String(v.text_highlighted || '').replace(/\[\s*Изображение\s*\]\s*/gi,'');
     const bestImageUrl = pickImageUrl(v, originalDetailsHtml);
     const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
     const hasDetails = Boolean(originalDetailsHtml) || Boolean(attachmentsHTML);
@@ -280,17 +286,22 @@
     const summaryEl = card.querySelector('.card-summary');
     if(summaryEl){
       summaryEl.dataset.originalSummary = summaryText;
-      // подсветка только для summary
-      summaryEl.innerHTML = q ? summaryText.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),'gi'), m=>`<span class="highlight">${m}</span>`) : escapeHtml(summaryText);
+      if(q){
+        const qq = q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
+        summaryEl.innerHTML = summaryText.replace(new RegExp(qq,'gi'), m=>`<span class="highlight">${m}</span>`);
+      } else {
+        summaryEl.textContent = summaryText;
+      }
     }
     const detailsEl = card.querySelector('.vacancy-text');
     if(detailsEl){
-      detailsEl.innerHTML = attachmentsHTML + originalDetailsHtml; // кликабельные ссылки сохраняем
+      // ВНИМАНИЕ: вставляем HTML как есть — зашитые <a href="...">ссылки</a> остаются кликабельными.
+      detailsEl.innerHTML = attachmentsHTML + originalDetailsHtml;
     }
     return card;
   }
 
-  // ---- Действия по карточкам ----
+  // -------- Действия по карточкам --------
   vacanciesContent?.addEventListener('click',(e)=>{
     const btn=e.target.closest('[data-action]');
     if(!btn) return;
@@ -304,7 +315,6 @@
     if(!id) return;
     const ok = await showCustomConfirm(newStatus==='deleted' ? 'Удалить вакансию из ленты?' : 'Добавить вакансию в избранное?');
     if(!ok) return;
-
     try{
       const url = `${SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
       const resp = await fetchWithRetry(url,{
@@ -328,7 +338,6 @@
       if (state[k].total > 0) state[k].total -= 1;
       counts[k].textContent = `(${state[k].total})`;
       const cont = containers[k];
-      // если карточек больше нет — скрываем Load More и показываем пусто
       if (cont && cont.querySelectorAll('.vacancy-card').length === 0) {
         hideLoadMore(cont);
         renderEmptyState(cont, '-- Пусто в этой категории --');
@@ -340,7 +349,7 @@
     }
   }
 
-  // ---- Загрузка порций ----
+  // -------- Загрузка порций --------
   async function fetchNext(key){
     const st=state[key];
     const container=containers[key];
@@ -362,7 +371,6 @@
 
       const items=await resp.json();
 
-      // если с нуля и пусто — показываем заглушку
       if (st.offset===0 && (total===0 || items.length===0)) {
         clearContainer(container);
         hideLoadMore(container);
@@ -396,7 +404,7 @@
     }
   }
 
-  // ---- Мягкая полная перезагрузка ----
+  // -------- Мягкая перезагрузка текущей вкладки --------
   async function refetchFromZeroSmooth(key){
     const st=state[key], container=containers[key];
     if(!container) return;
@@ -462,12 +470,11 @@
     }
   }
 
-  // ---- Поиск ----
+  // -------- Поиск --------
   const onSearch = debounce(async ()=>{
     state.query = (searchInput?.value||'').trim();
     fetchCountsAll(state.query);
     await refetchFromZeroSmooth(state.activeKey);
-    // для остальных вкладок сбросим «кэш»
     ['main','maybe','other'].forEach(key=>{
       if(key!==state.activeKey){
         const st=state[key];
@@ -478,7 +485,7 @@
   }, 220);
   searchInput?.addEventListener('input', onSearch);
 
-  // ---- Переключение вкладок ----
+  // -------- Переключение вкладок --------
   function showOnly(targetId){
     vacancyLists.forEach(list=>{
       list.classList.remove('active');
@@ -516,7 +523,7 @@
       activateTabByTarget(targetId);
     });
 
-    // долгий тап — очистка категории
+    // Долгий тап — массовое удаление категории
     let pressTimer=null; const holdMs=700;
     const start=()=>{
       clearTimeout(pressTimer);
@@ -542,7 +549,7 @@
     btn.addEventListener('pointerleave', cancel);
   });
 
-  // ---- BULK helper ----
+  // -------- Массовое изменение статуса --------
   async function bulkSetStatusForCategory(key,newStatus){
     const p=new URLSearchParams();
     p.set('status','eq.new');
@@ -563,7 +570,7 @@
     if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
   }
 
-  // ---- PTR панель (анимация как в избранном) ----
+  // -------- Pull-to-refresh (анимация как в избранном) --------
   (function setupPTR(){
     const threshold=78;
     let startY=0, pulling=false, ready=false, locked=false;
@@ -616,12 +623,15 @@
     },{passive:true});
   })();
 
-  // ---- Вспышка после обновления ----
+  // -------- Вспышка после обновления --------
   (function injectFlashCSS(){
     const style=document.createElement('style');
     style.textContent=`
       @keyframes refreshedFlash { 0%{background:#fffbe6;} 100%{background:transparent;} }
       .refreshed-flash { animation: refreshedFlash .6s ease forwards; }
+      /* видимые ссылки внутри карточек */
+      .vacancy-text a, .card-summary a { text-decoration: underline; color:#1f6feb; word-break: break-word; }
+      .vacancy-text a:hover, .card-summary a:hover { opacity:.85; }
     `;
     document.head.appendChild(style);
   })();
@@ -632,7 +642,7 @@
     container.classList.add('refreshed-flash');
   }
 
-  // ---- Prefetch вторичных вкладок ----
+  // -------- Префетч скрытых вкладок --------
   async function prefetchHidden(){
     fetchCountsAll(state.query);
     ['maybe','other'].forEach(k=>{
@@ -642,7 +652,7 @@
     });
   }
 
-  // ---- Инициализация ----
+  // -------- Инициализация --------
   async function init(){
     Object.keys(containers).forEach(k=>{
       containers[k].style.display = (k===state.activeKey) ? '' : 'none';

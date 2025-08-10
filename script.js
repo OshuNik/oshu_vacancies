@@ -1,7 +1,8 @@
-// script.js — вкладки, бесшовный поиск, PTR, счётчики, индикатор обновления
-// Отклик — ТОЛЬКО из v.apply_url (если пусто — кнопки нет).
-// Фикс пустых состояний: после PTR/удалений всегда показываем заглушку (собака),
-// «Загрузить ещё» прячем сразу.
+// script.js — главная страница
+// Вкладки, бесшовный поиск, постраничная загрузка, PTR с анимацией,
+// счётчики, кастомный confirm, кликабельные ссылки в тексте.
+// Кнопка «Откликнуться» — ТОЛЬКО если есть v.apply_url.
+// Пустые списки показывают заглушку (собака) и скрывают «Загрузить ещё».
 
 (function () {
   'use strict';
@@ -17,14 +18,11 @@
 
   const {
     escapeHtml,
-    stripTags,
     debounce,
-    highlightText,
     safeAlert,
     formatTimestamp,
     sanitizeUrl,
     openLink,
-    cleanImageMarkers,
     pickImageUrl,
     fetchWithRetry,
     renderEmptyState,
@@ -50,7 +48,7 @@
   const searchContainer = document.getElementById('search-container');
   const vacanciesContent= document.getElementById('vacancies-content');
 
-  // кастомный confirm
+  // кастомный confirm (общий для всей страницы)
   const confirmOverlay   = document.getElementById('custom-confirm-overlay');
   const confirmText      = document.getElementById('custom-confirm-text');
   const confirmOkBtn     = document.getElementById('confirm-btn-ok');
@@ -78,7 +76,7 @@
     other: { offset:0, total:0, busy:false, loadedOnce:false, loadedForQuery:'' },
   };
 
-  // ---- Search stats ----
+  // ---- Статистика поиска под строкой ----
   let searchStatsEl=null;
   function ensureSearchUI(){
     if(!searchContainer) return;
@@ -126,22 +124,6 @@
     el.innerHTML='';
     if(lm) el.appendChild(lm);
   }
-  function hideLoadMore(container){
-    updateLoadMore?.(container,false);
-    const lm = container?.querySelector('.load-more-wrap');
-    if (lm) lm.remove();
-  }
-  function showEmpty(container, message){
-    // гарантированно показываем заглушку и убираем «Загрузить ещё»
-    hideLoadMore(container);
-    if (typeof renderEmptyState === 'function') {
-      renderEmptyState(container, message);
-    } else {
-      container.innerHTML = `<div class="empty-state"><p class="empty-state-text">${escapeHtml(message||'Пусто')}</p></div>`;
-    }
-    // фикс для странных состояний скролла после PTR
-    try { window.scrollTo({top:0, behavior:'auto'}); } catch {}
-  }
   function resetCategory(key, clearDom=true){
     const st=state[key];
     st.offset=0; st.total=0; st.busy=false; st.loadedOnce=false; st.loadedForQuery='';
@@ -151,6 +133,11 @@
   function pinLoadMoreToBottom(container){
     const wrap=container?.querySelector('.load-more-wrap');
     if(wrap) container.appendChild(wrap);
+  }
+  function hideLoadMore(container){
+    updateLoadMore?.(container, false);
+    const lm = container?.querySelector('.load-more-wrap');
+    if (lm) lm.remove();
   }
 
   // ---- API URLs ----
@@ -221,7 +208,8 @@
     const isValid = (val)=>val && val!=='null' && val!=='не указано';
 
     // Отклик — строго из apply_url
-    const applyUrl = sanitizeUrl(String(v.apply_url || ''));
+    const applyUrlRaw = v.apply_url ? String(v.apply_url) : '';
+    const applyUrl = sanitizeUrl(applyUrlRaw);
     const applyBtn = applyUrl ? `<button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(applyUrl)}" aria-label="Откликнуться">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
     </button>` : '';
@@ -244,11 +232,12 @@
 
     const q = state.query;
     const summaryText = v.reason || 'Описание не было сгенерировано.';
-    const originalDetailsRaw = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
-    const bestImageUrl = pickImageUrl(v, originalDetailsRaw);
-    const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
+
+    // ВАЖНО: берём HTML из БД как есть — все ссылки кликабельны
+    const originalDetailsHtml = String(v.text_highlighted || '');
+    const bestImageUrl = pickImageUrl(v, originalDetailsHtml);
     const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
-    const hasDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
+    const hasDetails = Boolean(originalDetailsHtml) || Boolean(attachmentsHTML);
     const detailsHTML = hasDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
     let skillsFooterHtml='';
@@ -291,12 +280,12 @@
     const summaryEl = card.querySelector('.card-summary');
     if(summaryEl){
       summaryEl.dataset.originalSummary = summaryText;
-      summaryEl.innerHTML = highlightText(summaryText, q);
+      // подсветка только для summary
+      summaryEl.innerHTML = q ? summaryText.replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&"),'gi'), m=>`<span class="highlight">${m}</span>`) : escapeHtml(summaryText);
     }
     const detailsEl = card.querySelector('.vacancy-text');
     if(detailsEl){
-      detailsEl.dataset.originalText = cleanedDetailsText;
-      detailsEl.innerHTML = attachmentsHTML + highlightText(cleanedDetailsText, q);
+      detailsEl.innerHTML = attachmentsHTML + originalDetailsHtml; // кликабельные ссылки сохраняем
     }
     return card;
   }
@@ -338,10 +327,11 @@
       const k = state.activeKey;
       if (state[k].total > 0) state[k].total -= 1;
       counts[k].textContent = `(${state[k].total})`;
-
       const cont = containers[k];
+      // если карточек больше нет — скрываем Load More и показываем пусто
       if (cont && cont.querySelectorAll('.vacancy-card').length === 0) {
-        showEmpty(cont, '-- Пусто в этой категории --');
+        hideLoadMore(cont);
+        renderEmptyState(cont, '-- Пусто в этой категории --');
       }
       updateSearchStats();
     }catch(err){
@@ -371,6 +361,17 @@
       if(Number.isFinite(total)){ st.total=total; counts[key].textContent=`(${total})`; }
 
       const items=await resp.json();
+
+      // если с нуля и пусто — показываем заглушку
+      if (st.offset===0 && (total===0 || items.length===0)) {
+        clearContainer(container);
+        hideLoadMore(container);
+        renderEmptyState(container,'-- Пусто в этой категории --');
+        st.loadedOnce=true; st.loadedForQuery=state.query;
+        updateSearchStats();
+        return;
+      }
+
       const frag=document.createDocumentFragment();
       for(const it of items) frag.appendChild(buildCard(it));
       container.appendChild(frag);
@@ -381,10 +382,6 @@
       const hasMore = st.offset < st.total;
       updateLoadMore(container,hasMore);
       if(btn) btn.disabled=!hasMore;
-
-      if(st.total===0 && st.offset===0){
-        showEmpty(container,'-- Пусто в этой категории --');
-      }
 
       if(state.activeKey===key) updateSearchStats();
       st.loadedOnce=true;
@@ -438,7 +435,8 @@
       if(counts[key]) counts[key].textContent=`(${st.total})`;
 
       if (st.total === 0) {
-        showEmpty(container,'-- Пусто в этой категории --');
+        hideLoadMore(container);
+        renderEmptyState(container,'-- Пусто в этой категории --');
       } else {
         const {btn}=ensureLoadMore(container,()=>fetchNext(key));
         const hasMore = st.offset < st.total;
@@ -469,6 +467,7 @@
     state.query = (searchInput?.value||'').trim();
     fetchCountsAll(state.query);
     await refetchFromZeroSmooth(state.activeKey);
+    // для остальных вкладок сбросим «кэш»
     ['main','maybe','other'].forEach(key=>{
       if(key!==state.activeKey){
         const st=state[key];
@@ -530,8 +529,9 @@
           clearContainer(containers[key]);
           state[key]={ offset:0,total:0,busy:false,loadedOnce:false,loadedForQuery:'' };
           counts[key].textContent='(0)';
-          showEmpty(containers[key],'-- Пусто в этой категории --');
+          hideLoadMore(containers[key]);
           if(state.activeKey===key) updateSearchStats();
+          renderEmptyState(containers[key],'-- Пусто в этой категории --');
           safeAlert('Готово: категория очищена.');
         }catch(e){ console.error(e); safeAlert('Ошибка: не получилось удалить категорию.'); }
       }, holdMs);
@@ -563,7 +563,7 @@
     if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
   }
 
-  // ---- PTR панель ----
+  // ---- PTR панель (анимация как в избранном) ----
   (function setupPTR(){
     const threshold=78;
     let startY=0, pulling=false, ready=false, locked=false;
@@ -587,6 +587,7 @@
     window.addEventListener('touchstart',(e)=>{
       if(locked) return;
       if(window.scrollY>0){ pulling=false; return; }
+      if(e.touches.length!==1){ pulling=false; return; }
       startY=e.touches[0].clientY; pulling=true; ready=false;
     },{passive:true});
 
@@ -631,7 +632,7 @@
     container.classList.add('refreshed-flash');
   }
 
-  // ---- Prefetch ----
+  // ---- Prefetch вторичных вкладок ----
   async function prefetchHidden(){
     fetchCountsAll(state.query);
     ['maybe','other'].forEach(k=>{

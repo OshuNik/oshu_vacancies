@@ -23,23 +23,15 @@
     debounce,
     safeAlert,
     formatTimestamp,
-    openLink,
+    highlightText, openLink,
     pickImageUrl,
     fetchWithRetry,
     renderEmptyState,
     renderError,
     ensureLoadMore,
-    updateLoadMore,
+    updateLoadMore, allowHttpOrTg,
   } = window.utils || {};
-
-  // Разрешаем https:// и tg:// в кнопке отклика
-  function allowHttpOrTg(url) {
-    if (!url) return '';
-    try {
-      const u = new URL(url, window.location.href);
-      if (/^https?:$/.test(u.protocol) || /^tg:$/.test(u.protocol)) return u.href;
-      return '';
-    } catch { return ''; }
+catch { return ''; }
   }
 
   // -------- DOM --------
@@ -306,7 +298,7 @@
       summaryEl.dataset.originalSummary = summaryText;
       if(q){
         const qq = q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-        summaryEl.innerHTML = summaryText.replace(new RegExp(qq,'gi'), m=>`<span class="highlight">${m}</span>`);
+        summaryEl.innerHTML = q ? highlightText(summaryText, q) : escapeHtml(summaryText);
       } else {
         summaryEl.textContent = summaryText;
       }

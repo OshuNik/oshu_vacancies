@@ -23,18 +23,17 @@
     debounce,
     safeAlert,
     formatTimestamp,
-    highlightText, openLink,
+    highlightText,
+    openLink,
     pickImageUrl,
     fetchWithRetry,
     renderEmptyState,
     renderError,
     ensureLoadMore,
-    updateLoadMore, allowHttpOrTg,
+    updateLoadMore,
+    allowHttpOrTg,
   } = window.utils || {};
-catch { return ''; }
-  }
-
-  // -------- DOM --------
+// -------- DOM --------
   const containers = {
     main:  document.getElementById('vacancies-list-main'),
     maybe: document.getElementById('vacancies-list-maybe'),
@@ -296,9 +295,9 @@ catch { return ''; }
     const summaryEl = card.querySelector('.card-summary');
     if(summaryEl){
       summaryEl.dataset.originalSummary = summaryText;
-      if(q){
-        const qq = q.replace(/[.*+?^${}()|[\]\\]/g,"\\$&");
-        summaryEl.innerHTML = q ? highlightText(summaryText, q) : escapeHtml(summaryText);
+      summaryEl.innerHTML = q ? highlightText(summaryText, q) : escapeHtml(summaryText);
+    }()|[\]\\]/g,"\\$&");
+        summaryEl.innerHTML = summaryText.replace(new RegExp(qq,'gi'), m=>`<span class="highlight">${m}</span>`);
       } else {
         summaryEl.textContent = summaryText;
       }

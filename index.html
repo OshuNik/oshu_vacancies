@@ -1,81 +1,68 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>oshu://work</title>
-
-  <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self' https://*.supabase.co https://telegram.org https://fonts.googleapis.com https://fonts.gstatic.com data: blob:;
-                 img-src 'self' data: https://*;
-                 style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
-                 font-src https://fonts.gstatic.com 'self';
-                 script-src 'self' https://telegram.org;">
-
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://lwfhtwnfqmdjwzrdznvv.supabase.co">
-
-  <!-- относительный путь, чтобы не было 404 на Pages -->
-  <link rel="icon" href="./favicon.ico">
-
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
+  <!-- ===== ШАПКА ===== -->
+  <header class="header">
+    <h1 class="logo">oshu://work</h1>
 
-<header class="header">
-  <h1>oshu://work</h1>
-  <div id="header-actions" class="header-actions">
-    <a href="favorites.html" class="header-button">★ Избранное</a>
-    <a href="settings.html" class="header-button">⚙︎ Настройки</a>
+    <div class="header-actions">
+      <a class="btn header-btn" href="favorites.html">★ Избранное</a>
+      <a class="btn header-btn" href="settings.html">⚙ Настройки</a>
+    </div>
+
+    <!-- Поиск -->
+    <div id="search-container" class="search-container">
+      <input id="search-input" class="search-input" type="search" placeholder="Поиск по тексту..." />
+    </div>
+  </header>
+
+  <!-- ===== КОНТЕНТ ===== -->
+  <main id="vacancies-content" class="content">
+    <nav class="tabs" role="tablist" aria-label="Категории">
+      <button class="tab-button" role="tab" aria-selected="true"  data-target="vacancies-list-main">
+        ТОЧНО ТВОЁ <span id="count-main">(0)</span>
+      </button>
+      <button class="tab-button" role="tab" aria-selected="false" data-target="vacancies-list-maybe">
+        МОЖЕТ БЫТЬ <span id="count-maybe">(0)</span>
+      </button>
+      <button class="tab-button" role="tab" aria-selected="false" data-target="vacancies-list-other">
+        НЕ ТВОЁ <span id="count-other">(0)</span>
+      </button>
+    </nav>
+
+    <section id="vacancies-list-main"  class="vacancy-list active"></section>
+    <section id="vacancies-list-maybe" class="vacancy-list"></section>
+    <section id="vacancies-list-other" class="vacancy-list"></section>
+  </main>
+
+  <!-- ===== СТАРАЯ ПОЛОСА ЗАГРУЗКИ (как в архиве) ===== -->
+  <div id="loader" class="loader-container hidden" aria-live="polite">
+    <div class="progress-bar-outline">
+      <div id="progress-bar" class="progress-bar"></div>
+    </div>
+    <p class="loader-text">Загрузка вакансий...</p>
   </div>
-</header>
 
-<div id="search-container" class="search-container">
-  <input type="search" id="search-input" class="search-input" placeholder="Поиск по тексту...">
-</div>
-
-<main class="content" id="vacancies-content">
-  <div id="vacancies-list-main" class="vacancy-list active"></div>
-  <div id="vacancies-list-maybe" class="vacancy-list"></div>
-  <div id="vacancies-list-other" class="vacancy-list"></div>
-</main>
-
-<div id="loader" class="loader-container hidden">
-  <div class="progress-bar-outline">
-    <div id="progress-bar" class="progress-bar"></div>
-  </div>
-  <p class="loader-text">Загрузка вакансий...</p>
-</div>
-
-<div id="category-tabs" class="category-tabs">
-  <button class="tab-button main active" data-target="vacancies-list-main" data-category-name="ТОЧНО ТВОЁ">
-    <span class="tab-label">ТОЧНО ТВОЁ</span>
-    <span id="count-main" class="tab-count">(0)</span>
-  </button>
-  <button class="tab-button maybe" data-target="vacancies-list-maybe" data-category-name="МОЖЕТ БЫТЬ">
-    <span class="tab-label">МОЖЕТ БЫТЬ</span>
-    <span id="count-maybe" class="tab-count">(0)</span>
-  </button>
-  <button class="tab-button other" data-target="vacancies-list-other" data-category-name="НЕ ТВОЁ">
-    <span class="tab-label">НЕ ТВОЁ</span>
-    <span id="count-other" class="tab-count">(0)</span>
-  </button>
-</div>
-
-<div id="custom-confirm-overlay" class="custom-confirm-overlay hidden">
-  <div class="custom-confirm-box">
-    <p id="custom-confirm-text"></p>
-    <div class="custom-confirm-actions">
-      <button id="confirm-btn-cancel" class="custom-confirm-button">Отмена</button>
-      <button id="confirm-btn-ok" class="custom-confirm-button ok">OK</button>
+  <!-- ===== КАСТОМНЫЙ CONFIRM ===== -->
+  <div id="custom-confirm-overlay" class="hidden" role="dialog" aria-modal="true">
+    <div class="confirm-box">
+      <p id="custom-confirm-text">Вы уверены?</p>
+      <div class="confirm-actions">
+        <button id="confirm-btn-ok" class="btn">Ок</button>
+        <button id="confirm-btn-cancel" class="btn btn-ghost">Отмена</button>
+      </div>
     </div>
   </div>
-</div>
 
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<script src="config.js"></script>
-<script src="utils.js"></script>
-<script src="script.js"></script>
+  <!-- ===== СКРИПТЫ ===== -->
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+  <script src="script.js"></script>
 </body>
 </html>

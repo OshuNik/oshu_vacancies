@@ -138,7 +138,33 @@ input[type="search"]::-ms-clear { display: none; width: 0; height: 0; }
 }
 .card-body p:last-child { margin-bottom: 0; }
 .card-body p strong { font-weight: 700; }
-.highlight { background-color: var(--accent-yellow); }
+
+/* Выделение найденного слова (в стиле приложения) */
+mark.highlight {
+  background: var(--accent-yellow);
+  color: var(--text-color);
+  display: inline-block;
+  padding: 0 4px 1px;
+  border: var(--border-width) solid var(--border-color);
+  border-radius: 4px;
+  box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--border-color);
+  line-height: 1.2;
+  text-decoration: none;
+  /* лёгкий «поп», когда метка появляется */
+  animation: hl-pop 180ms ease-out;
+}
+
+/* Опционально — немного усилить в тексте карточек */
+.card-body mark.highlight {
+  font-weight: 700;
+}
+
+/* Анимация появления */
+@keyframes hl-pop {
+  from { transform: scale(0.98); filter: brightness(1.03); }
+  to   { transform: scale(1); }
+}
+
 
 .card-actions {
     position: absolute;

@@ -1,4 +1,4 @@
-// script.js — серверная пагинация + серверный поиск (soft-reload + фикc кнопки)
+// script.js — серверная пагинация + серверный поиск (soft-reload) + long/double-tap очистка категории + фикс кнопки
 
 const { SUPABASE_URL, SUPABASE_ANON_KEY, PAGE_SIZE_MAIN, RETRY_OPTIONS, SEARCH_FIELDS } = window.APP_CONFIG;
 const {
@@ -30,10 +30,31 @@ const headerActions = document.getElementById('header-actions');
 const searchContainer = document.getElementById('search-container');
 const categoryTabs = document.getElementById('category-tabs');
 
+// --- кастомное подтверждение (модалка из index.html) ---
+const confirmOverlay = document.getElementById('custom-confirm-overlay');
+const confirmText   = document.getElementById('custom-confirm-text');
+const confirmOkBtn  = document.getElementById('confirm-btn-ok');
+const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
+
+function showCustomConfirm(message) {
+  return new Promise(resolve => {
+    if (!confirmOverlay) return resolve(window.confirm(message)); // редкий fallback
+    confirmText.textContent = message;
+    confirmOverlay.classList.remove('hidden');
+    const cleanup = () => {
+      confirmOverlay.classList.add('hidden');
+      confirmOkBtn.onclick = null;
+      confirmCancelBtn.onclick = null;
+    };
+    confirmOkBtn.onclick = () => { cleanup(); resolve(true); };
+    confirmCancelBtn.onclick = () => { cleanup(); resolve(false); };
+  });
+}
+
 // ----- прогресс -----
-const setProgress = (p=0)=>{ if (progressBar) progressBar.style.width = `${Math.max(0,Math.min(100,p))}%`; };
+const setProgress  = (p=0)=>{ if (progressBar) progressBar.style.width = `${Math.max(0,Math.min(100,p))}%`; };
 const startProgress = ()=>setProgress(5);
-const finishProgress = ()=>setTimeout(()=>setProgress(100),0);
+const finishProgress= ()=>setTimeout(()=>setProgress(100),0);
 const resetProgress = ()=>setTimeout(()=>setProgress(0),200);
 
 // ===== серверная модель данных =====
@@ -41,15 +62,15 @@ const CAT_NAME = { main: 'ТОЧНО ТВОЁ', maybe: 'МОЖЕТ БЫТЬ' };
 let currentController = null;
 const state = {
   query: '',
-  main: { items: [], offset: 0, total: 0, busy: false },
-  maybe:{ items: [], offset: 0, total: 0, busy: false },
-  other:{ items: [], offset: 0, total: 0, busy: false },
+  main:  { items: [], offset: 0, total: 0, busy: false },
+  maybe: { items: [], offset: 0, total: 0, busy: false },
+  other: { items: [], offset: 0, total: 0, busy: false },
 };
 
 // --- построение URL для категории с лимитом/офсетом и поиском ---
 function buildCategoryUrl(key, limit, offset, query) {
   const params = new URLSearchParams();
-  params.set('select', '*');                       // безопасно для вашей схемы
+  params.set('select', '*');                    // безопасно для любой схемы
   params.set('status', 'eq.new');
   params.set('order', 'timestamp.desc');
   params.set('limit', String(limit));
@@ -60,7 +81,7 @@ function buildCategoryUrl(key, limit, offset, query) {
   } else if (key === 'maybe') {
     params.set('category', `eq.${CAT_NAME.maybe}`);
   } else {
-    // НЕ ТВОЁ: две проверki AND
+    // НЕ ТВОЁ: исключаем две категории через AND
     params.append('category', `neq."${CAT_NAME.main}"`);
     params.append('category', `neq."${CAT_NAME.maybe}"`);
   }
@@ -184,10 +205,10 @@ vacanciesContent.addEventListener('click', (e) => {
   }
 });
 
-// --- утилита: держать кнопку «Загрузить ещё» внизу ---
+// --- держим кнопку «Загрузить ещё» внизу ---
 function pinLoadMoreToBottom(container) {
   const wrap = container.querySelector('.load-more-wrap');
-  if (wrap) container.appendChild(wrap); // пере-вставим в конец
+  if (wrap) container.appendChild(wrap);
 }
 
 // --- чтение и отрисовка следующей порции ---
@@ -222,7 +243,6 @@ async function fetchNext(key) {
     for (const it of items) frag.appendChild(buildCard(it));
     container.appendChild(frag);
 
-    // >>> фикс: кнопка всегда внизу
     pinLoadMoreToBottom(container);
 
     st.offset += items.length;
@@ -245,16 +265,16 @@ async function fetchNext(key) {
   }
 }
 
-// --- СБРОС СОСТОЯНИЯ (без скрытия интерфейса) ---
+// --- сброс данных списков, UI не трогаем ---
 function resetListsKeepUI() {
   for (const k of ['main','maybe','other']) {
     state[k] = { items: [], offset: 0, total: 0, busy: false };
-    containers[k].innerHTML = '';              // очистили только списки
+    containers[k].innerHTML = '';
     counts[k].textContent = '(0)';
   }
 }
 
-// --- полноэкранная загрузка (только старт/пулл-ту-рефреш) ---
+// --- полноэкранная загрузка (старт/pull-to-refresh) ---
 async function initialLoad() {
   currentController?.abort?.();
   currentController = new AbortController();
@@ -289,10 +309,7 @@ async function initialLoad() {
 async function softReloadAll() {
   currentController?.abort?.();
   currentController = new AbortController();
-
-  // НЕ скрываем интерфейс, НЕ показываем оверлей-лоадер
   resetListsKeepUI();
-
   await Promise.all([ fetchNext('main'), fetchNext('maybe'), fetchNext('other') ]);
 }
 
@@ -338,17 +355,78 @@ async function updateStatus(id, newStatus) {
   }
 }
 
-// ----- табы -----
+// ----- очистка категории (долгий тап / двойной тап) -----
+async function clearCategory(categoryName, key) {
+  const ok = await showCustomConfirm(`Удалить все из категории «${categoryName}»?`);
+  if (!ok) return;
+
+  const container = containers[key];
+  try {
+    // статус=deleted для этой категории
+    const url = `${SUPABASE_URL}/rest/v1/vacancies?category=eq.${encodeURIComponent(categoryName)}&status=eq.new`;
+    const r = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'return=minimal'
+      },
+      body: JSON.stringify({ status: 'deleted' })
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    container.innerHTML = '';
+    renderEmptyState(container, '-- Пусто в этой категории --');
+    updateLoadMore(container, false);
+    counts[key].textContent = '(0)';
+    state[key] = { items: [], offset: 0, total: 0, busy: false };
+  } catch (e) {
+    console.error('Ошибка очистки категории:', e);
+    safeAlert('Не удалось очистить категорию.');
+  }
+}
+
+// ----- табы: клик, долгий тап, двойной тап -----
 tabButtons.forEach(button => {
-  button.addEventListener('click', () => {
+  const key = button.classList.contains('main')  ? 'main'
+            : button.classList.contains('maybe') ? 'maybe'
+            : 'other';
+  const categoryName = button.dataset.categoryName;
+
+  // обычный клик — просто переключение
+  let lastTap = 0;
+  button.addEventListener('click', (e) => {
+    // двойной тап по активной вкладке
+    const now = Date.now();
+    const active = button.classList.contains('active');
+    if (active && (now - lastTap) < 400) {
+      clearCategory(categoryName, key);
+      lastTap = 0;
+      return;
+    }
+    lastTap = now;
+
     tabButtons.forEach(b => b.classList.remove('active'));
     vacancyLists.forEach(l => l.classList.remove('active'));
     button.classList.add('active');
     document.getElementById(button.dataset.target).classList.add('active');
-    // на всякий случай удержим кнопку внизу активного списка
-    const active = document.querySelector('.vacancy-list.active');
-    if (active) pinLoadMoreToBottom(active);
+
+    const activeList = document.querySelector('.vacancy-list.active');
+    if (activeList) pinLoadMoreToBottom(activeList);
   });
+
+  // долгий тап (0.8с) — очистка
+  let pressTimer = null;
+  const startPress = () => {
+    pressTimer = window.setTimeout(() => clearCategory(categoryName, key), 800);
+  };
+  const cancelPress = () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } };
+  button.addEventListener('mousedown', startPress);
+  button.addEventListener('mouseup', cancelPress);
+  button.addEventListener('mouseleave', cancelPress);
+  button.addEventListener('touchstart', startPress, { passive: true });
+  button.addEventListener('touchend', cancelPress);
+  button.addEventListener('touchcancel', cancelPress);
 });
 
 // ----- поиск (серверный) — мягко -----

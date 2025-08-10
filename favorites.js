@@ -1,169 +1,166 @@
-// favorites.js — Избранное
-// Бесшовный поиск, PTR-панель, индикатор обновления.
-// Отклик — ТОЛЬКО из v.apply_url (если пусто — кнопки нет).
-// Пустая заглушка (собачка) всегда остаётся: после PTR/поиска/удалений.
+// favorites.js — вкладка «Избранное» (полные кликабельные ссылки, tg://, скрытие "не указано")
 
 (function () {
   'use strict';
 
-  const { SUPABASE_URL, SUPABASE_ANON_KEY, PAGE_SIZE_MAIN, RETRY_OPTIONS, SEARCH_FIELDS } = window.APP_CONFIG || {};
+  // --- Гарантированно берём конфиг и утилиты ---
+  const CFG   = window.APP_CONFIG;
+  const UTIL  = window.utils;
+
+  if (!CFG) { alert('APP_CONFIG не загружен'); return; }
+  if (!UTIL) { alert('utils.js не загружен'); return; }
+
   const {
-    escapeHtml, stripTags, debounce, highlightText, safeAlert,
-    formatTimestamp, sanitizeUrl, openLink,
-    cleanImageMarkers, pickImageUrl,
-    fetchWithRetry, renderEmptyState, renderError,
-    ensureLoadMore, updateLoadMore
-  } = window.utils || {};
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+    RETRY_OPTIONS = { retries: 2, backoffMs: 400 },
+  } = CFG;
 
-  const PAGE_SIZE = PAGE_SIZE_MAIN || 10;
+  const {
+    escapeHtml, stripTags, debounce, highlightText, formatTimestamp,
+    openLink, pickImageUrl, safeAlert, fetchWithRetry,
+  } = UTIL;
 
-  // DOM
-  const container = document.getElementById('favorites-list');
-  const searchInput = document.getElementById('search-input-fav');
-  const searchContainer = document.getElementById('search-container-fav');
+  // --- DOM ---
+  const container      = document.getElementById('favorites-list');
+  const searchInputFav = document.getElementById('search-input-fav');
 
-  // ===== State =====
-  let currentController = null;
-  const state = { query:'', offset:0, total:0, busy:false, loadedOnce:false, loadedForQuery:'' };
-
-  // ===== Helpers =====
-  function abortCurrent() {
-    if (currentController) { try { currentController.abort(); } catch {} }
-    currentController = new AbortController();
-    return currentController;
+  // --- Сервисные функции ---
+  function allowHttpOrTg(url) {
+    if (!url) return '';
+    try {
+      const u = new URL(url, window.location.href);
+      if (/^https?:$/.test(u.protocol) || /^tg:$/.test(u.protocol)) return u.href;
+      return '';
+    } catch { return ''; }
   }
 
-  function parseTotal(resp) {
-    const cr = resp.headers.get('content-range');
-    if (!cr || !cr.includes('/')) return 0;
-    const total = cr.split('/').pop();
-    return Number(total) || 0;
-  }
+  const UNKNOWN = ['не указано', 'n/a', 'none', 'null', '/'];
+  const cleanVal = v => String(v ?? '').replace(/[«»"“”'‘’`]/g,'').trim();
+  const isMeaningful = v => {
+    const s = cleanVal(v).toLowerCase();
+    return !!s && !UNKNOWN.includes(s);
+  };
+  const joinMeaningful = (...vals) => vals.map(cleanVal).filter(isMeaningful).join(' / ');
 
-  function buildUrl(limit, offset, query) {
-    const p = new URLSearchParams();
-    p.set('select', '*');
-    p.set('status', 'eq.favorite');
-    p.set('order', 'timestamp.desc');
-    p.set('limit', String(limit));
-    p.set('offset', String(offset));
-
-    const q = (query || '').trim();
-    if (q && Array.isArray(SEARCH_FIELDS) && SEARCH_FIELDS.length) {
-      const orExpr = '(' + SEARCH_FIELDS.map(f => `${f}.ilike.*${q}*`).join(',') + ')';
-      p.set('or', orExpr);
-    }
-    return `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
-  }
-
-  function hideLoadMore() {
-    updateLoadMore?.(container, false);
-    const lm = container?.querySelector('.load-more-wrap');
-    if (lm) lm.remove();
-  }
-
-  function showEmpty(message = '-- В избранном пусто --') {
-    container.innerHTML = '';
-    hideLoadMore();
-    renderEmptyState(container, message);
-    // на всякий случай — в самый верх
-    try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch {}
-  }
-
-  // ===== Search UI =====
-  let searchStatsEl = null;
-  function ensureSearchUI() {
-    if (!searchContainer) return;
-    if (!searchStatsEl) {
-      searchStatsEl = document.createElement('div');
-      searchStatsEl.className = 'search-stats';
-      searchContainer.appendChild(searchStatsEl);
+  // --- SEARCH UI (счётчик) ---
+  let favStatsEl = null;
+  function ensureFavSearchUI() {
+    const parent = document.getElementById('search-container-fav') || searchInputFav?.parentElement;
+    if (!parent) return;
+    if (!favStatsEl) {
+      favStatsEl = document.createElement('div');
+      favStatsEl.className = 'search-stats';
+      parent.appendChild(favStatsEl);
     }
   }
-  function updateSearchStats() {
-    ensureSearchUI();
-    if (!container || !searchStatsEl) return;
-    const visible = container.querySelectorAll('.vacancy-card').length;
-    const total = state.total || visible;
-    const q = (searchInput?.value || '').trim();
-    searchStatsEl.textContent = q ? (visible === 0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
+  function updateFavStats() {
+    if (!favStatsEl) return;
+    const q = (searchInputFav?.value || '').trim();
+    const visible = container?.querySelectorAll('.vacancy-card:not([hidden])').length || 0;
+    const total   = container?.querySelectorAll('.vacancy-card').length || 0;
+    favStatsEl.textContent = q ? (visible===0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
   }
 
-  // ===== Card =====
-  function buildCard(v) {
+  // --- Пагинация в памяти ---
+  const PAGE_SIZE_FAV = 10;
+  const favState = { all: [], rendered: 0, pageSize: PAGE_SIZE_FAV, btn: null };
+
+  function makeFavBtn() {
+    const b = document.createElement('button');
+    b.className = 'load-more-btn';
+    b.textContent = 'Показать ещё';
+    b.style.marginTop = '10px';
+    b.addEventListener('click', renderNextFav);
+    return b;
+  }
+  function updateFavBtn() {
+    if (!container) return;
+    if (!favState.btn) favState.btn = makeFavBtn();
+    const btn = favState.btn;
+    const total = favState.all.length, rendered = favState.rendered;
+    if (rendered < total) {
+      if (!btn.parentElement) container.appendChild(btn);
+      btn.disabled = false;
+    } else if (btn.parentElement) {
+      btn.parentElement.remove();
+    }
+  }
+
+  // --- Карточка ---
+  function buildFavCard(v) {
     const card = document.createElement('div');
     card.className = 'vacancy-card';
-    // зелёная шапка (как на «точно твоё»)
-    card.classList.add('category-main');
-    card.id = `fav-${v.id}`;
+    card.id = `card-${v.id}`;
 
-    const isValid = (val) => val && val !== 'null' && val !== 'не указано';
+    if (v.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
+    else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
+    else card.classList.add('category-other');
 
-    // Отклик — строго из apply_url
-    const applyUrl = sanitizeUrl(String(v.apply_url || ''));
-    const applyBtn = applyUrl ? `
+    // Отклик: только если есть валидный https:// или tg://
+    const applyUrl = allowHttpOrTg(String(v.apply_url || ''));
+    const applyBtnHtml = applyUrl ? `
       <button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(applyUrl)}" aria-label="Откликнуться">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="22" y1="2" x2="11" y2="13"></line>
-          <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-        </svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
       </button>` : '';
 
-    const deleteBtn = `
-      <button class="card-action-btn delete" data-action="delete" data-id="${v.id}" aria-label="Удалить">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18"></line>
-          <line x1="6" y1="6" x2="18" y2="18"></line>
-        </svg>
-      </button>`;
+    // ТОЛЬКО 2 иконки: отклик + удалить
+    const actionsHtml = `
+      <div class="card-actions">
+        ${applyBtnHtml}
+        <button class="card-action-btn delete" data-action="delete" data-id="${v.id}" aria-label="Удалить">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>`;
 
-    // инфо-окно
+    // Инфо-блок: показываем ТОЛЬКО осмысленные значения
     const infoRows = [];
-    const fmt = [v.employment_type, v.work_format].filter(Boolean).join(' / ');
-    if (fmt) infoRows.push({ label: 'ФОРМАТ', value: fmt, type: 'default' });
-    if (isValid(v.salary_display_text)) infoRows.push({ label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary' });
-    const sphereText = isValid(v.industry) ? v.industry : (v.sphere || '').trim();
-    if (sphereText) infoRows.push({ label: 'СФЕРА', value: sphereText, type: 'industry' });
+    const fmt = joinMeaningful(v.employment_type, v.work_format);
+    if (fmt) infoRows.push({ label:'ФОРМАТ', value: fmt, type:'default' });
+    if (isMeaningful(v.salary_display_text)) infoRows.push({ label:'ОПЛАТА', value: cleanVal(v.salary_display_text), type:'salary' });
+    const sphereSrc = isMeaningful(v.industry) ? v.industry : v.sphere;
+    if (isMeaningful(sphereSrc)) infoRows.push({ label:'СФЕРА', value: cleanVal(sphereSrc), type:'industry' });
 
-    let infoWindowHtml = '';
+    let infoHtml = '';
     if (infoRows.length) {
-      infoWindowHtml = '<div class="info-window">' + infoRows.map(r => `
+      infoHtml = '<div class="info-window">' + infoRows.map(r => `
         <div class="info-row info-row--${r.type}">
           <div class="info-label">${escapeHtml(r.label)} >></div>
           <div class="info-value">${escapeHtml(r.value)}</div>
         </div>`).join('') + '</div>';
     }
 
-    const q = state.query;
     const summaryText = v.reason || 'Описание не было сгенерировано.';
-    const originalDetailsRaw = v.text_highlighted ? stripTags(String(v.text_highlighted)) : '';
-    const bestImageUrl = pickImageUrl(v, originalDetailsRaw);
-    const cleanedDetailsText = bestImageUrl ? cleanImageMarkers(originalDetailsRaw) : originalDetailsRaw;
-    const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
-    const hasDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
-    const detailsHTML = hasDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
+    const q = (searchInputFav?.value || '').trim();
 
-    // футер
+    // Полный текст: используем HTML с кликабельными ссылками (и убираем «[ Изображение ]»)
+    const originalDetailsHtml = String(v.text_highlighted || '').replace(/\[\s*Изображение\s*\]\s*/gi, '');
+    const bestImageUrl = pickImageUrl(v, originalDetailsHtml);
+    const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
+    const hasDetails = Boolean(originalDetailsHtml) || Boolean(attachmentsHTML);
+    const detailsHTML = hasDetails
+      ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>`
+      : '';
+
+    // Низ карточки
     let skillsFooterHtml = '';
     if (Array.isArray(v.skills) && v.skills.length) {
       skillsFooterHtml = `<div class="footer-skill-tags">${
-        v.skills.slice(0, 3).map(s => `<span class="footer-skill-tag">${escapeHtml(String(s))}</span>`).join('')
+        v.skills.slice(0,3).map(s=>`<span class="footer-skill-tag">${escapeHtml(String(s))}</span>`).join('')
       }</div>`;
     }
-    const channelHtml = v.channel ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
+    const channelHtml   = v.channel ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
     const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
     const sep = channelHtml && timestampHtml ? ' • ' : '';
     const footerMetaHtml = `<div class="footer-meta">${channelHtml}${sep}${timestampHtml}</div>`;
 
+    // Сборка
     card.innerHTML = `
-      <div class="card-actions">
-        ${applyBtn}
-        ${deleteBtn}
-      </div>
-      <div class="card-header"><h3>ИЗБРАННОЕ</h3></div>
+      ${actionsHtml}
+      <div class="card-header"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
       <div class="card-body">
         <p class="card-summary"></p>
-        ${infoWindowHtml}
+        ${infoHtml}
         ${detailsHTML}
       </div>
       <div class="card-footer">
@@ -172,51 +169,109 @@
       </div>
     `;
 
+    // Рендер краткого описания с подсветкой
     const summaryEl = card.querySelector('.card-summary');
     if (summaryEl) {
       summaryEl.dataset.originalSummary = summaryText;
-      summaryEl.innerHTML = highlightText(summaryText, q);
+      summaryEl.innerHTML = q ? highlightText(summaryText, q) : escapeHtml(summaryText);
     }
+
+    // Рендер полного текста (сохраняем кликабельные ссылки)
     const detailsEl = card.querySelector('.vacancy-text');
     if (detailsEl) {
-      detailsEl.dataset.originalText = cleanedDetailsText;
-      detailsEl.innerHTML = attachmentsHTML + highlightText(cleanedDetailsText, q);
+      detailsEl.innerHTML = attachmentsHTML + originalDetailsHtml;
     }
+
+    // Текст для локального поиска
+    const searchChunks = [
+      v.category, v.reason, v.industry, v.company_name,
+      Array.isArray(v.skills) ? v.skills.join(' ') : '',
+      stripTags(originalDetailsHtml)
+    ].filter(Boolean);
+    card.dataset.searchText = searchChunks.join(' ').toLowerCase();
 
     return card;
   }
 
-  // ===== Actions =====
-  container?.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const act = btn.dataset.action;
-    if (act === 'apply')  openLink(btn.dataset.url);
-    if (act === 'delete') updateStatus(btn.dataset.id, 'deleted');
-  });
+  // --- Рендер порции ---
+  function renderNextFav() {
+    const start = favState.rendered;
+    const end   = Math.min(start + favState.pageSize, favState.all.length);
 
-  // кастомный confirm (как на главной)
-  const overlay   = document.getElementById('custom-confirm-overlay');
-  const textEl    = document.getElementById('custom-confirm-text');
-  const okBtn     = document.getElementById('confirm-btn-ok');
-  const cancelBtn = document.getElementById('confirm-btn-cancel');
-  function showConfirm(message) {
-    return new Promise(res => {
-      if (!overlay) return res(window.confirm(message));
-      textEl.textContent = message;
-      overlay.classList.remove('hidden');
-      const close = () => { overlay.classList.add('hidden'); okBtn.onclick = null; cancelBtn.onclick = null; };
-      okBtn.onclick = () => { close(); res(true); };
-      cancelBtn.onclick = () => { close(); res(false); };
-    });
+    if (favState.all.length === 0 && start === 0) {
+      container.innerHTML = '<p class="empty-list">-- В избранном пусто --</p>';
+      updateFavBtn();
+      updateFavStats();
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    for (let i = start; i < end; i++) frag.appendChild(buildFavCard(favState.all[i]));
+    container.appendChild(frag);
+    favState.rendered = end;
+
+    updateFavBtn();
+    applySearchFav(); // чтобы учесть фильтр
   }
 
-  async function updateStatus(id, newStatus) {
-    if (!id) return;
-    const ok = await showConfirm('Удалить вакансию из избранного?');
-    if (!ok) return;
+  // --- Поиск по избранному (локально) ---
+  function applySearchFav() {
+    const q = (searchInputFav?.value || '').trim().toLowerCase();
+
+    const cards = container.querySelectorAll('.vacancy-card');
+    cards.forEach(card => {
+      const text = (card.dataset.searchText || '');
+      const hit  = q ? text.includes(q) : true;
+      card.hidden = !hit;
+
+      // подсветка только в summary
+      const summaryEl = card.querySelector('.card-summary');
+      if (summaryEl) {
+        const original = summaryEl.dataset.originalSummary || '';
+        summaryEl.innerHTML = q ? highlightText(original, q) : escapeHtml(original);
+      }
+    });
+
+    updateFavStats();
+  }
+
+  // --- API ---
+  async function loadFavorites() {
     try {
-      const url = `${SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
+      container.innerHTML = '';
+      if (favState.btn?.parentElement) favState.btn.remove();
+      favState.all = []; favState.rendered = 0;
+
+      const p = new URLSearchParams();
+      p.set('select', '*');
+      p.set('status', 'eq.favorite');
+      p.set('order', 'timestamp.desc');
+
+      const url  = `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+      const resp = await fetchWithRetry(url, {
+        headers: {
+          apikey: SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+        }
+      }, RETRY_OPTIONS);
+
+      if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+      const data = await resp.json();
+
+      favState.all = data || [];
+      renderNextFav();
+      document.dispatchEvent(new CustomEvent('favorites:loaded'));
+    } catch (e) {
+      console.error(e);
+      container.innerHTML = '<p class="empty-list">Ошибка загрузки избранного.</p>';
+      document.dispatchEvent(new CustomEvent('favorites:loaded'));
+    }
+  }
+
+  async function updateStatus(vacancyId, newStatus) {
+    const cardElement = document.getElementById(`card-${vacancyId}`);
+    try {
+      const url = `${SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(vacancyId)}`;
       const resp = await fetchWithRetry(url, {
         method: 'PATCH',
         headers: {
@@ -227,225 +282,99 @@
         },
         body: JSON.stringify({ status: newStatus })
       }, RETRY_OPTIONS);
+
       if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
-      const el = document.getElementById(`fav-${CSS.escape(id)}`);
-      if (el) { el.style.opacity = '0'; setTimeout(() => el.remove(), 150); }
-
-      if (state.total > 0) state.total -= 1;
-
-      // если карточек не осталось — сразу показываем заглушку
-      const left = container.querySelectorAll('.vacancy-card').length;
-      if (left === 0) showEmpty('-- В избранном пусто --');
-
-      updateSearchStats();
-    } catch (err) {
-      console.error(err);
-      safeAlert('Не удалось выполнить действие.');
-    }
-  }
-
-  // ===== Load (append) =====
-  async function fetchNext() {
-    if (!container || state.busy) return;
-    state.busy = true;
-
-    const url = buildUrl(PAGE_SIZE, state.offset, state.query);
-    const controller = abortCurrent();
-
-    try {
-      const resp = await fetchWithRetry(url, {
-        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, Prefer: 'count=exact' },
-        signal: controller.signal
-      }, RETRY_OPTIONS);
-      if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
-
-      const total = parseTotal(resp);
-      if (Number.isFinite(total)) state.total = total;
-
-      const items = await resp.json();
-
-      // пусто с первой страницы
-      if ((total === 0) || (state.offset === 0 && items.length === 0)) {
-        showEmpty('-- В избранном пусто --');
-        state.offset = 0;
-        state.total  = 0;
-        updateSearchStats();
-        return;
+      if (cardElement) {
+        cardElement.style.transition = 'opacity .25s ease, transform .25s ease';
+        cardElement.style.opacity = '0';
+        cardElement.style.transform = 'scale(0.98)';
+        setTimeout(() => {
+          cardElement.remove();
+          if (container.querySelectorAll('.vacancy-card').length === 0) {
+            container.innerHTML = '<p class="empty-list">-- В избранном пусто --</p>';
+          }
+          updateFavStats();
+        }, 250);
       }
-
-      const frag = document.createDocumentFragment();
-      for (const it of items) frag.appendChild(buildCard(it));
-      container.appendChild(frag);
-
-      const { btn } = ensureLoadMore(container, fetchNext);
-      state.offset += items.length;
-      const hasMore = state.offset < state.total;
-      updateLoadMore(container, hasMore);
-      if (btn) btn.disabled = !hasMore;
-
-      updateSearchStats();
-      state.loadedOnce = true;
-      state.loadedForQuery = state.query;
-
     } catch (e) {
-      if (e.name === 'AbortError') return;
-      console.error('fav load error:', e);
-      renderError(container, e.message, fetchNext);
-    } finally {
-      state.busy = false;
+      console.error(e);
+      safeAlert('Не удалось изменить статус. Повторите позже.');
     }
   }
 
-  // ===== Smooth refetch (без мерцания) =====
-  async function refetchSmooth() {
-    if (!container) return;
+  // --- Слушатели карточек ---
+  container?.addEventListener('click', (e) => {
+    const btn = e.target.closest('[data-action]');
+    if (!btn) return;
+    const action = btn.dataset.action;
+    if (action === 'apply')   openLink(btn.dataset.url);
+    if (action === 'delete')  updateStatus(btn.dataset.id, 'deleted'); // удалить из ленты
+  });
 
-    abortCurrent();
-    state.busy = true;
-
-    const keepH = container.offsetHeight;
-    container.style.minHeight = keepH ? `${keepH}px` : '';
-
-    const url = buildUrl(PAGE_SIZE, 0, state.query);
-    const controller = currentController;
-
-    try {
-      const resp = await fetchWithRetry(url, {
-        headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, Prefer: 'count=exact' },
-        signal: controller.signal
-      }, RETRY_OPTIONS);
-      if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
-
-      const total = parseTotal(resp);
-      const items = await resp.json();
-
-      // если пусто — показываем заглушку и выходим
-      if (total === 0 || items.length === 0) {
-        showEmpty('-- В избранном пусто --');
-        state.offset = 0; state.total = 0;
-        updateSearchStats();
-        document.dispatchEvent(new CustomEvent('favorites:loaded'));
-        return;
-      }
-
-      // иначе заменяем содержимое «мягко»
-      const frag = document.createDocumentFragment();
-      for (const it of items) frag.appendChild(buildCard(it));
-
-      const lm = container.querySelector('.load-more-wrap');
-      container.replaceChildren(frag);
-      if (lm) container.appendChild(lm);
-
-      state.offset = items.length;
-      state.total  = Number.isFinite(total) ? total : items.length;
-      state.loadedOnce = true;
-      state.loadedForQuery = state.query;
-
-      const { btn } = ensureLoadMore(container, fetchNext);
-      const hasMore = state.offset < state.total;
-      updateLoadMore(container, hasMore);
-      if (btn) btn.disabled = !hasMore;
-
-      updateSearchStats();
-      flashRefreshed(container);
-      document.dispatchEvent(new CustomEvent('favorites:loaded'));
-
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        console.error('fav refetch error:', e);
-        renderError(container, e.message, refetchSmooth);
-        document.dispatchEvent(new CustomEvent('favorites:loaded'));
-      }
-    } finally {
-      container.style.minHeight = '';
-      state.busy = false;
-    }
-  }
-
-  // ===== Search =====
-  const onSearch = debounce(() => {
-    state.query = (searchInput?.value || '').trim();
-    refetchSmooth();
-  }, 220);
-  searchInput?.addEventListener('input', onSearch);
-
-  // ===== PTR panel =====
-  (function setupPTRFav() {
+  // --- Pull-to-refresh (как в Избранном и на главной) ---
+  (function setupPTR(){
     const threshold = 78;
-    let startY = 0, pulling = false, ready = false, locked = false;
+    let startY=0, pulling=false, ready=false, locked=false;
 
     const bar = document.createElement('div');
     bar.style.cssText = [
-      'position:fixed','left:0','right:0','top:0',
-      'height:56px','background:#fff','color:#333',
-      'border-bottom:3px solid #000','box-shadow:0 2px 0 #000',
+      'position:fixed','left:0','right:0','top:0','height:56px',
+      'background:#fff','color:#333','border-bottom:3px solid #000','box-shadow:0 2px 0 #000',
       'transform:translateY(-100%)','transition:transform .2s ease,opacity .14s linear',
-      'z-index:9999','font-family:inherit','font-weight:700',
-      'display:flex','align-items:center','justify-content:center',
+      'z-index:9999','font-family:inherit','font-weight:700','display:flex','align-items:center','justify-content:center',
       'letter-spacing:.2px','opacity:0','pointer-events:none'
     ].join(';');
     bar.textContent = 'Потяните вниз для обновления';
     document.body.appendChild(bar);
 
-    const setBar = y => { bar.style.transform = `translateY(${Math.min(0, -100 + (y/0.56))}%)`; bar.style.opacity = y>6 ? '1' : '0'; };
-    const resetBar = () => { bar.style.transform = 'translateY(-100%)'; bar.style.opacity = '0'; };
+    const setBar = y => { bar.style.transform = `translateY(${Math.min(0, -100 + (y/0.56))}%)`; bar.style.opacity = y>6?'1':'0'; };
+    const resetBar = ()=>{ bar.style.transform='translateY(-100%)'; bar.style.opacity='0'; };
 
-    window.addEventListener('touchstart', (e) => {
+    window.addEventListener('touchstart',(e)=>{
       if (locked) return;
-      if (window.scrollY > 0) { pulling = false; return; }
-      if (e.touches.length !== 1) { pulling = false; return; }
-      startY = e.touches[0].clientY; pulling = true; ready = false;
-    }, { passive: true });
+      if (window.scrollY>0) { pulling=false; return; }
+      if (e.touches.length!==1) { pulling=false; return; }
+      startY = e.touches[0].clientY; pulling=true; ready=false;
+    },{passive:true});
 
-    window.addEventListener('touchmove', (e) => {
+    window.addEventListener('touchmove',(e)=>{
       if (!pulling || locked) return;
       const y = e.touches[0].clientY;
       const dist = y - startY;
-      if (dist > 0) {
+      if (dist>0) {
         e.preventDefault();
         setBar(dist);
-        if (dist > threshold && !ready) { ready = true; bar.textContent = 'Отпустите для обновления'; }
-        if (dist <= threshold && ready) { ready = false; bar.textContent = 'Потяните вниз для обновления'; }
-      } else { pulling = false; resetBar(); }
-    }, { passive: false });
+        if (dist>threshold && !ready) { ready=true; bar.textContent='Отпустите для обновления'; }
+        if (dist<=threshold && ready) { ready=false; bar.textContent='Потяните вниз для обновления'; }
+      } else { pulling=false; resetBar(); }
+    },{passive:false});
 
-    window.addEventListener('touchend', () => {
-      if (!pulling || locked) { resetBar(); pulling = false; return; }
+    window.addEventListener('touchend',()=>{
+      if (!pulling || locked) { resetBar(); pulling=false; return; }
       if (ready) {
-        locked = true; bar.textContent = 'Обновляю…'; setBar(threshold * 1.2);
-        const done = () => { locked = false; pulling = false; resetBar(); };
-        const onLoaded = () => { document.removeEventListener('favorites:loaded', onLoaded); done(); };
+        locked=true; bar.textContent='Обновляю…'; setBar(threshold*1.2);
+        const done = ()=>{ locked=false; pulling=false; resetBar(); };
+        const onLoaded = ()=>{ document.removeEventListener('favorites:loaded', onLoaded); done(); };
         document.addEventListener('favorites:loaded', onLoaded);
-        refetchSmooth();
-        setTimeout(() => { if (locked) done(); }, 8000);
-      } else { resetBar(); pulling = false; }
-    }, { passive: true });
+        loadFavorites();
+        setTimeout(()=>{ if (locked) done(); }, 8000);
+      } else { resetBar(); pulling=false; }
+    },{passive:true});
   })();
 
-  // ===== Flash after refresh =====
-  (function injectFlashCSS(){
-    const style=document.createElement('style');
-    style.textContent=`
-      @keyframes refreshedFlashFav { 0%{background:#fffbe6;} 100%{background:transparent;} }
-      .refreshed-flash-fav { animation: refreshedFlashFav .6s ease forwards; }
+  // --- Стили для ссылок (подчёркивание, разрыв слов) ---
+  (function injectLinkCSS(){
+    const style = document.createElement('style');
+    style.textContent = `
+      .vacancy-text a, .card-summary a { text-decoration: underline; color:#1f6feb; word-break: break-word; }
+      .vacancy-text a:hover, .card-summary a:hover { opacity:.85; }
     `;
     document.head.appendChild(style);
   })();
-  function flashRefreshed(node){
-    if (!node) return;
-    node.classList.remove('refreshed-flash-fav');
-    void node.offsetWidth;
-    node.classList.add('refreshed-flash-fav');
-  }
 
-  // ===== Init =====
-  function init() {
-    ensureSearchUI();
-    fetchNext();
-  }
-  document.readyState === 'loading'
-    ? document.addEventListener('DOMContentLoaded', init)
-    : init();
-
+  // --- События и старт ---
+  searchInputFav?.addEventListener('input', debounce(applySearchFav, 220));
+  ensureFavSearchUI();
+  loadFavorites();
 })();

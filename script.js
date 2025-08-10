@@ -1,8 +1,9 @@
-// script.js — вкладки, поиск, постраничная загрузка, действия по карточкам
-// Фиксы:
-// 1) Вернул pull-to-refresh (свайп сверху вниз) с прогресс-полоской.
-// 2) Поиск без «мигания» — мягкая подмена контента после получения данных (double-buffer).
-// 3) Сохранены: long-press на вкладке = удалить всю категорию, «Загрузить ещё» всегда снизу.
+// script.js — вкладки, бесшовный поиск, постраничная загрузка, действия по карточкам
+// ✅ Pull-to-Refresh с анимированным пузырём (стрелка/спиннер/текст)
+// ✅ Табы по data-target, жёсткое скрытие остальных списков
+// ✅ Long-press на табе → удалить всю категорию (с подтверждением)
+// ✅ Поиск без мерцаний (double-buffer), перегружается только активная вкладка
+// ✅ «Загрузить ещё» всегда снизу
 
 (function () {
   'use strict';
@@ -46,13 +47,13 @@
     other: document.getElementById('count-other'),
   };
 
-  const tabButtons = document.querySelectorAll('.tab-button'); // data-target у каждой
+  const tabButtons = document.querySelectorAll('.tab-button'); // у кнопок data-target
   const vacancyLists = document.querySelectorAll('.vacancy-list');
   const searchInput = document.getElementById('search-input');
   const searchContainer = document.getElementById('search-container');
   const vacanciesContent = document.getElementById('vacancies-content');
 
-  // ---- Кастомный confirm (из HTML) ----
+  // кастомный confirm (как в HTML)
   const confirmOverlay = document.getElementById('custom-confirm-overlay');
   const confirmText = document.getElementById('custom-confirm-text');
   const confirmOkBtn = document.getElementById('confirm-btn-ok');
@@ -84,7 +85,7 @@
     other: { offset: 0, total: 0, busy: false, loadedOnce: false },
   };
 
-  // ---- Статистика поиска ----
+  // ---- Search stats ----
   let searchStatsEl = null;
   function ensureSearchUI() {
     if (!searchContainer) return;
@@ -106,7 +107,7 @@
       : '';
   }
 
-  // ---- Аборт текущего запроса ----
+  // ---- Abort helper ----
   function abortCurrent() {
     if (currentController) { try { currentController.abort(); } catch {} }
     currentController = new AbortController();
@@ -115,7 +116,7 @@
 
   // ---- Helpers ----
   function parseTotal(resp) {
-    const cr = resp.headers.get('content-range'); // "0-9/58"
+    const cr = resp.headers.get('content-range');
     if (!cr || !cr.includes('/')) return 0;
     const total = cr.split('/').pop();
     return Number(total) || 0;
@@ -168,7 +169,7 @@
     return `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
   }
 
-  // ---- BULK: изменить статус всех в категории ----
+  // ---- BULK изменения всей категории ----
   async function bulkSetStatusForCategory(key, newStatus) {
     const params = new URLSearchParams();
     params.set('status', 'eq.new');
@@ -217,9 +218,12 @@
     const infoRows = [];
     const fmt = [v.employment_type, v.work_format].filter(Boolean).join(' / ');
     if (fmt) infoRows.push({ label: 'ФОРМАТ', value: fmt, type: 'default' });
-    if (isValid(v.salary_display_text)) infoRows.push({ label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary' });
+    if (isValid(v.salary_display_text))
+      infoRows.push({ label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary' });
+
     const sphereText = isValid(v.industry) ? v.industry : (v.sphere || '').trim();
-    if (sphereText) infoRows.push({ label: 'СФЕРА', value: sphereText, type: 'industry' });
+    if (sphereText)
+      infoRows.push({ label: 'СФЕРА', value: sphereText, type: 'industry' });
 
     let infoWindowHtml = '';
     if (infoRows.length) {
@@ -341,7 +345,7 @@
     }
   }
 
-  // ---- Загрузка порций (обычная, добавление в конец) ----
+  // ---- Загрузка порций (обычная) ----
   async function fetchNext(key) {
     const st = state[key];
     const container = containers[key];
@@ -408,16 +412,14 @@
     const container = containers[key];
     if (!container) return;
 
-    // блокируем конкурирующие запросы
     abortCurrent();
     st.busy = true;
 
-    // фиксируем высоту, чтобы не было «скачка»
     const prevH = container.offsetHeight;
     container.style.minHeight = prevH ? `${prevH}px` : '';
 
     const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, 0, state.query);
-    const controller = currentController; // уже создан в abortCurrent()
+    const controller = currentController;
 
     try {
       const resp = await fetchWithRetry(
@@ -437,17 +439,13 @@
       const total = parseTotal(resp);
       const items = await resp.json();
 
-      // готовим новый DOM заранее
       const frag = document.createDocumentFragment();
       for (const it of items) frag.appendChild(buildCard(it));
 
-      // единоразовая замена DOM без очистки заранее — без «мигания»
-      // сохраняем "load-more-wrap", если он уже есть
       let lm = container.querySelector('.load-more-wrap');
-      container.replaceChildren(frag); // мгновенная подмена
+      container.replaceChildren(frag);
       if (lm) container.appendChild(lm);
 
-      // обновляем состояние
       st.offset = items.length;
       st.total = Number.isFinite(total) ? total : items.length;
       st.loadedOnce = true;
@@ -455,8 +453,9 @@
       if (counts[key]) counts[key].textContent = `(${st.total})`;
 
       const { btn } = ensureLoadMore(container, () => fetchNext(key));
-      updateLoadMore(container, st.offset < st.total);
-      if (btn) btn.disabled = !(st.offset < st.total);
+      const hasMore = st.offset < st.total;
+      updateLoadMore(container, hasMore);
+      if (btn) btn.disabled = !hasMore;
 
       pinLoadMoreToBottom(container);
       if (state.activeKey === key) updateSearchStats();
@@ -467,7 +466,6 @@
         pinLoadMoreToBottom(container);
       }
     } finally {
-      // снимаем фиксацию высоты
       container.style.minHeight = '';
       st.busy = false;
     }
@@ -476,16 +474,12 @@
   // ---- Поиск (бесшовный) ----
   const onSearch = debounce(() => {
     state.query = (searchInput?.value || '').trim();
-
-    // Обновляем ТОЛЬКО активную вкладку мягко
-    refetchFromZeroSmooth(state.activeKey);
-
-    // Остальные сбрасываем «по запросу», без очистки DOM — они обновятся при первом открытии
+    refetchFromZeroSmooth(state.activeKey);      // только активную
+    // остальные сбрасываем «по запросу», DOM не трогаем
     ['main','maybe','other'].forEach((key) => {
       if (key !== state.activeKey) resetCategory(key, false);
     });
   }, 220);
-
   searchInput?.addEventListener('input', onSearch);
 
   // ---- Переключение вкладок ----
@@ -497,7 +491,6 @@
     const target = document.getElementById(targetId);
     if (target) { target.classList.add('active'); target.style.display = ''; }
   }
-
   function activateTabByTarget(targetId) {
     const key = keyFromTargetId(targetId);
     state.activeKey = key;
@@ -511,24 +504,18 @@
     showOnly(targetId);
     updateSearchStats();
 
-    if (!state[key].loadedOnce) {
-      // если ещё не грузили — обычная первая загрузка
-      fetchNext(key);
-    }
+    if (!state[key].loadedOnce) fetchNext(key);
   }
-
   tabButtons.forEach((btn) => {
-    // обычный клик — переключение
     btn.addEventListener('click', () => {
       const targetId = btn.dataset.target;
       if (!targetId) return;
       activateTabByTarget(targetId);
     });
 
-    // долгий тап — подтверждение удаления категории
+    // Долгий тап — очистка категории
     let pressTimer = null;
     const holdMs = 700;
-
     const start = () => {
       clearTimeout(pressTimer);
       pressTimer = setTimeout(async () => {
@@ -549,79 +536,157 @@
       }, holdMs);
     };
     const cancel = () => { clearTimeout(pressTimer); };
-
-    // pointer-события охватывают мышь и тач
     btn.addEventListener('pointerdown', start);
     btn.addEventListener('pointerup', cancel);
     btn.addEventListener('pointerleave', cancel);
   });
 
-  // ---- Pull-to-Refresh (свайп сверху вниз) ----
-  // Независим от платформы, не блокирует обычный скролл.
-  let ptrBar = null;
-  function ensurePtrBar() {
-    if (ptrBar) return ptrBar;
-    ptrBar = document.createElement('div');
-    ptrBar.id = 'ptr-progress';
-    Object.assign(ptrBar.style, {
+  // ---- Pull-to-Refresh: пузырь со стрелкой/спиннером (как в «Избранном») ----
+  // Состояния: 'pull' (тянем) → 'release' (достигли порога) → 'loading'
+  let ptr = null, ptrArrow = null, ptrSpinner = null, ptrText = null;
+  function ensurePtr() {
+    if (ptr) return ptr;
+
+    // контейнер-пузырь
+    ptr = document.createElement('div');
+    ptr.id = 'ptr-bubble';
+    Object.assign(ptr.style, {
       position: 'fixed',
-      left: 0,
-      top: 0,
-      height: '3px',
-      width: '0%',
-      background: '#00b894',
+      top: '-64px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      width: '160px',
+      height: '64px',
+      background: '#ffffff',
+      border: '3px solid #000',
+      borderRadius: '16px',
+      boxShadow: '4px 6px 0 #000',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '10px',
+      fontFamily: 'Inter, system-ui, sans-serif',
+      fontWeight: '700',
       zIndex: 9999,
-      transition: 'width 0.15s ease',
+      transition: 'top 180ms cubic-bezier(.2,.9,.2,1), opacity 140ms linear',
+      opacity: '0',
+      pointerEvents: 'none'
     });
-    document.body.appendChild(ptrBar);
-    return ptrBar;
+
+    // стрелка (SVG)
+    ptrArrow = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    ptrArrow.setAttribute('viewBox', '0 0 24 24');
+    ptrArrow.setAttribute('width', '24');
+    ptrArrow.setAttribute('height', '24');
+    ptrArrow.innerHTML = `<path d="M12 3v18M5 14l7 7 7-7" stroke="black" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>`;
+    ptrArrow.style.transition = 'transform 150ms ease';
+
+    // спиннер (скрыт в pull/release)
+    ptrSpinner = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    ptrSpinner.setAttribute('viewBox', '0 0 24 24');
+    ptrSpinner.setAttribute('width', '24');
+    ptrSpinner.setAttribute('height', '24');
+    ptrSpinner.innerHTML = `<circle cx="12" cy="12" r="9" stroke="#000" stroke-width="3" fill="none" stroke-dasharray="56" stroke-dashoffset="28"></circle>`;
+    ptrSpinner.style.display = 'none';
+    ptrSpinner.style.animation = 'ptr-rot 0.9s linear infinite';
+
+    // текст
+    ptrText = document.createElement('span');
+    ptrText.textContent = 'Потяните вниз';
+    ptrText.style.fontSize = '13px';
+
+    // анимация вращения
+    const style = document.createElement('style');
+    style.textContent = `
+      @keyframes ptr-rot { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    `;
+    document.head.appendChild(style);
+
+    ptr.appendChild(ptrArrow);
+    ptr.appendChild(ptrSpinner);
+    ptr.appendChild(ptrText);
+    document.body.appendChild(ptr);
+
+    return ptr;
   }
-  function setPtrProgress(pct) {
-    ensurePtrBar().style.width = Math.max(0, Math.min(100, pct)) + '%';
+  function setPtrState(stateName) {
+    ensurePtr();
+    if (stateName === 'pull') {
+      ptrArrow.style.display = '';
+      ptrSpinner.style.display = 'none';
+      ptrText.textContent = 'Потяните вниз';
+    } else if (stateName === 'release') {
+      ptrArrow.style.display = '';
+      ptrSpinner.style.display = 'none';
+      ptrText.textContent = 'Отпустите для обновления';
+    } else if (stateName === 'loading') {
+      ptrArrow.style.display = 'none';
+      ptrSpinner.style.display = '';
+      ptrText.textContent = 'Обновляем...';
+    }
   }
-  function resetPtr() { setPtrProgress(0); }
+  function showPtr(y) {
+    ensurePtr();
+    ptr.style.top = `${-64 + Math.min(64, y)}px`;
+    ptr.style.opacity = y > 4 ? '1' : '0';
+  }
+  function hidePtr() {
+    ensurePtr();
+    ptr.style.top = '-64px';
+    ptr.style.opacity = '0';
+  }
 
   let pulling = false;
   let startY = 0;
-  const THRESHOLD = 70; // пикселей до триггера
+  const THRESHOLD = 80; // пикселей до триггера
 
   window.addEventListener('touchstart', (e) => {
     if (window.scrollY > 0) return; // только у верхнего края
     if (e.touches.length !== 1) return;
     pulling = true;
     startY = e.touches[0].clientY;
-    resetPtr();
+    setPtrState('pull');
+    showPtr(0);
   }, { passive: true });
 
   window.addEventListener('touchmove', (e) => {
     if (!pulling) return;
     const dy = e.touches[0].clientY - startY;
-    if (dy <= 0) { pulling = false; resetPtr(); return; }
-    // Притормаживаем прокрутку страницы во время PTR
+    if (dy <= 0) { pulling = false; hidePtr(); return; }
+    // не даём странице прокручиваться при реальном pull
     e.preventDefault();
-    const pct = Math.min(100, (dy / THRESHOLD) * 100);
-    setPtrProgress(pct);
+
+    // прогресс
+    showPtr(dy);
+    const ratio = Math.min(1, dy / THRESHOLD);
+    ptrArrow.style.transform = `rotate(${ratio * 180}deg)`;
+
+    if (dy >= THRESHOLD) setPtrState('release');
+    else setPtrState('pull');
   }, { passive: false });
 
   window.addEventListener('touchend', () => {
     if (!pulling) return;
     pulling = false;
-    const widthNow = parseFloat(ensurePtrBar().style.width) || 0;
-    if (widthNow >= 100) {
-      // Тянули достаточно — мягко обновляем активную вкладку
-      setPtrProgress(25);
+
+    // проверим достигнут ли порог
+    const currentTop = parseFloat(ensurePtr().style.top) || -64;
+    const pulled = 64 + currentTop; // сколько пузырь выехал вниз
+    if (pulled >= THRESHOLD) {
+      setPtrState('loading');
+      ptr.style.top = '12px';
+      ptr.style.opacity = '1';
       refetchFromZeroSmooth(state.activeKey).then(() => {
-        setPtrProgress(100);
-        setTimeout(resetPtr, 200);
-      }).catch(() => resetPtr());
+        hidePtr();
+      }).catch(() => hidePtr());
     } else {
-      resetPtr();
+      hidePtr();
     }
   });
 
   // ---- Инициализация ----
   function init() {
-    // скрыть неактивные списки на старте
+    // скрыть неактивные списки
     Object.keys(containers).forEach((k) => {
       if (k !== state.activeKey) containers[k].style.display = 'none';
       else containers[k].style.display = '';

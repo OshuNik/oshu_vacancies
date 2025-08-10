@@ -1,9 +1,5 @@
-// script.js — вкладки, бесшовный поиск, постраничная загрузка, действия по карточкам
-// ✅ Pull-to-Refresh: широкая панель (как в «Избранном»)
-// ✅ Табы по data-target, скрытие остальных списков (display:none)
-// ✅ Long-press на табе → удалить всю категорию (с подтверждением)
-// ✅ Поиск без мерцаний (double-buffer), перезагружается только активная вкладка
-// ✅ «Загрузить ещё» всегда снизу
+// script.js — вкладки, бесшовный поиск, постраничная загрузка, PTR как в «Избранном»,
+// мгновенные счётчики на всех вкладках, без миганий при переключении.
 
 (function () {
   'use strict';
@@ -37,204 +33,196 @@
 
   // ---- DOM ----
   const containers = {
-    main: document.getElementById('vacancies-list-main'),
+    main:  document.getElementById('vacancies-list-main'),
     maybe: document.getElementById('vacancies-list-maybe'),
     other: document.getElementById('vacancies-list-other'),
   };
   const counts = {
-    main: document.getElementById('count-main'),
+    main:  document.getElementById('count-main'),
     maybe: document.getElementById('count-maybe'),
     other: document.getElementById('count-other'),
   };
-
-  const tabButtons = document.querySelectorAll('.tab-button'); // у кнопок есть data-target
-  const vacancyLists = document.querySelectorAll('.vacancy-list');
-  const searchInput = document.getElementById('search-input');
+  const tabButtons      = document.querySelectorAll('.tab-button'); // у кнопок data-target
+  const vacancyLists    = document.querySelectorAll('.vacancy-list');
+  const searchInput     = document.getElementById('search-input');
   const searchContainer = document.getElementById('search-container');
-  const vacanciesContent = document.getElementById('vacancies-content');
+  const vacanciesContent= document.getElementById('vacancies-content');
 
-  // кастомный confirm (как в HTML)
-  const confirmOverlay = document.getElementById('custom-confirm-overlay');
-  const confirmText = document.getElementById('custom-confirm-text');
-  const confirmOkBtn = document.getElementById('confirm-btn-ok');
+  // кастомный confirm
+  const confirmOverlay   = document.getElementById('custom-confirm-overlay');
+  const confirmText      = document.getElementById('custom-confirm-text');
+  const confirmOkBtn     = document.getElementById('confirm-btn-ok');
   const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
-  function showCustomConfirm(message) {
-    return new Promise((res) => {
-      if (!confirmOverlay) return res(window.confirm(message));
+  function showCustomConfirm(message){
+    return new Promise(res=>{
+      if(!confirmOverlay) return res(window.confirm(message));
       confirmText.textContent = message;
       confirmOverlay.classList.remove('hidden');
-      const close = () => {
-        confirmOverlay.classList.add('hidden');
-        confirmOkBtn.onclick = null;
-        confirmCancelBtn.onclick = null;
-      };
-      confirmOkBtn.onclick = () => { close(); res(true); };
-      confirmCancelBtn.onclick = () => { close(); res(false); };
+      const close=()=>{confirmOverlay.classList.add('hidden');confirmOkBtn.onclick=null;confirmCancelBtn.onclick=null;};
+      confirmOkBtn.onclick=()=>{close();res(true);};
+      confirmCancelBtn.onclick=()=>{close();res(false);};
     });
   }
 
   // ---- Состояние ----
-  const CAT_NAME = { main: 'ТОЧНО ТВОЁ', maybe: 'МОЖЕТ БЫТЬ' };
-  let currentController = null;
+  const CAT_NAME = { main:'ТОЧНО ТВОЁ', maybe:'МОЖЕТ БЫТЬ' };
+  let currentController=null;
 
+  // для «без миганий» нам нужно знать, под какой строкой поиска загружен список
   const state = {
     query: '',
     activeKey: 'main',
-    main:  { offset: 0, total: 0, busy: false, loadedOnce: false },
-    maybe: { offset: 0, total: 0, busy: false, loadedOnce: false },
-    other: { offset: 0, total: 0, busy: false, loadedOnce: false },
+    main:  { offset:0, total:0, busy:false, loadedOnce:false, loadedForQuery:'' },
+    maybe: { offset:0, total:0, busy:false, loadedOnce:false, loadedForQuery:'' },
+    other: { offset:0, total:0, busy:false, loadedOnce:false, loadedForQuery:'' },
   };
 
   // ---- Search stats ----
-  let searchStatsEl = null;
-  function ensureSearchUI() {
-    if (!searchContainer) return;
-    if (!searchStatsEl) {
-      searchStatsEl = document.createElement('div');
-      searchStatsEl.className = 'search-stats';
+  let searchStatsEl=null;
+  function ensureSearchUI(){
+    if(!searchContainer) return;
+    if(!searchStatsEl){
+      searchStatsEl=document.createElement('div');
+      searchStatsEl.className='search-stats';
       searchContainer.appendChild(searchStatsEl);
     }
   }
-  function updateSearchStats() {
+  function updateSearchStats(){
     ensureSearchUI();
     const active = containers[state.activeKey];
-    if (!active) { searchStatsEl.textContent = ''; return; }
+    if(!active){ searchStatsEl.textContent=''; return; }
     const visible = active.querySelectorAll('.vacancy-card').length;
-    const total = state[state.activeKey].total || visible;
-    const q = (searchInput?.value || '').trim();
-    searchStatsEl.textContent = q
-      ? (visible === 0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`)
-      : '';
+    const total   = state[state.activeKey].total || visible;
+    const q = (searchInput?.value||'').trim();
+    searchStatsEl.textContent = q ? (visible===0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
   }
 
   // ---- Abort helper ----
-  function abortCurrent() {
-    if (currentController) { try { currentController.abort(); } catch {} }
+  function abortCurrent(){
+    if(currentController){ try{ currentController.abort(); }catch{} }
     currentController = new AbortController();
     return currentController;
   }
 
   // ---- Helpers ----
-  function parseTotal(resp) {
-    const cr = resp.headers.get('content-range'); // "0-9/58"
-    if (!cr || !cr.includes('/')) return 0;
-    const total = cr.split('/').pop();
-    return Number(total) || 0;
+  function parseTotal(resp){
+    const cr=resp.headers.get('content-range'); // "0-9/58"
+    if(!cr||!cr.includes('/')) return 0;
+    const total=cr.split('/').pop();
+    return Number(total)||0;
   }
-  function keyFromTargetId(targetId) {
-    if (targetId.endsWith('-main')) return 'main';
+  function keyFromTargetId(targetId){
+    if (targetId.endsWith('-main'))  return 'main';
     if (targetId.endsWith('-maybe')) return 'maybe';
     if (targetId.endsWith('-other')) return 'other';
-    if (/main$/i.test(targetId)) return 'main';
+    if (/main$/i.test(targetId))  return 'main';
     if (/maybe$/i.test(targetId)) return 'maybe';
     return 'other';
   }
-  function clearContainer(el) {
-    if (!el) return;
-    const lm = el.querySelector('.load-more-wrap');
-    el.innerHTML = '';
-    if (lm) el.appendChild(lm);
+  function clearContainer(el){
+    if(!el) return;
+    const lm=el.querySelector('.load-more-wrap');
+    el.innerHTML='';
+    if(lm) el.appendChild(lm);
   }
-  function resetCategory(key, clearDom = true) {
-    state[key].offset = 0;
-    state[key].total = 0;
-    state[key].busy = false;
-    state[key].loadedOnce = false;
-    if (clearDom) clearContainer(containers[key]);
+  function resetCategory(key, clearDom=true){
+    const st=state[key];
+    st.offset=0; st.total=0; st.busy=false; st.loadedOnce=false; st.loadedForQuery='';
+    if(clearDom) clearContainer(containers[key]);
     updateLoadMore(containers[key], false);
   }
-  function pinLoadMoreToBottom(container) {
-    const wrap = container?.querySelector('.load-more-wrap');
-    if (wrap) container.appendChild(wrap);
+  function pinLoadMoreToBottom(container){
+    const wrap=container?.querySelector('.load-more-wrap');
+    if(wrap) container.appendChild(wrap);
   }
 
-  // ---- URL для Supabase ----
-  function buildCategoryUrl(key, limit, offset, query) {
-    const p = new URLSearchParams();
-    p.set('select', '*');
-    p.set('status', 'eq.new');
-    p.set('order', 'timestamp.desc');
+  // ---- API URLs ----
+  function buildCategoryUrl(key, limit, offset, query){
+    const p=new URLSearchParams();
+    p.set('select','*');
+    p.set('status','eq.new');
+    p.set('order','timestamp.desc');
     p.set('limit', String(limit));
     p.set('offset', String(offset));
 
-    if (key === 'main') p.set('category', `eq.${CAT_NAME.main}`);
-    else if (key === 'maybe') p.set('category', `eq.${CAT_NAME.maybe}`);
+    if(key==='main') p.set('category', `eq.${CAT_NAME.main}`);
+    else if(key==='maybe') p.set('category', `eq.${CAT_NAME.maybe}`);
     else p.set('category', `not.in.("${CAT_NAME.main}","${CAT_NAME.maybe}")`);
 
-    const q = (query || '').trim();
-    if (q && Array.isArray(SEARCH_FIELDS) && SEARCH_FIELDS.length) {
-      const orExpr = '(' + SEARCH_FIELDS.map((f) => `${f}.ilike.*${q}*`).join(',') + ')';
+    const q=(query||'').trim();
+    if(q && Array.isArray(SEARCH_FIELDS) && SEARCH_FIELDS.length){
+      const orExpr = '('+SEARCH_FIELDS.map(f=>`${f}.ilike.*${q}*`).join(',')+')';
       p.set('or', orExpr);
     }
     return `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
   }
 
-  // ---- BULK изменения всей категории ----
-  async function bulkSetStatusForCategory(key, newStatus) {
-    const params = new URLSearchParams();
-    params.set('status', 'eq.new');
-    if (key === 'main') params.set('category', `eq.${CAT_NAME.main}`);
-    else if (key === 'maybe') params.set('category', `eq.${CAT_NAME.maybe}`);
-    else params.set('category', `not.in.("${CAT_NAME.main}","${CAT_NAME.maybe}")`);
+  // ---- Быстрые счётчики для всех вкладок ----
+  async function fetchCount(key, query){
+    const p=new URLSearchParams();
+    p.set('select','id'); // тело почти пустое
+    p.set('status','eq.new');
+    p.set('limit','1');   // чтобы вернулся корректный content-range
+    if(key==='main') p.set('category', `eq.${CAT_NAME.main}`);
+    else if(key==='maybe') p.set('category', `eq.${CAT_NAME.maybe}`);
+    else p.set('category', `not.in.("${CAT_NAME.main}","${CAT_NAME.maybe}")`);
+    const q=(query||'').trim();
+    if(q && Array.isArray(SEARCH_FIELDS) && SEARCH_FIELDS.length){
+      const orExpr = '('+SEARCH_FIELDS.map(f=>`${f}.ilike.*${q}*`).join(',')+')';
+      p.set('or', orExpr);
+    }
+    const url = `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
 
-    const url = `${SUPABASE_URL}/rest/v1/vacancies?${params.toString()}`;
-    const resp = await fetchWithRetry(
-      url,
-      {
-        method: 'PATCH',
-        headers: {
-          apikey: SUPABASE_ANON_KEY,
-          Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-          Prefer: 'return=minimal',
-        },
-        body: JSON.stringify({ status: newStatus }),
-      },
-      RETRY_OPTIONS
-    );
-    if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+    const resp = await fetchWithRetry(url,{
+      headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, Prefer:'count=exact' }
+    }, RETRY_OPTIONS);
+    if(!resp.ok) throw new Error('count failed');
+    return parseTotal(resp);
+  }
+  async function fetchCountsAll(query){
+    try{
+      const [cMain,cMaybe,cOther] = await Promise.all([
+        fetchCount('main',query),
+        fetchCount('maybe',query),
+        fetchCount('other',query),
+      ]);
+      state.main.total  = cMain;  counts.main.textContent  = `(${cMain})`;
+      state.maybe.total = cMaybe; counts.maybe.textContent = `(${cMaybe})`;
+      state.other.total = cOther; counts.other.textContent = `(${cOther})`;
+    }catch(e){ console.warn('counts err', e); }
   }
 
   // ---- Карточка ----
-  function buildCard(v) {
-    const card = document.createElement('div');
-    card.className = 'vacancy-card';
-    card.id = `card-${v.id}`;
+  function buildCard(v){
+    const card=document.createElement('div');
+    card.className='vacancy-card';
+    card.id=`card-${v.id}`;
 
-    if (v.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
-    else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
+    if(v.category==='ТОЧНО ТВОЁ') card.classList.add('category-main');
+    else if(v.category==='МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
     else card.classList.add('category-other');
 
-    const isValid = (val) => val && val !== 'null' && val !== 'не указано';
+    const isValid = (val)=>val && val!=='null' && val!=='не указано';
 
-    const applyBtn = v.apply_url
-      ? `<button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(
-          sanitizeUrl(v.apply_url)
-        )}" aria-label="Откликнуться">
-           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-         </button>`
-      : '';
+    const applyBtn = v.apply_url ? `<button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(sanitizeUrl(v.apply_url))}" aria-label="Откликнуться">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+    </button>` : '';
 
-    const infoRows = [];
-    const fmt = [v.employment_type, v.work_format].filter(Boolean).join(' / ');
-    if (fmt) infoRows.push({ label: 'ФОРМАТ', value: fmt, type: 'default' });
-    if (isValid(v.salary_display_text))
-      infoRows.push({ label: 'ОПЛАТА', value: v.salary_display_text, type: 'salary' });
+    const infoRows=[];
+    const fmt=[v.employment_type,v.work_format].filter(Boolean).join(' / ');
+    if(fmt) infoRows.push({label:'ФОРМАТ',value:fmt,type:'default'});
+    if(isValid(v.salary_display_text)) infoRows.push({label:'ОПЛАТА',value:v.salary_display_text,type:'salary'});
 
-    const sphereText = isValid(v.industry) ? v.industry : (v.sphere || '').trim();
-    if (sphereText)
-      infoRows.push({ label: 'СФЕРА', value: sphereText, type: 'industry' });
+    const sphereText = isValid(v.industry) ? v.industry : (v.sphere||'').trim();
+    if(sphereText) infoRows.push({label:'СФЕРА',value:sphereText,type:'industry'});
 
-    let infoWindowHtml = '';
-    if (infoRows.length) {
-      infoWindowHtml =
-        '<div class="info-window">' +
-        infoRows.map(r => `
-          <div class="info-row info-row--${r.type}">
-            <div class="info-label">${escapeHtml(r.label)} >></div>
-            <div class="info-value">${escapeHtml(r.value)}</div>
-          </div>`).join('') +
-        '</div>';
+    let infoWindowHtml='';
+    if(infoRows.length){
+      infoWindowHtml = '<div class="info-window">'+infoRows.map(r=>`
+        <div class="info-row info-row--${r.type}">
+          <div class="info-label">${escapeHtml(r.label)} >></div>
+          <div class="info-value">${escapeHtml(r.value)}</div>
+        </div>`).join('')+'</div>';
     }
 
     const q = state.query;
@@ -246,12 +234,13 @@
     const hasDetails = Boolean(cleanedDetailsText) || Boolean(attachmentsHTML);
     const detailsHTML = hasDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
-    let skillsFooterHtml = '';
-    if (Array.isArray(v.skills) && v.skills.length > 0) {
+    let skillsFooterHtml='';
+    if(Array.isArray(v.skills)&&v.skills.length>0){
       skillsFooterHtml = `<div class="footer-skill-tags">${
-        v.skills.slice(0, 3).map(s => `<span class="footer-skill-tag">${escapeHtml(String(s))}</span>`).join('')
+        v.skills.slice(0,3).map(s=>`<span class="footer-skill-tag">${escapeHtml(String(s))}</span>`).join('')
       }</div>`;
     }
+
     const channelHtml = v.channel ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
     const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
     const sep = channelHtml && timestampHtml ? ' • ' : '';
@@ -283,12 +272,12 @@
     `;
 
     const summaryEl = card.querySelector('.card-summary');
-    if (summaryEl) {
+    if(summaryEl){
       summaryEl.dataset.originalSummary = summaryText;
       summaryEl.innerHTML = highlightText(summaryText, q);
     }
     const detailsEl = card.querySelector('.vacancy-text');
-    if (detailsEl) {
+    if(detailsEl){
       detailsEl.dataset.originalText = cleanedDetailsText;
       detailsEl.innerHTML = attachmentsHTML + highlightText(cleanedDetailsText, q);
     }
@@ -296,264 +285,275 @@
   }
 
   // ---- Действия по карточкам ----
-  vacanciesContent?.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-action]');
-    if (!btn) return;
-    const action = btn.dataset.action;
-    if (action === 'apply') openLink(btn.dataset.url);
-    if (action === 'favorite') updateStatus(btn.dataset.id, 'favorite');
-    if (action === 'delete') updateStatus(btn.dataset.id, 'deleted');
+  vacanciesContent?.addEventListener('click',(e)=>{
+    const btn=e.target.closest('[data-action]');
+    if(!btn) return;
+    const action=btn.dataset.action;
+    if(action==='apply')    openLink(btn.dataset.url);
+    if(action==='favorite') updateStatus(btn.dataset.id,'favorite');
+    if(action==='delete')   updateStatus(btn.dataset.id,'deleted');
   });
 
-  async function updateStatus(id, newStatus) {
-    if (!id) return;
-    const ok = await showCustomConfirm(
-      newStatus === 'deleted' ? 'Удалить вакансию из ленты?' : 'Добавить вакансию в избранное?'
-    );
-    if (!ok) return;
-
-    try {
+  async function updateStatus(id,newStatus){
+    if(!id) return;
+    const ok = await showCustomConfirm(newStatus==='deleted' ? 'Удалить вакансию из ленты?' : 'Добавить вакансию в избранное?');
+    if(!ok) return;
+    try{
       const url = `${SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
-      const resp = await fetchWithRetry(
-        url,
-        {
-          method: 'PATCH',
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-            Prefer: 'return=representation',
-          },
-          body: JSON.stringify({ status: newStatus }),
+      const resp = await fetchWithRetry(url,{
+        method:'PATCH',
+        headers:{
+          apikey:SUPABASE_ANON_KEY,
+          Authorization:`Bearer ${SUPABASE_ANON_KEY}`,
+          'Content-Type':'application/json',
+          Prefer:'return=representation',
         },
-        RETRY_OPTIONS
-      );
-      if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+        body:JSON.stringify({ status:newStatus }),
+      }, RETRY_OPTIONS);
+      if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
-      document.querySelectorAll(`#card-${CSS.escape(id)}`).forEach((el) => {
-        el.style.opacity = '0';
-        setTimeout(() => el.remove(), 150);
+      document.querySelectorAll(`#card-${CSS.escape(id)}`).forEach(el=>{
+        el.style.opacity='0';
+        setTimeout(()=>el.remove(),150);
       });
 
-      const k = state.activeKey;
-      if (state[k].total > 0) state[k].total -= 1;
-      counts[k].textContent = `(${state[k].total})`;
+      const k=state.activeKey;
+      if(state[k].total>0) state[k].total-=1;
+      counts[k].textContent=`(${state[k].total})`;
       updateSearchStats();
-    } catch (err) {
+    }catch(err){
       console.error(err);
       safeAlert('Не удалось выполнить действие. Повторите позже.');
     }
   }
 
-  // ---- Загрузка порций (обычная) ----
-  async function fetchNext(key) {
-    const st = state[key];
-    const container = containers[key];
-    if (!container || st.busy) return;
-    st.busy = true;
+  // ---- Загрузка порций (append) ----
+  async function fetchNext(key){
+    const st=state[key];
+    const container=containers[key];
+    if(!container || st.busy) return;
+    st.busy=true;
 
-    const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, st.offset, state.query);
+    const url = buildCategoryUrl(key, PAGE_SIZE_MAIN||10, st.offset, state.query);
     const controller = abortCurrent();
 
-    try {
-      const resp = await fetchWithRetry(
-        url,
-        {
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            Prefer: 'count=exact',
-          },
-          signal: controller.signal,
-        },
-        RETRY_OPTIONS
-      );
-      if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+    try{
+      const resp = await fetchWithRetry(url,{
+        headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, Prefer:'count=exact' },
+        signal: controller.signal
+      }, RETRY_OPTIONS);
+      if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
-      const total = parseTotal(resp);
-      if (Number.isFinite(total)) {
-        st.total = total;
-        if (counts[key]) counts[key].textContent = `(${total})`;
-      }
+      const total=parseTotal(resp);
+      if(Number.isFinite(total)){ st.total=total; counts[key].textContent=`(${total})`; }
 
-      const items = await resp.json();
-      const frag = document.createDocumentFragment();
-      for (const it of items) frag.appendChild(buildCard(it));
+      const items=await resp.json();
+      const frag=document.createDocumentFragment();
+      for(const it of items) frag.appendChild(buildCard(it));
       container.appendChild(frag);
       pinLoadMoreToBottom(container);
 
-      const { btn } = ensureLoadMore(container, () => fetchNext(key));
+      const {btn}=ensureLoadMore(container,()=>fetchNext(key));
       st.offset += items.length;
       const hasMore = st.offset < st.total;
-      updateLoadMore(container, hasMore);
-      if (btn) btn.disabled = !hasMore;
+      updateLoadMore(container,hasMore);
+      if(btn) btn.disabled=!hasMore;
 
-      if (st.total === 0 && st.offset === 0) {
-        renderEmptyState(container, '-- Пусто в этой категории --');
-        updateLoadMore(container, false);
+      if(st.total===0 && st.offset===0){
+        renderEmptyState(container,'-- Пусто в этой категории --');
+        updateLoadMore(container,false);
         pinLoadMoreToBottom(container);
       }
 
-      if (state.activeKey === key) updateSearchStats();
-      st.loadedOnce = true;
-    } catch (e) {
-      if (e.name === 'AbortError') return;
-      console.error('Load error:', e);
-      renderError(container, e.message, () => fetchNext(key));
+      if(state.activeKey===key) updateSearchStats();
+      st.loadedOnce=true;
+      st.loadedForQuery=state.query;
+    }catch(e){
+      if(e.name==='AbortError') return;
+      console.error('Load error:',e);
+      renderError(container,e.message,()=>fetchNext(key));
       pinLoadMoreToBottom(container);
-    } finally {
-      st.busy = false;
+    }finally{
+      st.busy=false;
     }
   }
 
-  // ---- Мягкая перезагрузка активной вкладки (без мерцаний) ----
-  async function refetchFromZeroSmooth(key) {
-    const st = state[key];
-    const container = containers[key];
-    if (!container) return;
+  // ---- Мягкая полная перезагрузка категории (double-buffer, без мигания) ----
+  async function refetchFromZeroSmooth(key){
+    const st=state[key], container=containers[key];
+    if(!container) return;
 
     abortCurrent();
-    st.busy = true;
+    st.busy=true;
 
-    const prevH = container.offsetHeight;
-    container.style.minHeight = prevH ? `${prevH}px` : '';
+    const keepHeight = container.offsetHeight;
+    container.style.minHeight = keepHeight ? `${keepHeight}px` : '';
 
-    const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, 0, state.query);
+    const url = buildCategoryUrl(key, PAGE_SIZE_MAIN||10, 0, state.query);
     const controller = currentController;
 
-    try {
-      const resp = await fetchWithRetry(
-        url,
-        {
-          headers: {
-            apikey: SUPABASE_ANON_KEY,
-            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-            Prefer: 'count=exact',
-          },
-          signal: controller.signal,
-        },
-        RETRY_OPTIONS
-      );
-      if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+    try{
+      const resp = await fetchWithRetry(url,{
+        headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, Prefer:'count=exact' },
+        signal: controller.signal
+      }, RETRY_OPTIONS);
+      if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
-      const total = parseTotal(resp);
-      const items = await resp.json();
+      const total=parseTotal(resp);
+      const items=await resp.json();
 
-      const frag = document.createDocumentFragment();
-      for (const it of items) frag.appendChild(buildCard(it));
+      const frag=document.createDocumentFragment();
+      for(const it of items) frag.appendChild(buildCard(it));
 
-      let lm = container.querySelector('.load-more-wrap');
+      const lm=container.querySelector('.load-more-wrap');
       container.replaceChildren(frag);
-      if (lm) container.appendChild(lm);
+      if(lm) container.appendChild(lm);
 
-      st.offset = items.length;
-      st.total = Number.isFinite(total) ? total : items.length;
-      st.loadedOnce = true;
+      st.offset=items.length;
+      st.total=Number.isFinite(total)?total:items.length;
+      st.loadedOnce=true;
+      st.loadedForQuery=state.query;
 
-      if (counts[key]) counts[key].textContent = `(${st.total})`;
+      if(counts[key]) counts[key].textContent=`(${st.total})`;
 
-      const { btn } = ensureLoadMore(container, () => fetchNext(key));
+      const {btn}=ensureLoadMore(container,()=>fetchNext(key));
       const hasMore = st.offset < st.total;
-      updateLoadMore(container, hasMore);
-      if (btn) btn.disabled = !hasMore;
+      updateLoadMore(container,hasMore);
+      if(btn) btn.disabled=!hasMore;
 
       pinLoadMoreToBottom(container);
-      if (state.activeKey === key) updateSearchStats();
+      if(state.activeKey===key) updateSearchStats();
 
-      // маркер "данные обновились" для PTR
+      // визуальный индикатор «обновилось»
+      flashRefreshed(container);
       document.dispatchEvent(new CustomEvent('feed:loaded'));
-    } catch (e) {
-      if (e.name !== 'AbortError') {
-        console.error('Refetch error:', e);
-        renderError(container, e.message, () => refetchFromZeroSmooth(key));
+    }catch(e){
+      if(e.name!=='AbortError'){
+        console.error('Refetch error:',e);
+        renderError(container,e.message,()=>refetchFromZeroSmooth(key));
         pinLoadMoreToBottom(container);
         document.dispatchEvent(new CustomEvent('feed:loaded'));
       }
-    } finally {
-      container.style.minHeight = '';
-      st.busy = false;
+    }finally{
+      container.style.minHeight='';
+      st.busy=false;
     }
   }
 
   // ---- Поиск (бесшовный) ----
-  const onSearch = debounce(() => {
-    state.query = (searchInput?.value || '').trim();
-    refetchFromZeroSmooth(state.activeKey);      // только активную
-    // остальные сбрасываем «по запросу», DOM не трогаем — обновятся при открытии
-    ['main','maybe','other'].forEach((key) => {
-      if (key !== state.activeKey) resetCategory(key, false);
+  const onSearch = debounce(async ()=>{
+    state.query = (searchInput?.value||'').trim();
+
+    // счётчики всех вкладок сразу
+    fetchCountsAll(state.query);
+
+    // обновляем ТОЛЬКО активную вкладку мягко
+    await refetchFromZeroSmooth(state.activeKey);
+
+    // остальные НЕ чистим (чтобы не мигали при переходе), а лишь сбрасываем состояния —
+    // при первом открытии под новый запрос заменим контент мягко.
+    ['main','maybe','other'].forEach(key=>{
+      if(key!==state.activeKey){
+        const st=state[key];
+        st.loadedOnce=false; st.loadedForQuery='';
+        updateLoadMore(containers[key], false);
+      }
     });
   }, 220);
   searchInput?.addEventListener('input', onSearch);
 
   // ---- Переключение вкладок ----
-  function showOnly(targetId) {
-    vacancyLists.forEach((list) => {
+  function showOnly(targetId){
+    vacancyLists.forEach(list=>{
       list.classList.remove('active');
-      list.style.display = 'none';
+      list.style.display='none';
     });
-    const target = document.getElementById(targetId);
-    if (target) { target.classList.add('active'); target.style.display = ''; }
+    const target=document.getElementById(targetId);
+    if(target){ target.classList.add('active'); target.style.display=''; }
   }
-  function activateTabByTarget(targetId) {
+  async function activateTabByTarget(targetId){
     const key = keyFromTargetId(targetId);
     state.activeKey = key;
 
-    tabButtons.forEach((b) => {
-      const active = b.dataset.target === targetId;
+    tabButtons.forEach(b=>{
+      const active = b.dataset.target===targetId;
       b.classList.toggle('active', active);
-      b.setAttribute('aria-selected', active ? 'true' : 'false');
+      b.setAttribute('aria-selected', active ? 'true':'false');
     });
 
     showOnly(targetId);
     updateSearchStats();
 
-    if (!state[key].loadedOnce) fetchNext(key);
+    // если эта вкладка уже загружалась под текущий запрос — ничего не перезагружаем (никаких миганий)
+    const st=state[key];
+    if(st.loadedOnce && st.loadedForQuery===state.query) return;
+
+    // если DOM уже есть (старый запрос) — заменим мягко; если пусто — обычная первая подгрузка
+    if(containers[key].querySelector('.vacancy-card')){
+      await refetchFromZeroSmooth(key);
+    }else{
+      await fetchNext(key);
+    }
   }
-  tabButtons.forEach((btn) => {
-    btn.addEventListener('click', () => {
+  tabButtons.forEach(btn=>{
+    btn.addEventListener('click', ()=>{
       const targetId = btn.dataset.target;
-      if (!targetId) return;
+      if(!targetId) return;
       activateTabByTarget(targetId);
     });
 
-    // Долгий тап — очистка категории
-    let pressTimer = null;
-    const holdMs = 700;
-    const start = () => {
+    // долгий тап — очистка категории
+    let pressTimer=null; const holdMs=700;
+    const start=()=>{
       clearTimeout(pressTimer);
-      pressTimer = setTimeout(async () => {
-        const key = keyFromTargetId(btn.dataset.target || '');
+      pressTimer=setTimeout(async ()=>{
+        const key = keyFromTargetId(btn.dataset.target||'');
         const ok = await showCustomConfirm('Удалить ВСЕ вакансии в этой категории?');
-        if (!ok) return;
-        try {
-          await bulkSetStatusForCategory(key, 'deleted');
+        if(!ok) return;
+        try{
+          await bulkSetStatusForCategory(key,'deleted');
           clearContainer(containers[key]);
-          state[key] = { offset: 0, total: 0, busy: false, loadedOnce: false };
-          counts[key].textContent = '(0)';
-          if (state.activeKey === key) updateSearchStats();
+          state[key]={ offset:0,total:0,busy:false,loadedOnce:false,loadedForQuery:'' };
+          counts[key].textContent='(0)';
+          if(state.activeKey===key) updateSearchStats();
           safeAlert('Готово: категория очищена.');
-        } catch (e) {
-          console.error(e);
-          safeAlert('Ошибка: не получилось удалить категорию.');
-        }
+        }catch(e){ console.error(e); safeAlert('Ошибка: не получилось удалить категорию.'); }
       }, holdMs);
     };
-    const cancel = () => { clearTimeout(pressTimer); };
+    const cancel=()=>{ clearTimeout(pressTimer); };
     btn.addEventListener('pointerdown', start);
     btn.addEventListener('pointerup', cancel);
     btn.addEventListener('pointerleave', cancel);
   });
 
-  // ---- Pull-to-Refresh: широкая панель (как «Избранное») ----
-  // Состояния: pulling → release → loading
-  (function setupPTRMain(){
-    const threshold = 78; // пикселей до триггера
-    let startY = 0, pulling = false, ready = false, locked = false;
+  // ---- BULK для вкладок ----
+  async function bulkSetStatusForCategory(key,newStatus){
+    const p=new URLSearchParams();
+    p.set('status','eq.new');
+    if(key==='main') p.set('category',`eq.${CAT_NAME.main}`);
+    else if(key==='maybe') p.set('category',`eq.${CAT_NAME.maybe}`);
+    else p.set('category',`not.in.("${CAT_NAME.main}","${CAT_NAME.maybe}")`);
+    const url=`${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+    const resp=await fetchWithRetry(url,{
+      method:'PATCH',
+      headers:{
+        apikey:SUPABASE_ANON_KEY,
+        Authorization:`Bearer ${SUPABASE_ANON_KEY}`,
+        'Content-Type':'application/json',
+        Prefer:'return=minimal',
+      },
+      body:JSON.stringify({ status:newStatus }),
+    }, RETRY_OPTIONS);
+    if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+  }
 
-    const bar = document.createElement('div');
-    // стили похожи на favorites
-    bar.style.cssText = [
+  // ---- Pull-to-Refresh: широкая панель (как в «Избранном») ----
+  (function setupPTR(){
+    const threshold=78;
+    let startY=0, pulling=false, ready=false, locked=false;
+
+    const bar=document.createElement('div');
+    bar.style.cssText=[
       'position:fixed','left:0','right:0','top:0',
       'height:56px','background:#fff','color:#333',
       'border-bottom:3px solid #000','box-shadow:0 2px 0 #000',
@@ -562,77 +562,96 @@
       'display:flex','align-items:center','justify-content:center',
       'letter-spacing:.2px','opacity:0','pointer-events:none'
     ].join(';');
-    bar.textContent = 'Потяните вниз для обновления';
+    bar.textContent='Потяните вниз для обновления';
     document.body.appendChild(bar);
 
-    const setBar = (y) => {
-      // сходное движение как в избранном
-      const perc = Math.min(0, -100 + (y / 0.56)); // выезд панели
-      bar.style.transform = `translateY(${perc}%)`;
-      bar.style.opacity = y > 6 ? '1' : '0';
-    };
-    const resetBar = () => {
-      bar.style.transform = 'translateY(-100%)';
-      bar.style.opacity = '0';
-    };
+    const setBar=y=>{ bar.style.transform=`translateY(${Math.min(0, -100 + (y/0.56))}%)`; bar.style.opacity = y>6?'1':'0'; };
+    const resetBar=()=>{ bar.style.transform='translateY(-100%)'; bar.style.opacity='0'; };
 
-    window.addEventListener('touchstart', (e)=>{
-      if (locked) return;
-      if (window.scrollY > 0) { pulling = false; return; } // только у верхнего края
-      startY = e.touches[0].clientY; pulling = true; ready = false;
-    }, {passive:true});
+    window.addEventListener('touchstart',(e)=>{
+      if(locked) return;
+      if(window.scrollY>0){ pulling=false; return; }
+      startY=e.touches[0].clientY; pulling=true; ready=false;
+    },{passive:true});
 
-    window.addEventListener('touchmove', (e)=>{
-      if (!pulling || locked) return;
-      const y = e.touches[0].clientY;
-      const dist = y - startY;
-      if (dist > 0) {
-        e.preventDefault();           // блок скролла во время PTR
+    window.addEventListener('touchmove',(e)=>{
+      if(!pulling || locked) return;
+      const y=e.touches[0].clientY;
+      const dist=y-startY;
+      if(dist>0){
+        e.preventDefault();
         setBar(dist);
-        if (dist > threshold && !ready) { ready = true; bar.textContent = 'Отпустите для обновления'; }
-        if (dist <= threshold && ready) { ready = false; bar.textContent = 'Потяните вниз для обновления'; }
-      } else {
-        pulling = false; resetBar();
-      }
-    }, {passive:false});
+        if(dist>threshold && !ready){ ready=true; bar.textContent='Отпустите для обновления'; }
+        if(dist<=threshold && ready){ ready=false; bar.textContent='Потяните вниз для обновления'; }
+      }else{ pulling=false; resetBar(); }
+    },{passive:false});
 
-    window.addEventListener('touchend', ()=>{
-      if (!pulling || locked) { resetBar(); pulling=false; return; }
-      if (ready) {
-        locked = true; bar.textContent = 'Обновляю…'; setBar(threshold * 1.2);
-        const done = ()=>{ locked=false; pulling=false; resetBar(); };
-        const onLoaded = ()=>{ document.removeEventListener('feed:loaded', onLoaded); done(); };
+    window.addEventListener('touchend',()=>{
+      if(!pulling || locked){ resetBar(); pulling=false; return; }
+      if(ready){
+        locked=true; bar.textContent='Обновляю…'; setBar(threshold*1.2);
+        const done=()=>{ locked=false; pulling=false; resetBar(); };
+        const onLoaded=()=>{ document.removeEventListener('feed:loaded', onLoaded); done(); };
         document.addEventListener('feed:loaded', onLoaded);
-        // мягкая перезагрузка активной вкладки
-        refetchFromZeroSmooth(state.activeKey);
-        // таймаут-защита
-        setTimeout(()=>{ if (locked) done(); }, 8000);
-      } else {
-        resetBar(); pulling=false;
-      }
-    }, {passive:true});
+        refetchFromZeroSmooth(state.activeKey); // мягкое обновление активного списка
+        setTimeout(()=>{ if(locked) done(); }, 8000);
+      }else{ resetBar(); pulling=false; }
+    },{passive:true});
   })();
 
+  // ---- Вспышка после обновления (явный индикатор) ----
+  (function injectFlashCSS(){
+    const style=document.createElement('style');
+    style.textContent=`
+      @keyframes refreshedFlash { 0%{background:#fffbe6;} 100%{background:transparent;} }
+      .refreshed-flash { animation: refreshedFlash .6s ease forwards; }
+    `;
+    document.head.appendChild(style);
+  })();
+  function flashRefreshed(container){
+    if(!container) return;
+    container.classList.remove('refreshed-flash');
+    // перезапуск анимации
+    void container.offsetWidth;
+    container.classList.add('refreshed-flash');
+  }
+
+  // ---- Prefetch: сразу считаем счётчики и подтягиваем 1-ю страницу скрытых вкладок ----
+  async function prefetchHidden(){
+    // сначала посчитаем количество во всех вкладках
+    fetchCountsAll(state.query);
+    // незаметно подгрузим «maybe» и «other», чтобы при клике ничего не мигало
+    ['maybe','other'].forEach(k=>{
+      // не перегружаем сеть — подгружаем только если пусто
+      if(!containers[k].querySelector('.vacancy-card')){
+        fetchNext(k);
+      }
+    });
+  }
+
   // ---- Инициализация ----
-  function init() {
+  async function init(){
     // скрыть неактивные списки
-    Object.keys(containers).forEach((k) => {
-      if (k !== state.activeKey) containers[k].style.display = 'none';
-      else containers[k].style.display = '';
+    Object.keys(containers).forEach(k=>{
+      containers[k].style.display = (k===state.activeKey) ? '' : 'none';
     });
 
     // подсветка активной кнопки
-    tabButtons.forEach((b) => {
-      const isActive = (b.dataset.target || '').endsWith('-main');
-      b.classList.toggle('active', isActive);
-      b.setAttribute('aria-selected', isActive ? 'true' : 'false');
+    tabButtons.forEach(b=>{
+      const active=(b.dataset.target||'').endsWith('-main');
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-selected', active ? 'true':'false');
     });
 
-    fetchNext('main');
+    // старт: счётчики и главная вкладка
+    fetchCountsAll(state.query);
+    await fetchNext('main');
+    prefetchHidden();
     updateSearchStats();
   }
 
-  document.readyState === 'loading'
+  document.readyState==='loading'
     ? document.addEventListener('DOMContentLoaded', init)
     : init();
+
 })();

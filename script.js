@@ -1,14 +1,15 @@
 /* script.js — главная страница
  * — Активные ссылки во всём тексте (включая «вшитые» в Telegram/HTML/Markdown).
- * — Отклик кнопкой только при наличии apply_url (поддерживает https:// и tg://).
+ * — Кнопка «Откликнуться» только при наличии apply_url (https:// или tg://).
  * — Вкладки, бесшовный поиск, анимированный pull-to-refresh, счётчики, Load More,
- *   длинный тап по вкладке — массовое удаление категории, кастомный confirm.
+ *   долгий тап по вкладке — массовое удаление категории, кастомный confirm.
+ * — ВАЖНО: строки ФОРМАТ/ОПЛАТА/СФЕРА скрываются, если значение «не указано» или пусто.
  */
 
 (function () {
   'use strict';
 
-  // -------- Конфиг и утилиты (из window.APP_CONFIG / window.utils) --------
+  // -------- Конфиг / утилиты --------
   const {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
@@ -31,16 +32,14 @@
     updateLoadMore,
   } = window.utils || {};
 
-  // Локальный санитайзер для кнопки «Откликнуться»: разрешаем https:// и tg://
+  // Разрешаем https:// и tg:// в кнопке отклика
   function allowHttpOrTg(url) {
     if (!url) return '';
     try {
       const u = new URL(url, window.location.href);
       if (/^https?:$/.test(u.protocol) || /^tg:$/.test(u.protocol)) return u.href;
       return '';
-    } catch {
-      return '';
-    }
+    } catch { return ''; }
   }
 
   // -------- DOM --------
@@ -201,6 +200,23 @@
     }catch(e){ console.warn('counts err', e); }
   }
 
+  // ======== Фильтрация «не указано» ========
+  const UNKNOWN_PATTERNS = [
+    'не указано', 'не указано / не указано', 'n/a', 'none', 'null', 'unknown', '/'
+  ];
+  function cleanVal(v){
+    return String(v ?? '').replace(/[«»"“”'‘’`]/g,'').trim();
+  }
+  function isMeaningful(v){
+    const s = cleanVal(v).toLowerCase();
+    if (!s) return false;
+    return !UNKNOWN_PATTERNS.includes(s);
+  }
+  function joinMeaningful(...vals){
+    const parts = vals.map(cleanVal).filter(isMeaningful);
+    return parts.join(' / ');
+  }
+
   // -------- Карточка --------
   function buildCard(v){
     const card=document.createElement('div');
@@ -211,20 +227,23 @@
     else if(v.category==='МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
     else card.classList.add('category-other');
 
-    const isValid = (val)=>val && val!=='null' && val!=='не указано';
-
-    // Отклик — строго из apply_url (разрешаем https:// и tg://)
+    // Отклик (строго из apply_url)
     const applyUrl = allowHttpOrTg(String(v.apply_url || ''));
     const applyBtn = applyUrl ? `<button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(applyUrl)}" aria-label="Откликнуться">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
     </button>` : '';
 
+    // Инфо-блок: показываем ТОЛЬКО осмысленные значения
     const infoRows=[];
-    const fmt=[v.employment_type,v.work_format].filter(Boolean).join(' / ');
-    if(fmt) infoRows.push({label:'ФОРМАТ',value:fmt,type:'default'});
-    if(isValid(v.salary_display_text)) infoRows.push({label:'ОПЛАТА',value:v.salary_display_text,type:'salary'});
-    const sphereText = isValid(v.industry) ? v.industry : (v.sphere||'').trim();
-    if(sphereText) infoRows.push({label:'СФЕРА',value:sphereText,type:'industry'});
+    const fmt = joinMeaningful(v.employment_type, v.work_format);
+    if (fmt) infoRows.push({label:'ФОРМАТ', value:fmt, type:'default'});
+
+    if (isMeaningful(v.salary_display_text))
+      infoRows.push({label:'ОПЛАТА', value:cleanVal(v.salary_display_text), type:'salary'});
+
+    const sphereTextSrc = isMeaningful(v.industry) ? v.industry : v.sphere;
+    if (isMeaningful(sphereTextSrc))
+      infoRows.push({label:'СФЕРА', value:cleanVal(sphereTextSrc), type:'industry'});
 
     let infoWindowHtml='';
     if(infoRows.length){
@@ -238,8 +257,7 @@
     const q = state.query;
     const summaryText = v.reason || 'Описание не было сгенерировано.';
 
-    // ВАЖНО: берём HTML из БД как есть — все ссылки кликабельны (в том числе вшитые).
-    // Убираем артефакт "[ Изображение ]", если встречается.
+    // Полный текст (HTML уже с кликабельными ссылками; убираем артефакт "[ Изображение ]")
     const originalDetailsHtml = String(v.text_highlighted || '').replace(/\[\s*Изображение\s*\]\s*/gi,'');
     const bestImageUrl = pickImageUrl(v, originalDetailsHtml);
     const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
@@ -295,7 +313,6 @@
     }
     const detailsEl = card.querySelector('.vacancy-text');
     if(detailsEl){
-      // ВНИМАНИЕ: вставляем HTML как есть — зашитые <a href="...">ссылки</a> остаются кликабельными.
       detailsEl.innerHTML = attachmentsHTML + originalDetailsHtml;
     }
     return card;
@@ -570,7 +587,7 @@
     if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
   }
 
-  // -------- Pull-to-refresh (анимация как в избранном) --------
+  // -------- Pull-to-refresh --------
   (function setupPTR(){
     const threshold=78;
     let startY=0, pulling=false, ready=false, locked=false;
@@ -629,7 +646,6 @@
     style.textContent=`
       @keyframes refreshedFlash { 0%{background:#fffbe6;} 100%{background:transparent;} }
       .refreshed-flash { animation: refreshedFlash .6s ease forwards; }
-      /* видимые ссылки внутри карточек */
       .vacancy-text a, .card-summary a { text-decoration: underline; color:#1f6feb; word-break: break-word; }
       .vacancy-text a:hover, .card-summary a:hover { opacity:.85; }
     `;

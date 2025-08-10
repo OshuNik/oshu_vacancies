@@ -1,5 +1,8 @@
 // script.js — вкладки, поиск, постраничная загрузка, действия по карточкам
-// Фиксы: long-press → подтверждение и удаление категории; pin LoadMore снизу; без мерцаний при вводе.
+// Фиксы:
+// 1) Вернул pull-to-refresh (свайп сверху вниз) с прогресс-полоской.
+// 2) Поиск без «мигания» — мягкая подмена контента после получения данных (double-buffer).
+// 3) Сохранены: long-press на вкладке = удалить всю категорию, «Загрузить ещё» всегда снизу.
 
 (function () {
   'use strict';
@@ -43,13 +46,13 @@
     other: document.getElementById('count-other'),
   };
 
-  const tabButtons = document.querySelectorAll('.tab-button'); // у кнопок есть data-target
+  const tabButtons = document.querySelectorAll('.tab-button'); // data-target у каждой
   const vacancyLists = document.querySelectorAll('.vacancy-list');
   const searchInput = document.getElementById('search-input');
   const searchContainer = document.getElementById('search-container');
   const vacanciesContent = document.getElementById('vacancies-content');
 
-  // кастомный confirm из HTML
+  // ---- Кастомный confirm (из HTML) ----
   const confirmOverlay = document.getElementById('custom-confirm-overlay');
   const confirmText = document.getElementById('custom-confirm-text');
   const confirmOkBtn = document.getElementById('confirm-btn-ok');
@@ -81,7 +84,7 @@
     other: { offset: 0, total: 0, busy: false, loadedOnce: false },
   };
 
-  // ---- Поиск: «Найдено: X из Y» ----
+  // ---- Статистика поиска ----
   let searchStatsEl = null;
   function ensureSearchUI() {
     if (!searchContainer) return;
@@ -139,8 +142,6 @@
     if (clearDom) clearContainer(containers[key]);
     updateLoadMore(containers[key], false);
   }
-
-  // Держать кнопку «Загрузить ещё» внизу
   function pinLoadMoreToBottom(container) {
     const wrap = container?.querySelector('.load-more-wrap');
     if (wrap) container.appendChild(wrap);
@@ -167,7 +168,7 @@
     return `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
   }
 
-  // Массовое изменение статуса в категории
+  // ---- BULK: изменить статус всех в категории ----
   async function bulkSetStatusForCategory(key, newStatus) {
     const params = new URLSearchParams();
     params.set('status', 'eq.new');
@@ -193,7 +194,7 @@
     if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
   }
 
-  // ---- Рендер карточки ----
+  // ---- Карточка ----
   function buildCard(v) {
     const card = document.createElement('div');
     card.className = 'vacancy-card';
@@ -340,7 +341,7 @@
     }
   }
 
-  // ---- Загрузка порций ----
+  // ---- Загрузка порций (обычная, добавление в конец) ----
   async function fetchNext(key) {
     const st = state[key];
     const container = containers[key];
@@ -401,22 +402,89 @@
     }
   }
 
-  // ---- Поиск (без мерцаний) ----
+  // ---- Мягкая перезагрузка активной вкладки (без мерцаний) ----
+  async function refetchFromZeroSmooth(key) {
+    const st = state[key];
+    const container = containers[key];
+    if (!container) return;
+
+    // блокируем конкурирующие запросы
+    abortCurrent();
+    st.busy = true;
+
+    // фиксируем высоту, чтобы не было «скачка»
+    const prevH = container.offsetHeight;
+    container.style.minHeight = prevH ? `${prevH}px` : '';
+
+    const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, 0, state.query);
+    const controller = currentController; // уже создан в abortCurrent()
+
+    try {
+      const resp = await fetchWithRetry(
+        url,
+        {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+            Prefer: 'count=exact',
+          },
+          signal: controller.signal,
+        },
+        RETRY_OPTIONS
+      );
+      if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+
+      const total = parseTotal(resp);
+      const items = await resp.json();
+
+      // готовим новый DOM заранее
+      const frag = document.createDocumentFragment();
+      for (const it of items) frag.appendChild(buildCard(it));
+
+      // единоразовая замена DOM без очистки заранее — без «мигания»
+      // сохраняем "load-more-wrap", если он уже есть
+      let lm = container.querySelector('.load-more-wrap');
+      container.replaceChildren(frag); // мгновенная подмена
+      if (lm) container.appendChild(lm);
+
+      // обновляем состояние
+      st.offset = items.length;
+      st.total = Number.isFinite(total) ? total : items.length;
+      st.loadedOnce = true;
+
+      if (counts[key]) counts[key].textContent = `(${st.total})`;
+
+      const { btn } = ensureLoadMore(container, () => fetchNext(key));
+      updateLoadMore(container, st.offset < st.total);
+      if (btn) btn.disabled = !(st.offset < st.total);
+
+      pinLoadMoreToBottom(container);
+      if (state.activeKey === key) updateSearchStats();
+    } catch (e) {
+      if (e.name !== 'AbortError') {
+        console.error('Refetch error:', e);
+        renderError(container, e.message, () => refetchFromZeroSmooth(key));
+        pinLoadMoreToBottom(container);
+      }
+    } finally {
+      // снимаем фиксацию высоты
+      container.style.minHeight = '';
+      st.busy = false;
+    }
+  }
+
+  // ---- Поиск (бесшовный) ----
   const onSearch = debounce(() => {
     state.query = (searchInput?.value || '').trim();
 
-    // Перегружаем ТОЛЬКО активную вкладку
-    const k = state.activeKey;
-    abortCurrent();
-    resetCategory(k, true);
-    fetchNext(k);
-    updateSearchStats();
+    // Обновляем ТОЛЬКО активную вкладку мягко
+    refetchFromZeroSmooth(state.activeKey);
 
-    // Остальные помечаем «нужно обновить при открытии», но DOM не трогаем — это убирает мерцание
-    ['main','maybe','other'].forEach(key => {
-      if (key !== k) resetCategory(key, false); // только сброс состояния, без очистки DOM
+    // Остальные сбрасываем «по запросу», без очистки DOM — они обновятся при первом открытии
+    ['main','maybe','other'].forEach((key) => {
+      if (key !== state.activeKey) resetCategory(key, false);
     });
-  }, 250);
+  }, 220);
 
   searchInput?.addEventListener('input', onSearch);
 
@@ -441,14 +509,12 @@
     });
 
     showOnly(targetId);
-
-    // если по поиску мы сбрасывали состояние — подчистим DOM перед новой загрузкой
-    if (!state[key].loadedOnce && containers[key].children.length) {
-      clearContainer(containers[key]);
-    }
-
     updateSearchStats();
-    if (!state[key].loadedOnce) fetchNext(key);
+
+    if (!state[key].loadedOnce) {
+      // если ещё не грузили — обычная первая загрузка
+      fetchNext(key);
+    }
   }
 
   tabButtons.forEach((btn) => {
@@ -459,7 +525,7 @@
       activateTabByTarget(targetId);
     });
 
-    // ДОЛГИЙ ТАП — подтверждение удаления всей категории
+    // долгий тап — подтверждение удаления категории
     let pressTimer = null;
     const holdMs = 700;
 
@@ -471,7 +537,6 @@
         if (!ok) return;
         try {
           await bulkSetStatusForCategory(key, 'deleted');
-          // очистим DOM и счётчики
           clearContainer(containers[key]);
           state[key] = { offset: 0, total: 0, busy: false, loadedOnce: false };
           counts[key].textContent = '(0)';
@@ -489,6 +554,69 @@
     btn.addEventListener('pointerdown', start);
     btn.addEventListener('pointerup', cancel);
     btn.addEventListener('pointerleave', cancel);
+  });
+
+  // ---- Pull-to-Refresh (свайп сверху вниз) ----
+  // Независим от платформы, не блокирует обычный скролл.
+  let ptrBar = null;
+  function ensurePtrBar() {
+    if (ptrBar) return ptrBar;
+    ptrBar = document.createElement('div');
+    ptrBar.id = 'ptr-progress';
+    Object.assign(ptrBar.style, {
+      position: 'fixed',
+      left: 0,
+      top: 0,
+      height: '3px',
+      width: '0%',
+      background: '#00b894',
+      zIndex: 9999,
+      transition: 'width 0.15s ease',
+    });
+    document.body.appendChild(ptrBar);
+    return ptrBar;
+  }
+  function setPtrProgress(pct) {
+    ensurePtrBar().style.width = Math.max(0, Math.min(100, pct)) + '%';
+  }
+  function resetPtr() { setPtrProgress(0); }
+
+  let pulling = false;
+  let startY = 0;
+  const THRESHOLD = 70; // пикселей до триггера
+
+  window.addEventListener('touchstart', (e) => {
+    if (window.scrollY > 0) return; // только у верхнего края
+    if (e.touches.length !== 1) return;
+    pulling = true;
+    startY = e.touches[0].clientY;
+    resetPtr();
+  }, { passive: true });
+
+  window.addEventListener('touchmove', (e) => {
+    if (!pulling) return;
+    const dy = e.touches[0].clientY - startY;
+    if (dy <= 0) { pulling = false; resetPtr(); return; }
+    // Притормаживаем прокрутку страницы во время PTR
+    e.preventDefault();
+    const pct = Math.min(100, (dy / THRESHOLD) * 100);
+    setPtrProgress(pct);
+  }, { passive: false });
+
+  window.addEventListener('touchend', () => {
+    if (!pulling) return;
+    pulling = false;
+    const widthNow = parseFloat(ensurePtrBar().style.width) || 0;
+    if (widthNow >= 100) {
+      // Тянули достаточно — мягко обновляем активную вкладку
+      setPtrProgress(25);
+      refetchFromZeroSmooth(state.activeKey).then(() => {
+        setPtrProgress(100);
+        setTimeout(resetPtr, 200);
+      }).catch(() => resetPtr());
+    } else {
+      resetPtr();
+    }
   });
 
   // ---- Инициализация ----

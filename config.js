@@ -1,16 +1,12 @@
-// config.js — все настраиваемые параметры в одном месте
-
-window.APP_CONFIG = {
-  // 👉 ваши действующие данные Supabase
+// config.js — единые настройки фронта
+window.config = {
   SUPABASE_URL: 'https://lwfhtwnfqmdjwzrdznvv.supabase.co',
   SUPABASE_ANON_KEY: 'sb_publishable_j2pTEm1MIJTXyAeluGHocQ_w16iaDj4',
 
-  // Порции на главной
-  PAGE_SIZE_MAIN: 10,
+  // то, что у тебя называлось PAGE_SIZE_MAIN
+  PAGE_SIZE: 10,
 
-  // Ретраи сетевых запросов
+  // доп. опции — если не используются, можно оставить, не мешают
   RETRY_OPTIONS: { retries: 2, backoffMs: 400 },
-
-  // Поля, по которым ищем на сервере (ilike)
   SEARCH_FIELDS: ['reason', 'text_highlighted', 'industry', 'company_name'],
 };

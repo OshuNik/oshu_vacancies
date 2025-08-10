@@ -1,23 +1,46 @@
 /* script.js — главная страница
- * — Активные ссылки во всём тексте (включая «вшитые» в Telegram/HTML/Markdown).
- * — Кнопка «Откликнуться» только при наличии apply_url (https:// или tg://).
- * — Вкладки, бесшовный поиск, анимированный pull-to-refresh, счётчики, Load More,
- *   долгий тап по вкладке — массовое удаление категории, кастомный confirm.
- * — ВАЖНО: строки ФОРМАТ/ОПЛАТА/СФЕРА скрываются, если значение «не указано» или пусто.
+ * — Кликабельные ссылки (берём text_highlighted как HTML, ничего не экранируем).
+ * — Кнопка «Откликнуться» только при наличии валидного apply_url (https:// или tg://).
+ * — Скрываем строки ФОРМАТ/ОПЛАТА/СФЕРА, если «не указано» или пусто.
+ * — Вкладки, счётчики, бесшовный поиск, мягкая перезагрузка, pull-to-refresh.
+ * — Долгий тап по вкладке — массовое удаление категории.
+ * — Вернул анимацию первоначальной загрузки (полоска сверху).
  */
 
 (function () {
   'use strict';
 
-  // -------- Конфиг / утилиты --------
+  // --- Гарантированно берём конфиг и утилиты ---
+  const CFG   = window.APP_CONFIG;
+  const UTILS = window.utils;
+
+  if (!CFG) {
+    console.error('APP_CONFIG is missing. Load config.js BEFORE script.js');
+    alert('Ошибка конфигурации: APP_CONFIG не загружен');
+    return;
+  }
+  if (!UTILS) {
+    console.error('utils.js is missing. Load utils.js BEFORE script.js');
+    alert('Ошибка: utils.js не загружен');
+    return;
+  }
+
+  // Конфиг с безопасными дефолтами
   const {
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
-    PAGE_SIZE_MAIN,
-    RETRY_OPTIONS,
-    SEARCH_FIELDS,
-  } = window.APP_CONFIG || {};
+    PAGE_SIZE_MAIN = 10,
+    RETRY_OPTIONS   = { retries: 2, retryDelay: 300 },
+    SEARCH_FIELDS   = ['text_highlighted', 'reason', 'channel']
+  } = CFG;
 
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error('APP_CONFIG has no SUPABASE_URL / SUPABASE_ANON_KEY');
+    alert('Ошибка конфигурации Supabase');
+    return;
+  }
+
+  // Утилиты
   const {
     escapeHtml,
     debounce,
@@ -30,7 +53,9 @@
     renderError,
     ensureLoadMore,
     updateLoadMore,
-  } = window.utils || {};
+    stripTags,
+    highlightText
+  } = UTILS;
 
   // Разрешаем https:// и tg:// в кнопке отклика
   function allowHttpOrTg(url) {
@@ -58,6 +83,35 @@
   const searchInput     = document.getElementById('search-input');
   const searchContainer = document.getElementById('search-container');
   const vacanciesContent= document.getElementById('vacancies-content');
+
+  // --- Loader (полоска сверху «Загрузка…») ---
+  const loaderEl    = document.getElementById('loader');        // <div id="loader" class="hidden">...</div>
+  const progressEl  = document.getElementById('progress-bar');  // <div id="progress-bar"></div>
+  let   loaderTimer = null;
+  let   loaderShown = false;
+
+  function showLoader() {
+    if (!loaderEl || loaderShown) return;
+    loaderShown = true;
+    loaderEl.classList.remove('hidden');
+    let p = 1;
+    progressEl && (progressEl.style.width = '1%');
+    loaderTimer = setInterval(() => {
+      p = Math.min(p + (8 + Math.random()*12), 92); // «ползём» до 92%
+      if (progressEl) progressEl.style.width = `${p}%`;
+    }, 350);
+  }
+  function hideLoader() {
+    if (!loaderEl) return;
+    clearInterval(loaderTimer);
+    if (progressEl) progressEl.style.width = '100%';
+    setTimeout(() => {
+      loaderEl.classList.add('hidden');
+      if (progressEl) progressEl.style.width = '1%';
+      loaderShown = false;
+    }, 250);
+  }
+  document.addEventListener('feed:loaded', hideLoader); // на всякий
 
   // Кастомный confirm
   const confirmOverlay   = document.getElementById('custom-confirm-overlay');
@@ -124,7 +178,6 @@
   function keyFromTargetId(targetId){
     if (targetId.endsWith('-main'))  return 'main';
     if (targetId.endsWith('-maybe')) return 'maybe';
-    if (targetId.endsWith('-other')) return 'other';
     if (/main$/i.test(targetId))  return 'main';
     if (/maybe$/i.test(targetId)) return 'maybe';
     return 'other';
@@ -283,7 +336,10 @@
           <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
         </button>
         <button class="card-action-btn delete" data-action="delete" data-id="${v.id}" aria-label="Удалить">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          <svg class="icon-x" viewBox="0 0 24 24" aria-hidden="true">
+            <line x1="18" y1="6" x2="6" y2="18"></line>
+            <line x1="6" y1="6" x2="18" y2="18"></line>
+          </svg>
         </button>
       </div>
 
@@ -681,7 +737,15 @@
     });
 
     fetchCountsAll(state.query);
-    await fetchNext('main');
+
+    // показываем полоску только на самой первой загрузке главной
+    showLoader();
+    try {
+      await fetchNext('main');
+    } finally {
+      hideLoader();
+    }
+
     prefetchHidden();
     updateSearchStats();
   }

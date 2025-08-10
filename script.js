@@ -1,6 +1,6 @@
-// script.js — вкладки, бесшовный поиск, постраничная загрузка, PTR как в «Избранном»,
-// мгновенные счётчики на всех вкладках, без миганий при переключении.
-// ✅ Отклик — ТОЛЬКО из v.apply_url; если его нет — кнопки нет.
+// script.js — вкладки, бесшовный поиск, постраничная загрузка, PTR, счётчики, индикатор обновления
+// Важно: кнопка «Откликнуться» — ТОЛЬКО из v.apply_url; если его нет — кнопки нет.
+// Фикс: если карточек не осталось, «Загрузить ещё» прячется сразу (и при refetch с нулём).
 
 (function () {
   'use strict';
@@ -129,11 +129,16 @@
     const st=state[key];
     st.offset=0; st.total=0; st.busy=false; st.loadedOnce=false; st.loadedForQuery='';
     if(clearDom) clearContainer(containers[key]);
-    updateLoadMore(containers[key], false);
+    hideLoadMore(containers[key]);
   }
   function pinLoadMoreToBottom(container){
     const wrap=container?.querySelector('.load-more-wrap');
     if(wrap) container.appendChild(wrap);
+  }
+  function hideLoadMore(container){
+    updateLoadMore?.(container, false);
+    const lm = container?.querySelector('.load-more-wrap');
+    if (lm) lm.remove();
   }
 
   // ---- API URLs ----
@@ -157,7 +162,7 @@
     return `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
   }
 
-  // ---- Быстрые счётчики на все вкладки ----
+  // ---- Быстрые счётчики ----
   async function fetchCount(key, query){
     const p=new URLSearchParams();
     p.set('select','id');
@@ -204,7 +209,8 @@
     const isValid = (val)=>val && val!=='null' && val!=='не указано';
 
     // Отклик — строго из apply_url
-    const applyUrl = sanitizeUrl(String(v.apply_url || ''));
+    const applyUrlRaw = v.apply_url ? String(v.apply_url) : '';
+    const applyUrl = sanitizeUrl(applyUrlRaw);
     const applyBtn = applyUrl ? `<button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(applyUrl)}" aria-label="Откликнуться">
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
     </button>` : '';
@@ -213,7 +219,6 @@
     const fmt=[v.employment_type,v.work_format].filter(Boolean).join(' / ');
     if(fmt) infoRows.push({label:'ФОРМАТ',value:fmt,type:'default'});
     if(isValid(v.salary_display_text)) infoRows.push({label:'ОПЛАТА',value:v.salary_display_text,type:'salary'});
-
     const sphereText = isValid(v.industry) ? v.industry : (v.sphere||'').trim();
     if(sphereText) infoRows.push({label:'СФЕРА',value:sphereText,type:'industry'});
 
@@ -299,6 +304,7 @@
     if(!id) return;
     const ok = await showCustomConfirm(newStatus==='deleted' ? 'Удалить вакансию из ленты?' : 'Добавить вакансию в избранное?');
     if(!ok) return;
+
     try{
       const url = `${SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
       const resp = await fetchWithRetry(url,{
@@ -313,14 +319,20 @@
       }, RETRY_OPTIONS);
       if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
-      document.querySelectorAll(`#card-${CSS.escape(id)}`).forEach(el=>{
-        el.style.opacity='0';
-        setTimeout(()=>el.remove(),150);
+      document.querySelectorAll(`#card-${CSS.escape(id)}`).forEach((el) => {
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 150);
       });
 
-      const k=state.activeKey;
-      if(state[k].total>0) state[k].total-=1;
-      counts[k].textContent=`(${state[k].total})`;
+      const k = state.activeKey;
+      if (state[k].total > 0) state[k].total -= 1;
+      counts[k].textContent = `(${state[k].total})`;
+      const cont = containers[k];
+      // если карточек больше нет — скрываем Load More и показываем пусто
+      if (cont && cont.querySelectorAll('.vacancy-card').length === 0) {
+        hideLoadMore(cont);
+        renderEmptyState(cont, '-- Пусто в этой категории --');
+      }
       updateSearchStats();
     }catch(err){
       console.error(err);
@@ -362,8 +374,7 @@
 
       if(st.total===0 && st.offset===0){
         renderEmptyState(container,'-- Пусто в этой категории --');
-        updateLoadMore(container,false);
-        pinLoadMoreToBottom(container);
+        hideLoadMore(container);
       }
 
       if(state.activeKey===key) updateSearchStats();
@@ -417,12 +428,18 @@
 
       if(counts[key]) counts[key].textContent=`(${st.total})`;
 
-      const {btn}=ensureLoadMore(container,()=>fetchNext(key));
-      const hasMore = st.offset < st.total;
-      updateLoadMore(container,hasMore);
-      if(btn) btn.disabled=!hasMore;
+      // если пусто — не показываем «Загрузить ещё»
+      if (st.total === 0) {
+        hideLoadMore(container);
+        renderEmptyState(container,'-- Пусто в этой категории --');
+      } else {
+        const {btn}=ensureLoadMore(container,()=>fetchNext(key));
+        const hasMore = st.offset < st.total;
+        updateLoadMore(container,hasMore);
+        if(btn) btn.disabled=!hasMore;
+        pinLoadMoreToBottom(container);
+      }
 
-      pinLoadMoreToBottom(container);
       if(state.activeKey===key) updateSearchStats();
 
       flashRefreshed(container);
@@ -449,7 +466,7 @@
       if(key!==state.activeKey){
         const st=state[key];
         st.loadedOnce=false; st.loadedForQuery='';
-        updateLoadMore(containers[key], false);
+        hideLoadMore(containers[key]);
       }
     });
   }, 220);
@@ -506,6 +523,7 @@
           clearContainer(containers[key]);
           state[key]={ offset:0,total:0,busy:false,loadedOnce:false,loadedForQuery:'' };
           counts[key].textContent='(0)';
+          hideLoadMore(containers[key]);
           if(state.activeKey===key) updateSearchStats();
           safeAlert('Готово: категория очищена.');
         }catch(e){ console.error(e); safeAlert('Ошибка: не получилось удалить категорию.'); }

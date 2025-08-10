@@ -1,10 +1,10 @@
 /* script.js — главная страница
- * — Кликабельные ссылки (берём text_highlighted как HTML, ничего не экранируем).
- * — Кнопка «Откликнуться» только при наличии валидного apply_url (https:// или tg://).
+ * — Кликабельные ссылки (берём text_highlighted как HTML).
+ * — Кнопка «Откликнуться» только если есть валидный apply_url (https:// или tg://).
  * — Скрываем строки ФОРМАТ/ОПЛАТА/СФЕРА, если «не указано» или пусто.
- * — Вкладки, счётчики, бесшовный поиск, мягкая перезагрузка, pull-to-refresh.
+ * — Вкладки, счётчики, поиск, мягкая перезагрузка, pull-to-refresh.
  * — Долгий тап по вкладке — массовое удаление категории.
- * — Вернул анимацию первоначальной загрузки (полоска сверху).
+ * — Лоадер: фиксированная полоска сверху + контент скрыт до первой отрисовки.
  */
 
 (function () {
@@ -78,11 +78,24 @@
     maybe: document.getElementById('count-maybe'),
     other: document.getElementById('count-other'),
   };
-  const tabButtons      = document.querySelectorAll('.tab-button');
-  const vacancyLists    = document.querySelectorAll('.vacancy-list');
-  const searchInput     = document.getElementById('search-input');
-  const searchContainer = document.getElementById('search-container');
-  const vacanciesContent= document.getElementById('vacancies-content');
+  const tabButtons       = document.querySelectorAll('.tab-button');
+  const vacancyLists     = document.querySelectorAll('.vacancy-list');
+  const searchInput      = document.getElementById('search-input');
+  const searchContainer  = document.getElementById('search-container');
+  const vacanciesContent = document.getElementById('vacancies-content');
+
+  // --- Инжект CSS: прячем контент до первой отрисовки, стилизуем фикс-лоадер ---
+  (function injectPreloadCSS(){
+    const style = document.createElement('style');
+    style.textContent = `
+      body.preloading #vacancies-content { visibility: hidden; }
+      body.preloading .load-more-wrap { display: none !important; }
+      #loader.fixed-top { position: fixed !important; left: 0; right: 0; top: 0; z-index: 10000;
+        background: #fff; padding: 8px 0; border-bottom: 3px solid #000; box-shadow: 0 2px 0 #000; }
+      #loader.fixed-top .progress { height: 8px; }
+    `;
+    document.head.appendChild(style);
+  })();
 
   // --- Loader (полоска сверху «Загрузка…») ---
   const loaderEl    = document.getElementById('loader');        // <div id="loader" class="hidden">...</div>
@@ -93,11 +106,13 @@
   function showLoader() {
     if (!loaderEl || loaderShown) return;
     loaderShown = true;
+    // закрепляем сверху, чтобы не «скакал»
+    loaderEl.classList.add('fixed-top');
     loaderEl.classList.remove('hidden');
     let p = 1;
-    progressEl && (progressEl.style.width = '1%');
+    if (progressEl) progressEl.style.width = '1%';
     loaderTimer = setInterval(() => {
-      p = Math.min(p + (8 + Math.random()*12), 92); // «ползём» до 92%
+      p = Math.min(p + (8 + Math.random() * 12), 92); // «ползём» до 92%
       if (progressEl) progressEl.style.width = `${p}%`;
     }, 350);
   }
@@ -107,6 +122,7 @@
     if (progressEl) progressEl.style.width = '100%';
     setTimeout(() => {
       loaderEl.classList.add('hidden');
+      loaderEl.classList.remove('fixed-top');
       if (progressEl) progressEl.style.width = '1%';
       loaderShown = false;
     }, 250);
@@ -738,12 +754,14 @@
 
     fetchCountsAll(state.query);
 
-    // показываем полоску только на самой первой загрузке главной
+    // Скрываем контент, показываем фикс-лоадер до первой отрисовки
+    document.body.classList.add('preloading');
     showLoader();
     try {
       await fetchNext('main');
     } finally {
       hideLoader();
+      document.body.classList.remove('preloading');
     }
 
     prefetchHidden();

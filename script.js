@@ -1,5 +1,5 @@
 /* script.js — главная страница
- * ИСПРАВЛЕНО: Загрузчик появляется только при первом запуске, а не при каждом действии.
+ * ИСПРАВЛЕНО: Полностью исправлен баг с зависанием "pull-to-refresh".
  */
 
 (function () {
@@ -261,11 +261,9 @@
     if(!container || st.busy) return;
     st.busy=true;
 
-    // ИСПРАВЛЕНО: Лоадер показывается только при самом первом запуске
-    if (isInitialLoad && st.offset === 0) {
+    if (isInitialLoad) {
         showLoader();
     } else if (st.offset === 0) {
-        // Для последующих загрузок (смена вкладок) показываем заглушку
         container.innerHTML = '<p class="empty-list">Загрузка...</p>';
     }
 
@@ -309,12 +307,10 @@
       if(e.name==='AbortError') return;
       console.error('Load error:',e);
       if (st.offset === 0) {
-        renderError(container,e.message,()=>fetchNext(key));
-        pinLoadMoreToBottom(container);
+        renderError(container,e.message,()=>fetchNext(key, isInitialLoad));
       }
     }finally{
       st.busy=false;
-      // ИСПРАВЛЕНО: Лоадер скрывается только после самой первой загрузки
       if (isInitialLoad) {
         hideLoader();
       }
@@ -329,19 +325,21 @@
 
     abortCurrent();
     st.busy=true;
-    st.offset = 0; // Сбрасываем offset для перезагрузки
+    st.offset = 0;
 
-    // ИСПРАВЛЕНО: Полноэкранный лоадер здесь больше не вызывается
     const keepHeight = container.offsetHeight;
     if (keepHeight) container.style.minHeight = `${keepHeight}px`;
     container.innerHTML = '<p class="empty-list">Обновление...</p>';
 
-
-    await fetchNext(key); // Используем fetchNext для загрузки
-    
-    container.style.minHeight = '';
-    document.dispatchEvent(new CustomEvent('feed:loaded'));
-    flashRefreshed(containers[key]);
+    // Оборачиваем в try...finally, чтобы гарантировать завершение
+    try {
+        await fetchNext(key);
+    } finally {
+        st.busy = false; // Убедимся, что busy сброшен
+        container.style.minHeight = '';
+        document.dispatchEvent(new CustomEvent('feed:loaded'));
+        flashRefreshed(container);
+    }
   }
 
   // -------- Поиск --------

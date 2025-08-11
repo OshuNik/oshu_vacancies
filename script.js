@@ -1,6 +1,5 @@
-/* script.js — главная страница
- * ИСПРАВЛЕНО: Убран баг с потерей фокуса и "затемнением" поля поиска.
- */
+// script.js — главная страница
+
 (function () {
   'use strict';
   
@@ -333,7 +332,6 @@
       st.offset = 0;
       
       container.classList.add('loading-seamless');
-      // ИЗМЕНЕНИЕ: Эта строка удалена -> if(searchInput) searchInput.disabled = true;
 
       const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, 0, state.query);
       const controller = abortCurrent();
@@ -365,7 +363,7 @@
               updateLoadMore(wrap, hasMore);
               frag.appendChild(wrap);
           }
-          container.replaceChildren(frag); // Атомарная замена контента
+          container.replaceChildren(frag);
 
           st.loadedOnce = true;
           st.loadedForQuery = state.query;
@@ -377,7 +375,6 @@
       } finally {
           st.busy = false;
           container.classList.remove('loading-seamless');
-          // ИЗМЕНЕНИЕ: Эта строка удалена -> if(searchInput) searchInput.disabled = false;
       }
   }
 
@@ -463,7 +460,6 @@
         counts[key].textContent = '(0)';
         hideLoadMore(containers[key]);
         renderEmptyState(containers[key], '-- Пусто в этой категории --');
-        updateSearchStats();
         uiToast('Категория очищена');
 
     } catch(e) {
@@ -522,7 +518,8 @@
 
     setupPullToRefresh({
         onRefresh: () => refetchFromZeroSmooth(state.activeKey),
-        refreshEventName: 'feed:loaded'
+        refreshEventName: 'feed:loaded',
+        contentElement: vacanciesContent 
     });
     
     showLoader();

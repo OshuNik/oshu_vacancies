@@ -11,30 +11,29 @@
                  style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
                  font-src https://fonts.gstatic.com 'self';
                  script-src 'self' https://telegram.org;">
+
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="preconnect" href="https://lwfhtwnfqmdjwzrdznvv.supabase.co">
-  <link rel="icon" href="/favicon.ico">
+
+  <link rel="icon" href="./favicon.ico">
 
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header class="header header-centered">
-    <h1>★ Избранное</h1>
-    <div class="header-actions">
-      <a href="index.html" class="header-button">← Назад</a>
-    </div>
-  </header>
 
-  <div class="search-container" id="search-container-fav">
-    <input type="search" id="search-input-fav" class="search-input" placeholder="Поиск по тексту...">
-  </div>
+<header class="header">
+  <img src="logo.svg" alt="oshu://work" class="logo">
+</header>
 
-  <main class="content" id="favorites-list"></main>
+<div id="search-container-fav" class="search-container">
+  <input id="search-input-fav" class="search-input" type="text" placeholder="Поиск в избранном…">
+</div>
 
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  <script src="config.js"></script>
-  <script src="utils.js"></script>
-  <script src="favorites.js"></script>
+<main id="favorites-list" class="content"></main>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="config.js"></script>
+<script src="utils.js"></script>
+<script src="favorites.js"></script>
 </body>
 </html>

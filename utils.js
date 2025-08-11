@@ -125,31 +125,43 @@
     return escapeHtml(text).replace(rx, '<mark class="highlight">$1</mark>');
   };
 
-  // ИЗМЕНЕНИЕ: Новая, более гибкая функция для проверки всех типов ссылок
+  // ИЗМЕНЕНИЕ: Новая, более надежная функция для проверки и нормализации ссылок
   function sanitizeLink(raw = '') {
-    const urlStr = String(raw).trim();
-    if (!urlStr) return '';
-    // Проверяем на стандартные протоколы, включая tg://
-    if (/^(https?|tg):\/\//.test(urlStr)) {
-      try {
-        // Проверяем, что URL валидный, и возвращаем его
-        return new URL(urlStr).href;
-      } catch (e) {
-        return ''; // Невалидный URL
-      }
+    let s = String(raw).trim();
+    if (!s) return '';
+
+    // Если это телеграм ссылка без протокола, добавляем https
+    if (/^(t\.me|telegram\.me)\//i.test(s)) {
+        s = 'https://' + s;
     }
+    // Если это похоже на домен без протокола (но не tg://), добавляем https
+    if (!/^[a-z]+:\/\//i.test(s) && s.includes('.')) {
+        s = 'https://' + s;
+    }
+
+    // Теперь проверяем, что это валидный URL с разрешенным протоколом
+    try {
+        const url = new URL(s);
+        if (['https:', 'http:', 'tg:'].includes(url.protocol)) {
+            return url.href;
+        }
+    } catch (e) {
+        // Невалидный URL
+    }
+    
     return '';
   }
   
   function openLink(url) {
-    const safeUrl = sanitizeLink(url); // Используем новую функцию
+    const safeUrl = sanitizeLink(url);
     if (!safeUrl) return;
 
-    if (safeUrl.startsWith('tg://')) {
+    if (safeUrl.startsWith('tg://') || safeUrl.startsWith('https://t.me')) {
         if (tg && typeof tg.openTelegramLink === 'function') {
+            // Для ссылок t.me тоже лучше использовать нативный метод Telegram
             tg.openTelegramLink(safeUrl);
         } else {
-            window.location.href = safeUrl;
+            window.open(safeUrl, '_blank', 'noopener');
         }
     } else {
         if (tg && typeof tg.openLink === 'function') {
@@ -287,7 +299,6 @@
       metaSeparator: card.querySelector('.meta-separator'),
     };
 
-    // ИЗМЕНЕНИЕ: Используем новую, правильную функцию sanitizeLink
     const applyUrl = sanitizeLink(v.apply_url || '');
     if (applyUrl) {
       elements.applyBtn.dataset.action = 'apply';

@@ -1,5 +1,5 @@
-// settings.js — стилизованные уведомления + confirm
-// ИЗМЕНЕНИЕ: Удалено дублирование, используются общие утилиты
+// settings.js
+// ИЗМЕНЕНИЕ: Полностью убрана проверка авторизации для подготовки к SaaS-архитектуре
 
 (function() {
   'use strict';
@@ -118,6 +118,9 @@
     deleteButton.addEventListener('click', async () => {
       const dbId = channelItem.dataset.dbId;
       if (!dbId) return;
+      const ok = await showCustomConfirm('Удалить этот канал?');
+      if (!ok) return;
+      
       channelItem.style.opacity = '0.5';
       try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?id=eq.${dbId}`, {
@@ -197,7 +200,7 @@
 
   async function loadChannels() {
     if (!channelsListContainer) return;
-    channelsListContainer.innerHTML = '<p>Загрузка каналов...</p>';
+    channelsListContainer.innerHTML = '<p class="empty-list">Загрузка каналов...</p>';
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?select=*`, {
         headers: createSupabaseHeaders()

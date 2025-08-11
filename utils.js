@@ -359,38 +359,50 @@
     return card;
   }
   
-  // ИЗМЕНЕНИЕ: Новая, надежная реализация Pull-to-Refresh
   function setupPullToRefresh(options = {}) {
     const {
         onRefresh,
         refreshEventName,
-        container, // Теперь это обязательный элемент, на который вешаются слушатели
-        mainElement // Элемент, который содержит и шапку, и контент
+        container,
+        mainElement
     } = options;
 
     if (!container || !mainElement) return;
 
-    const { THRESHOLD, BAR_HEIGHT } = CFG.PTR_CONFIG || { THRESHOLD: 60, BAR_HEIGHT: 50 };
+    // Уменьшаем порог для большей чувствительности
+    const { THRESHOLD, BAR_HEIGHT } = { THRESHOLD: 60, BAR_HEIGHT: 50 };
     let startY = 0, pulling = false, locked = false;
 
-    // Создаем плашку для обновления
     let bar = document.querySelector('.ptr-bar');
     if (!bar) {
         bar = document.createElement('div');
         bar.className = 'ptr-bar';
-        bar.innerHTML = '<span class="ptr-text">Потяните для обновления</span>';
-        // Вставляем её после шапки, а не в body
         mainElement.prepend(bar);
     }
-    const barText = bar.querySelector('.ptr-text');
+    
+    let barText = bar.querySelector('.ptr-text');
+    if (!barText) {
+        barText = document.createElement('span');
+        barText.className = 'ptr-text';
+        bar.innerHTML = '';
+        bar.appendChild(barText);
+    }
+    barText.textContent = 'Потяните для обновления';
+
+    const resetState = (e) => {
+        if(locked && e) return; // Не сбрасываем, если мы в процессе загрузки
+        locked = false;
+        container.style.transition = 'transform 0.2s';
+        container.style.transform = 'translateY(0px)';
+        bar.style.transition = 'transform 0.2s, opacity 0.2s';
+        bar.style.transform = `translateY(-100%)`;
+        bar.style.opacity = '0';
+        barText.textContent = 'Потяните для обновления';
+    };
 
     const onLoaded = () => {
         document.removeEventListener(refreshEventName, onLoaded);
-        locked = false;
-        bar.style.transition = 'transform .2s, opacity .2s';
-        bar.style.transform = `translateY(-${BAR_HEIGHT}px)`;
-        bar.style.opacity = '0';
-        container.style.transform = 'translateY(0px)';
+        resetState();
     };
 
     container.addEventListener('touchstart', (e) => {
@@ -398,6 +410,7 @@
             pulling = false;
             return;
         }
+        container.style.transition = 'none';
         bar.style.transition = 'none';
         startY = e.touches[0].clientY;
         pulling = true;
@@ -408,8 +421,8 @@
         const dist = e.touches[0].clientY - startY;
 
         if (dist > 0 && container.scrollTop === 0) {
-            e.preventDefault(); // Забираем скролл себе
-            const pullDist = Math.min(dist / 2.5, BAR_HEIGHT * 1.5);
+            e.preventDefault();
+            const pullDist = Math.pow(dist, 0.85);
             container.style.transform = `translateY(${pullDist}px)`;
             bar.style.transform = `translateY(${pullDist - BAR_HEIGHT}px)`;
             bar.style.opacity = `${Math.min(pullDist / BAR_HEIGHT, 1)}`;
@@ -422,14 +435,20 @@
         }
     }, { passive: false });
 
-    container.addEventListener('touchend', () => {
-        container.style.transition = 'transform .2s';
-        if (pulling && !locked && (e.touches[0].clientY - startY) / 2.5 > THRESHOLD) {
+    container.addEventListener('touchend', (e) => {
+        if (!pulling || locked) {
+            pulling = false;
+            return;
+        };
+        
+        const finalDist = e.changedTouches[0].clientY - startY;
+        
+        if (Math.pow(finalDist, 0.85) > THRESHOLD) {
             locked = true;
+            container.style.transition = 'transform 0.2s';
             container.style.transform = `translateY(${BAR_HEIGHT}px)`;
-            bar.style.transform = `translateY(0px)`;
-            bar.style.opacity = '1';
-            barText.innerHTML = '<div class="retro-spinner-inline"></div> Обновление...';
+            bar.style.transform = `translateY(0)`;
+            barText.innerHTML = '<div class="retro-spinner-inline"></div>';
             
             if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
             
@@ -438,12 +457,11 @@
             
             setTimeout(() => { if (locked) onLoaded(); }, 8000);
         } else {
-            onLoaded(); // Возвращаем все в исходное состояние
+            resetState(true);
         }
         pulling = false;
     }, { passive: true });
   }
-
 
   window.utils = {
     tg, 

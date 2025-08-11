@@ -1,5 +1,6 @@
 // settings.js — стилизованные уведомления + confirm
 // ИСПРАВЛЕНО: убран хардкод, настройки берутся из APP_CONFIG
+// ИСПРАВЛЕНО: showCustomConfirm переписан на Promise для единообразия
 
 (function() {
   'use strict';
@@ -7,15 +8,13 @@
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
   if (tg && tg.expand) tg.expand();
 
-  // --- ИСПРАВЛЕНО: Берём конфиг из глобального объекта ---
+  // --- Берём конфиг из глобального объекта ---
   const CFG = window.APP_CONFIG;
   if (!CFG || !CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY) {
     alert("Критическая ошибка: Конфигурация приложения не найдена!");
     return;
   }
   const { SUPABASE_URL, SUPABASE_ANON_KEY } = CFG;
-  // --- КОНЕЦ ИСПРАВЛЕНИЯ ---
-
 
   // ---------- UI helpers ----------
   function uiToast(message = '') {
@@ -65,12 +64,23 @@
   const confirmOkBtn = document.getElementById('confirm-btn-ok');
   const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
 
-  function showCustomConfirm(message, callback) {
-    if (!confirmOverlay) return callback(window.confirm(message));
-    confirmText.textContent = message;
-    confirmOverlay.classList.remove('hidden');
-    confirmOkBtn.onclick = () => { confirmOverlay.classList.add('hidden'); callback(true); };
-    confirmCancelBtn.onclick = () => { confirmOverlay.classList.add('hidden'); callback(false); };
+  // ИСПРАВЛЕНИЕ: функция confirm переписана на Promise
+  function showCustomConfirm(message) {
+    return new Promise(resolve => {
+        if (!confirmOverlay) {
+            return resolve(window.confirm(message));
+        }
+        confirmText.textContent = message;
+        confirmOverlay.classList.remove('hidden');
+        const close = (result) => {
+            confirmOverlay.classList.add('hidden');
+            confirmOkBtn.onclick = null;
+            confirmCancelBtn.onclick = null;
+            resolve(result);
+        };
+        confirmOkBtn.onclick = () => close(true);
+        confirmCancelBtn.onclick = () => close(false);
+    });
   }
 
   // --- табы ---
@@ -308,25 +318,26 @@
     }
   });
 
-  deleteAllBtn?.addEventListener('click', () => {
+  // ИСПРАВЛЕНИЕ: вызов confirm переписан на async/await
+  deleteAllBtn?.addEventListener('click', async () => {
     const message = 'Удалить все каналы из базы? Это действие необратимо.';
-    showCustomConfirm(message, async (isConfirmed) => {
-      if (!isConfirmed) return;
-      deleteAllBtn.disabled = true;
-      try {
-        await fetch(`${SUPABASE_URL}/rest/v1/channels?id=gt.0`, {
-          method: 'DELETE',
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
-        });
-        channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
-        uiToast('Все каналы удалены.');
-      } catch (error) {
-        console.error('Ошибка удаления каналов:', error);
-        uiAlert(String(error));
-      } finally {
-        deleteAllBtn.disabled = false;
-      }
-    });
+    const isConfirmed = await showCustomConfirm(message);
+    if (!isConfirmed) return;
+
+    deleteAllBtn.disabled = true;
+    try {
+      await fetch(`${SUPABASE_URL}/rest/v1/channels?id=gt.0`, {
+        method: 'DELETE',
+        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+      });
+      channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
+      uiToast('Все каналы удалены.');
+    } catch (error) {
+      console.error('Ошибка удаления каналов:', error);
+      uiAlert(String(error));
+    } finally {
+      deleteAllBtn.disabled = false;
+    }
   });
 
   // Initial

@@ -21,38 +21,20 @@ body {
     background-color: var(--background-color);
     color: var(--text-color);
     margin: 0;
-    padding: 15px;
-    overflow-x: hidden; /* Предотвращаем горизонтальный скролл */
+    padding: 15px 15px 120px 15px;
+    /* ИЗМЕНЕНИЕ: Добавляем отступ снизу, равный высоте панели вкладок + небольшой запас */
+    padding: 15px 15px 95px 15px;
 }
 
-.main-wrapper {
-    position: relative;
-    z-index: 1; /* Чтобы быть над вкладками, но под оверлеями */
-    background: var(--background-color); /* Фон, чтобы не было видно контент под ним при сдвиге */
-    padding-bottom: 80px;
+/* --- Классы для анимаций --- */
+/* --- Класс для бесшовной загрузки --- */
+.vacancy-list.loading-seamless {
+    opacity: 0.5;
+    pointer-events: none;
+    transition: opacity 0.2s ease-in-out;
 }
 
-.ptr-bar {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 50px;
-    background: #e0e0e0;
-    color: var(--text-color);
-    transform: translateY(-100%); /* Прячем плашку над экраном */
-    z-index: 5;
-    font-family: inherit;
-    font-weight: 700;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-bottom: var(--border-width) solid var(--border-color);
-    box-shadow: 0 var(--shadow-offset) 0px var(--border-color);
-}
-
-.is-refreshing .retro-spinner-inline { display: inline-block; }
-
+/* ИЗМЕНЕНИЕ: Новый класс и анимация для pull-to-refresh */
 .is-refreshing {
     animation: pulse-animation 1.2s infinite ease-in-out;
 }
@@ -61,7 +43,6 @@ body {
     50% { opacity: 0.6; }
     100% { opacity: 1; }
 }
-
 
 /* --- Шапка и основной контент --- */
 .header {
@@ -354,9 +335,12 @@ mark.highlight {
 
 /* --- Other UI Elements --- */
 .vacancy-list, .settings-tab-content { display: none; }
+
+/* ИЗМЕНЕНИЕ: Добавляем !important, чтобы перебить любые другие стили, скрывающие блок */
 .vacancy-list.active, .settings-tab-content.active {
     display: block !important;
 }
+
 .empty-list { 
     text-align: center; 
     color: var(--hint-color); 
@@ -365,6 +349,33 @@ mark.highlight {
     align-items: center;
     justify-content: center;
     gap: 10px;
+}
+
+/* --- PULL TO REFRESH ИНДИКАТОР --- */
+.ptr-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: var(--ptr-bar-height, 60px);
+    background: #fff;
+    color: #333;
+    border-bottom: 3px solid #000;
+    box-shadow: 0 2px 0 #000;
+    transform: translateY(-100%);
+    transition: transform .2s ease,opacity .14s linear;
+    z-index: 9999;
+    font-family: inherit;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    letter-spacing: .2px;
+    opacity: 0;
+    pointer-events: none;
+}
+.ptr-bar.visible {
+    opacity: 1;
 }
 
 /* --- LOADER (ПРОГРЕСС-БАР) --- */
@@ -597,10 +608,19 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
     box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
     transition: all 0.1s ease-out;
 }
+.header-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+#logout-button {
+    border-color: var(--accent-red) !important;
+    color: var(--accent-red);
+}
 .header-icon-btn svg { width: 24px; height: 24px; stroke: var(--accent-blue); stroke-width: 2.5; }
 .header-icon-btn:active {
-    transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
-    box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
+    transform: translate(var(--shadow-offset), var(--shadow-offset));
+    box-shadow: 0px 0px 0px var(--border-color);
 }
 .header-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 

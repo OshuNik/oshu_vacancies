@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display.swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
 
 :root {
     --background-color: #F0F0F0;
@@ -58,7 +58,6 @@ body {
     display: inline-block;
 }
 
-/* --- Класс для бесшовной загрузки --- */
 .vacancy-list.loading-seamless {
     opacity: 0.5;
     pointer-events: none;

@@ -267,7 +267,7 @@ mark.highlight {
 .vacancy-list.active, .settings-tab-content.active { display: block; }
 .empty-list { text-align: center; color: var(--hint-color); padding: 30px 0; }
 
-/* --- НОВЫЙ РЕТРО-СПИННЕР --- */
+/* --- НОВЫЙ ПИКСЕЛЬНЫЙ СПИННЕР --- */
 .loader-container {
     padding: 50px 20px;
     text-align: center;
@@ -283,22 +283,38 @@ mark.highlight {
     background-color: var(--background-color);
     z-index: 100;
 }
+
 .retro-spinner {
     width: 48px;
     height: 48px;
-    border: var(--border-width) solid var(--border-color);
+    /* Убираем стандартные рамки */
+    border: none;
     border-radius: 50%;
-    border-top-color: var(--accent-green);
-    border-right-color: var(--accent-yellow);
-    border-bottom-color: var(--accent-red);
-    animation: spin 1s linear infinite;
+    /* Создаем пиксельный эффект с помощью box-shadow */
+    box-shadow:
+        /* Внешняя рамка */
+        0 -12px 0 -8px var(--border-color),
+        0 12px 0 -8px var(--border-color),
+        -12px 0 0 -8px var(--border-color),
+        12px 0 0 -8px var(--border-color),
+        -8px -8px 0 -8px var(--border-color),
+        8px -8px 0 -8px var(--border-color),
+        -8px 8px 0 -8px var(--border-color),
+        8px 8px 0 -8px var(--border-color),
+        /* Цветные анимированные сегменты */
+        0 -12px 0 -8px var(--accent-green),
+        12px 0 0 -8px var(--accent-yellow),
+        -12px 0 0 -8px var(--accent-blue);
+    animation: spin 1.2s linear infinite;
 }
+
 .loader-text {
     font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
     font-size: 12px;
-    margin-top: 15px;
+    margin-top: 20px;
     color: var(--hint-color);
 }
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }

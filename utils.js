@@ -368,67 +368,84 @@
   }
   
   function setupPullToRefresh(options = {}) {
-    const {
-        onRefresh,
-        refreshEventName,
-        container,
-    } = options;
+    const { onRefresh, refreshEventName } = options;
+    if (typeof onRefresh !== 'function' || !refreshEventName) return;
 
-    if (!container) return;
-    
-    // Возвращаемся к версии с "пульсацией", она самая надежная
-    const { THRESHOLD } = CFG.PTR_CONFIG || { THRESHOLD: 80 };
-    let startY = 0,
-        pulling = false,
-        ready = false,
+    const wrapper = document.querySelector('.main-wrapper');
+    const ptrBar = wrapper?.querySelector('.ptr-bar');
+    const ptrText = ptrBar?.querySelector('.ptr-text');
+
+    if (!wrapper || !ptrBar || !ptrText) return;
+
+    const { THRESHOLD, BAR_HEIGHT } = CFG.PTR_CONFIG || { THRESHOLD: 70, BAR_HEIGHT: 50 };
+    let startY = 0, pulling = false, locked = false;
+
+    const resetState = () => {
         locked = false;
+        wrapper.style.transition = 'transform 0.3s';
+        wrapper.style.transform = 'translateY(0px)';
+        ptrText.textContent = 'Потяните для обновления';
+        ptrText.innerHTML = 'Потяните для обновления';
+    };
 
     const onLoaded = () => {
         document.removeEventListener(refreshEventName, onLoaded);
-        locked = false;
-        container.classList.remove('is-refreshing');
+        resetState();
     };
 
-    container.addEventListener('touchstart', (e) => {
-        if (locked || container.scrollTop > 0) {
+    document.body.addEventListener('touchstart', (e) => {
+        if (locked || window.scrollY > 0) {
             pulling = false;
             return;
         }
+        wrapper.style.transition = 'none';
         startY = e.touches[0].clientY;
         pulling = true;
-        ready = false;
     }, { passive: true });
 
-    container.addEventListener('touchmove', (e) => {
+    document.body.addEventListener('touchmove', (e) => {
         if (!pulling || locked) return;
         const dist = e.touches[0].clientY - startY;
-        if (dist > 0 && container.scrollTop === 0) {
-            if (dist > THRESHOLD && !ready) {
-                ready = true;
-                if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-            }
-            if (dist <= THRESHOLD && ready) {
-                ready = false;
-            }
-        } else {
-            pulling = false;
-        }
-    }, { passive: true });
 
-    container.addEventListener('touchend', () => {
-        if (ready && !locked) {
-            locked = true;
-            container.classList.add('is-refreshing');
-            document.addEventListener(refreshEventName, onLoaded);
+        if (dist > 0 && window.scrollY === 0) {
+            e.preventDefault();
+            const pullDist = Math.pow(dist, 0.85);
+            wrapper.style.transform = `translateY(${pullDist}px)`;
             
+            if (pullDist > THRESHOLD) {
+                ptrText.textContent = 'Отпустите для обновления';
+            } else {
+                ptrText.textContent = 'Потяните для обновления';
+            }
+        }
+    }, { passive: false });
+
+    document.body.addEventListener('touchend', (e) => {
+        if (!pulling || locked) {
+            pulling = false;
+            return;
+        };
+        
+        const finalDist = e.changedTouches[0].clientY - startY;
+        
+        if (Math.pow(finalDist, 0.85) > THRESHOLD) {
+            locked = true;
+            wrapper.style.transition = 'transform 0.3s';
+            wrapper.style.transform = `translateY(${BAR_HEIGHT}px)`;
+            ptrText.innerHTML = '<div class="retro-spinner-inline"></div> Обновление...';
+            
+            if (tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
+                tg.HapticFeedback.impactOccurred('medium');
+            }
+            
+            document.addEventListener(refreshEventName, onLoaded);
             onRefresh();
             
-            setTimeout(() => {
-                if (locked) onLoaded();
-            }, 8000);
+            setTimeout(() => { if (locked) onLoaded(); }, 8000);
+        } else {
+            resetState();
         }
         pulling = false;
-        ready = false;
     }, { passive: true });
   }
 

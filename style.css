@@ -21,7 +21,8 @@ body {
     background-color: var(--background-color);
     color: var(--text-color);
     margin: 0;
-    padding: 15px 15px 120px 15px;
+    /* ИЗМЕНЕНИЕ: Добавляем отступ снизу, равный высоте панели вкладок + небольшой запас */
+    padding: 15px 15px 95px 15px;
 }
 
 /* --- Класс для бесшовной загрузки --- */
@@ -70,6 +71,15 @@ body {
 .header-button:active {
     transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
     box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--border-color);
+}
+.header-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+#logout-button {
+    border-color: var(--accent-red) !important;
+    color: var(--accent-red);
 }
 
 /* --- Search Bar --- */
@@ -313,12 +323,9 @@ mark.highlight {
 
 /* --- Other UI Elements --- */
 .vacancy-list, .settings-tab-content { display: none; }
-
-/* ИЗМЕНЕНИЕ: Добавляем !important, чтобы перебить любые другие стили, скрывающие блок */
 .vacancy-list.active, .settings-tab-content.active {
     display: block !important;
 }
-
 .empty-list { 
     text-align: center; 
     color: var(--hint-color); 

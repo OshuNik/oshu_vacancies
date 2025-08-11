@@ -758,12 +758,3 @@ details[open] .vacancy-text {
   opacity: 1;
   transform: translateY(0);
 }
-
-/* Анимация для вспышки при обновлении */
-@keyframes refreshedFlash {
-  0% { background: #fffbe6; }
-  100% { background: transparent; }
-}
-.refreshed-flash {
-  animation: refreshedFlash .6s ease forwards;
-}

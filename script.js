@@ -41,11 +41,14 @@
     maybe: document.getElementById('vacancies-list-maybe'),
     other: document.getElementById('vacancies-list-other'),
   };
+  
+  // ИЗМЕНЕНИЕ: Возвращаем на место инициализацию элементов счётчиков
   const counts = {
     main:  document.getElementById('count-main'),
     maybe: document.getElementById('count-maybe'),
     other: document.getElementById('count-other'),
   };
+
   const tabButtons      = document.querySelectorAll('.tab-button');
   const vacancyLists    = document.querySelectorAll('.vacancy-list');
   const searchInput     = document.getElementById('search-input');
@@ -122,7 +125,7 @@
   function buildCategoryUrl(key, limit, offset, query){
     const p = new URLSearchParams();
     p.set('select', '*');
-    p.set('status', `eq.${STATUSES.NEW}`);
+    // p.set('status', `eq.${STATUSES.NEW}`);
     p.set('order', 'timestamp.desc');
     p.set('limit', String(limit));
     p.set('offset', String(offset));
@@ -143,7 +146,7 @@
     const fetchCount = async (key) => {
         const p = new URLSearchParams();
         p.set('select', 'id');
-        p.set('status', `eq.${STATUSES.NEW}`);
+        // p.set('status', `eq.${STATUSES.NEW}`);
         p.set('limit', '1');
         
         if (key === 'main') p.set('category', `eq.${CATEGORIES.MAIN}`);
@@ -344,7 +347,7 @@
           if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
           const total = parseTotal(resp);
-          if (Number.isFinite(total)) { st.total = total; counts[key].textContent = `(${total})`; }
+          if (Number.isFinite(total)) { counts[key].textContent = `(${total})`; }
 
           const items = await resp.json();
           
@@ -441,16 +444,15 @@
 
     try {
         const p = new URLSearchParams();
-        p.set('status', `eq.${STATUSES.NEW}`);
+        // p.set('status', `eq.${STATUSES.NEW}`);
         if (key === 'main') p.set('category', `eq.${CATEGORIES.MAIN}`);
         else if (key === 'maybe') p.set('category', `eq.${CATEGORIES.MAYBE}`);
         else p.set('category', `not.in.("${CATEGORIES.MAIN}","${CATEGORIES.MAYBE}")`);
 
         const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
         const resp = await fetchWithRetry(url, {
-            method: 'PATCH',
+            method: 'DELETE',
             headers: createSupabaseHeaders({ prefer: 'return=minimal' }),
-            body: JSON.stringify({ status: STATUSES.DELETED }),
         }, RETRY_OPTIONS);
 
         if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
@@ -518,8 +520,7 @@
     
     setupPullToRefresh({
         onRefresh: () => refetchFromZeroSmooth(state.activeKey),
-        refreshEventName: 'feed:loaded',
-        container: document.documentElement
+        refreshEventName: 'feed:loaded'
     });
     
     showLoader();

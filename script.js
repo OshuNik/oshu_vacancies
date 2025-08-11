@@ -317,11 +317,11 @@
     }
   }
 
-  // -------- Мягкая перезагрузка (без полноэкранного лоадера) --------
+  // -------- ИСПРАВЛЕННАЯ Мягкая перезагрузка (без полноэкранного лоадера) --------
   async function refetchFromZeroSmooth(key){
     const st=state[key];
     const container=containers[key];
-    if(!container) return;
+    if(!container || st.busy) return;
 
     abortCurrent();
     st.busy=true;
@@ -331,11 +331,46 @@
     if (keepHeight) container.style.minHeight = `${keepHeight}px`;
     container.innerHTML = '<p class="empty-list">Обновление...</p>';
 
-    // Оборачиваем в try...finally, чтобы гарантировать завершение
     try {
-        await fetchNext(key);
+        const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, 0, state.query);
+        const resp = await fetchWithRetry(url, {
+            headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}`, Prefer: 'count=exact' },
+            signal: currentController.signal
+        });
+        if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+
+        const total = parseTotal(resp);
+        if (Number.isFinite(total)) { st.total = total; counts[key].textContent = `(${total})`; }
+
+        const items = await resp.json();
+        clearContainer(container);
+
+        if (items.length === 0) {
+            renderEmptyState(container, '-- Пусто в этой категории --');
+        } else {
+            const frag = document.createDocumentFragment();
+            for (const it of items) frag.appendChild(
+                createVacancyCard(it, { pageType: 'main', searchQuery: state.query })
+            );
+            container.appendChild(frag);
+            pinLoadMoreToBottom(container);
+
+            st.offset = items.length;
+            const hasMore = st.offset < st.total;
+            const { btn } = ensureLoadMore(container, () => fetchNext(key));
+            updateLoadMore(container, hasMore);
+            if (btn) btn.disabled = !hasMore;
+        }
+        st.loadedOnce = true;
+        st.loadedForQuery = state.query;
+        updateSearchStats();
+    } catch (e) {
+        if (e.name !== 'AbortError') {
+            console.error('Refetch error:', e);
+            renderError(container, e.message, () => refetchFromZeroSmooth(key));
+        }
     } finally {
-        st.busy = false; // Убедимся, что busy сброшен
+        st.busy = false;
         container.style.minHeight = '';
         document.dispatchEvent(new CustomEvent('feed:loaded'));
         flashRefreshed(container);

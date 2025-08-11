@@ -267,7 +267,52 @@ mark.highlight {
 .vacancy-list.active, .settings-tab-content.active { display: block; }
 .empty-list { text-align: center; color: var(--hint-color); padding: 30px 0; }
 
-/* --- НОВЫЙ ПИКСЕЛЬНЫЙ СПИННЕР --- */
+/* --- PULL TO REFRESH ИНДИКАТОР --- */
+.ptr-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 60px;
+    background: transparent;
+    transform: translateY(-100%);
+    transition: transform .2s ease;
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 15px;
+    pointer-events: none;
+    opacity: 0;
+}
+.ptr-bar.visible {
+    opacity: 1;
+}
+.ptr-spinner {
+    width: 28px;
+    height: 28px;
+    border: none;
+    border-radius: 50%;
+    box-shadow:
+        0 -8px 0 -5px var(--border-color),
+        0 8px 0 -5px var(--border-color),
+        -8px 0 0 -5px var(--border-color),
+        8px 0 0 -5px var(--border-color),
+        0 -8px 0 -5px var(--accent-green),
+        8px 0 0 -5px var(--accent-yellow);
+    animation: spin 1s linear infinite;
+    display: none; /* Скрыт по умолчанию */
+}
+.ptr-bar.refreshing .ptr-spinner {
+    display: block; /* Показываем при обновлении */
+}
+.ptr-text {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 12px;
+    color: var(--hint-color);
+}
+
+/* --- LOADER (ПРОГРЕСС-БАР) --- */
 .loader-container {
     padding: 50px 20px;
     text-align: center;
@@ -283,42 +328,39 @@ mark.highlight {
     background-color: var(--background-color);
     z-index: 100;
 }
-
-.retro-spinner {
-    width: 48px;
-    height: 48px;
-    /* Убираем стандартные рамки */
-    border: none;
-    border-radius: 50%;
-    /* Создаем пиксельный эффект с помощью box-shadow */
-    box-shadow:
-        /* Внешняя рамка */
-        0 -12px 0 -8px var(--border-color),
-        0 12px 0 -8px var(--border-color),
-        -12px 0 0 -8px var(--border-color),
-        12px 0 0 -8px var(--border-color),
-        -8px -8px 0 -8px var(--border-color),
-        8px -8px 0 -8px var(--border-color),
-        -8px 8px 0 -8px var(--border-color),
-        8px 8px 0 -8px var(--border-color),
-        /* Цветные анимированные сегменты */
-        0 -12px 0 -8px var(--accent-green),
-        12px 0 0 -8px var(--accent-yellow),
-        -12px 0 0 -8px var(--accent-blue);
-    animation: spin 1.2s linear infinite;
+.retro-progress-bar-outline {
+    width: 80%;
+    max-width: 300px;
+    height: 24px;
+    border: var(--border-width) solid var(--border-color);
+    background-color: var(--card-color);
+    padding: 4px;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0 var(--border-color);
 }
-
+.retro-progress-bar-fill {
+    width: 0%;
+    height: 100%;
+    background-color: var(--accent-green);
+    animation: loading-progress 2s ease-out infinite;
+    image-rendering: pixelated;
+    background-image: linear-gradient(45deg, rgba(0,0,0,0.15) 25%, transparent 25%, transparent 50%, rgba(0,0,0,0.15) 50%, rgba(0,0,0,0.15) 75%, transparent 75%, transparent);
+    background-size: 16px 16px;
+}
 .loader-text {
     font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
     font-size: 12px;
-    margin-top: 20px;
+    margin-top: 15px;
     color: var(--hint-color);
 }
-
+@keyframes loading-progress {
+    0% { width: 0%; }
+    40% { width: 60%; }
+    80% { width: 90%; }
+    100% { width: 100%; }
+}
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
-/* --- КОНЕЦ СТИЛЕЙ СПИННЕРА --- */
 
 
 /* --- Settings Page --- */

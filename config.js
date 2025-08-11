@@ -10,11 +10,16 @@ window.APP_CONFIG = {
 
   // Ретраи сетевых запросов
   RETRY_OPTIONS: { retries: 2, backoffMs: 400 },
+  
+  // ИЗМЕНЕНИЕ: Параметры для Pull-to-Refresh
+  PTR_CONFIG: {
+    THRESHOLD: 80, // (в px) дистанция для срабатывания
+    BAR_HEIGHT: 60 // (в px) высота плашки обновления
+  },
 
   // Поля, по которым ищем на сервере (ilike)
   SEARCH_FIELDS: ['reason', 'text_highlighted', 'industry', 'company_name'],
 
-  // ИЗМЕНЕНИЕ: Централизованные константы для статусов и категорий
   STATUSES: {
     NEW: 'new',
     FAVORITE: 'favorite',

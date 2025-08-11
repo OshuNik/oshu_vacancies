@@ -128,23 +128,18 @@
   function sanitizeLink(raw = '') {
     let s = String(raw).trim();
     if (!s) return '';
-
     if (/^(t\.me|telegram\.me)\//i.test(s)) {
         s = 'https://' + s;
     }
     if (!/^[a-z]+:\/\//i.test(s) && s.includes('.')) {
         s = 'https://' + s;
     }
-
     try {
         const url = new URL(s);
         if (['https:', 'http:', 'tg:'].includes(url.protocol)) {
             return url.href;
         }
-    } catch (e) {
-        // Not a valid URL
-    }
-    
+    } catch (e) {}
     return '';
   }
   
@@ -323,7 +318,6 @@
     elements.summary.innerHTML = searchQuery ? highlightText(summaryText, searchQuery) : escapeHtml(summaryText);
 
     const infoRows = [];
-    // ИЗМЕНЕНИЕ: Добавляем обычную одинарную кавычку в регулярное выражение
     const cleanVal = val => String(val ?? '').replace(/[«»"“”'‘’`']/g,'').trim();
     const isMeaningful = val => !!cleanVal(val) && !['не указано', 'n/a'].includes(cleanVal(val).toLowerCase());
     
@@ -395,78 +389,67 @@
   }
 
   function setupPullToRefresh(options = {}) {
-    const { onRefresh, refreshEventName, container = window } = options;
-    if (typeof onRefresh !== 'function' || !refreshEventName) return;
+    const {
+        onRefresh,
+        refreshEventName,
+        container = window,
+        contentElement
+    } = options;
 
-    const { THRESHOLD, BAR_HEIGHT } = CFG.PTR_CONFIG || { THRESHOLD: 80, BAR_HEIGHT: 60 };
-    let startY = 0, pulling = false, ready = false, locked = false;
+    if (typeof onRefresh !== 'function' || !refreshEventName || !contentElement) return;
 
-    const bar = document.createElement('div');
-    bar.className = 'ptr-bar';
-    document.body.style.setProperty('--ptr-bar-height', `${BAR_HEIGHT}px`);
-    bar.innerHTML = '<span class="ptr-text">Потяните для обновления</span>';
-    document.body.appendChild(bar);
-    const barText = bar.querySelector('.ptr-text');
+    const { THRESHOLD } = CFG.PTR_CONFIG || { THRESHOLD: 80 };
+    let startY = 0,
+        pulling = false,
+        ready = false,
+        locked = false;
 
-    const setBar = (y) => {
-        bar.style.transform = `translateY(${Math.min(0, -100 + (y / (THRESHOLD / 100)))}%)`;
-        bar.classList.toggle('visible', y > 6);
-    };
-
-    const resetBar = () => {
-        bar.classList.remove('visible');
-        bar.style.transform = 'translateY(-100%)';
-        if(barText) barText.textContent = 'Потяните для обновления';
+    const onLoaded = () => {
+        document.removeEventListener(refreshEventName, onLoaded);
+        locked = false;
+        contentElement.classList.remove('is-refreshing');
     };
 
     container.addEventListener('touchstart', (e) => {
-      if (locked || window.scrollY > 0 || e.touches.length !== 1) {
-        pulling = false;
-        return;
-      }
-      startY = e.touches[0].clientY;
-      pulling = true;
-      ready = false;
+        if (locked || window.scrollY > 0 || e.touches.length !== 1) {
+            pulling = false;
+            return;
+        }
+        startY = e.touches[0].clientY;
+        pulling = true;
+        ready = false;
     }, { passive: true });
 
     container.addEventListener('touchmove', (e) => {
-      if (!pulling || locked) return;
-      const dist = e.touches[0].clientY - startY;
-      if (dist > 0) {
-        setBar(dist);
-        if (dist > THRESHOLD && !ready) {
-            ready = true;
-            if(barText) barText.textContent = 'Отпустите для обновления';
+        if (!pulling || locked) return;
+        const dist = e.touches[0].clientY - startY;
+        if (dist > 0 && window.scrollY === 0) {
+            if (dist > THRESHOLD && !ready) {
+                ready = true;
+                if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
+            }
+            if (dist <= THRESHOLD && ready) {
+                ready = false;
+            }
+        } else {
+            pulling = false;
         }
-        if (dist <= THRESHOLD && ready) {
-            ready = false;
-            if(barText) barText.textContent = 'Потяните для обновления';
-        }
-      } else {
-        pulling = false;
-        resetBar();
-      }
-    }, { passive: false });
+    }, { passive: true });
 
     container.addEventListener('touchend', () => {
-      if (!pulling || locked) {
-        resetBar();
+        if (ready && !locked) {
+            locked = true;
+            contentElement.classList.add('is-refreshing');
+            document.addEventListener(refreshEventName, onLoaded);
+            
+            onRefresh();
+            
+            setTimeout(() => {
+                if (locked) onLoaded();
+            }, 8000);
+        }
         pulling = false;
-        return;
-      }
-      if (ready) {
-        locked = true;
-        if(barText) barText.textContent = 'Обновляю…';
-        setBar(THRESHOLD * 1.2);
-        const done = () => { locked = false; pulling = false; resetBar(); };
-        const onLoaded = () => { document.removeEventListener(refreshEventName, onLoaded); done(); };
-        document.addEventListener(refreshEventName, onLoaded);
-        onRefresh();
-        setTimeout(() => { if (locked) done(); }, 8000);
-      } else {
-        resetBar();
-        pulling = false;
-      }
+        ready = false;
     }, { passive: true });
   }
 

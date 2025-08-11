@@ -42,6 +42,7 @@
     other: document.getElementById('vacancies-list-other'),
   };
   
+  // ИСПРАВЛЕНИЕ: Этот блок был случайно удален в предыдущих версиях
   const counts = {
     main:  document.getElementById('count-main'),
     maybe: document.getElementById('count-maybe'),

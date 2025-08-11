@@ -1,5 +1,4 @@
 // favorites.js — вкладка «Избранное»
-// ИЗМЕНЕНИЕ: Добавлена подсветка найденных слов при поиске.
 
 (function () {
   'use strict';
@@ -28,8 +27,7 @@
     renderEmptyState,
     renderError,
     showCustomConfirm,
-    createSupabaseHeaders,
-    highlightText // Нам понадобится эта утилита
+    createSupabaseHeaders
   } = UTIL;
 
   const container      = document.getElementById('favorites-list');
@@ -53,22 +51,19 @@
     favStatsEl.textContent = q ? (visible===0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
   }
 
-  // ИЗМЕНЕНИЕ: Функция теперь также отвечает за подсветку текста
   function renderFilteredFavorites() {
     const query = (searchInputFav?.value || '').trim().toLowerCase();
     
     let visibleCount = 0;
-    
     container.querySelectorAll('.vacancy-card').forEach(card => {
         const isVisible = query ? card.dataset.searchText.toLowerCase().includes(query) : true;
         card.style.display = isVisible ? '' : 'none';
         
         if (isVisible) {
             visibleCount++;
-            // Подсвечиваем текст на видимых карточках
             const summaryEl = card.querySelector('.card-summary');
             if (summaryEl && summaryEl.dataset.originalSummary) {
-                summaryEl.innerHTML = highlightText(summaryEl.dataset.originalSummary, query);
+                summaryEl.innerHTML = UTIL.highlightText(summaryEl.dataset.originalSummary, query);
             }
         }
     });
@@ -87,7 +82,7 @@
     updateFavStats(allFavorites.length, visibleCount);
   }
 
-  async function loadFavorites() {
+  async function loadFavorites(query = '') {
     container.innerHTML = '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="retro-spinner-inline"></div></div>';
     try {
       const p = new URLSearchParams();
@@ -110,18 +105,16 @@
       } else {
         const frag = document.createDocumentFragment();
         allFavorites.forEach(v => {
-          // ИЗМЕНЕНИЕ: При первой отрисовке не передаем searchQuery, чтобы сохранился чистый текст
           const card = createVacancyCard(v, { pageType: 'favorites' });
           frag.appendChild(card);
         });
         container.appendChild(frag);
       }
-      // После загрузки применяем фильтрацию (и подсветку, если в поле поиска уже что-то есть)
       renderFilteredFavorites(); 
       document.dispatchEvent(new CustomEvent('favorites:loaded'));
     } catch (e) {
       console.error(e);
-      renderError(container, 'Ошибка загрузки избранного', () => loadFavorites());
+      renderError(container, 'Ошибка загрузки избранного', () => loadFavorites(query));
       document.dispatchEvent(new CustomEvent('favorites:loaded'));
     }
   }
@@ -202,8 +195,9 @@
   });
 
   setupPullToRefresh({
-      onRefresh: () => loadFavorites(),
-      refreshEventName: 'favorites:loaded'
+      onRefresh: () => loadFavorites(searchInputFav?.value || ''),
+      refreshEventName: 'favorites:loaded',
+      contentElement: container 
   });
 
   ensureFavSearchUI();

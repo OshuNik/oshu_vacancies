@@ -1,6 +1,5 @@
 // settings.js — стилизованные уведомления + confirm
-// ИСПРАВЛЕНО: убран хардкод, настройки берутся из APP_CONFIG
-// ИСПРАВЛЕНО: showCustomConfirm переписан на Promise для единообразия
+// ИЗМЕНЕНИЕ: Удалено дублирование, используются общие утилиты
 
 (function() {
   'use strict';
@@ -8,82 +7,30 @@
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
   if (tg && tg.expand) tg.expand();
 
-  // --- Берём конфиг из глобального объекта ---
   const CFG = window.APP_CONFIG;
-  if (!CFG || !CFG.SUPABASE_URL || !CFG.SUPABASE_ANON_KEY) {
+  const UTIL = window.utils;
+  
+  if (!CFG || !UTIL) {
     alert("Критическая ошибка: Конфигурация приложения не найдена!");
     return;
   }
+  
   const { SUPABASE_URL, SUPABASE_ANON_KEY } = CFG;
+  const { uiToast, safeAlert, showCustomConfirm, createSupabaseHeaders } = UTIL;
 
-  // ---------- UI helpers ----------
-  function uiToast(message = '') {
-    let cont = document.getElementById('toast-container');
-    if (!cont) {
-      cont = document.createElement('div');
-      cont.id = 'toast-container';
-      cont.className = 'toast-container';
-      document.body.appendChild(cont);
-    }
-    const toast = document.createElement('div');
-    toast.className = 'toast';
-    toast.textContent = message;
-    cont.appendChild(toast);
-    // авто-скрытие
-    requestAnimationFrame(() => toast.classList.add('show'));
-    setTimeout(() => {
-      toast.classList.remove('show');
-      setTimeout(() => toast.remove(), 200);
-    }, 2200);
-  }
-  function uiAlert(msg) {
-    // в Telegram используем нативный диалог, в браузере — тост
-    if (tg && typeof tg.showAlert === 'function') tg.showAlert(msg);
-    else uiToast(msg);
-  }
-
-  // --- элементы вкладок ---
   const settingsTabButtons = document.querySelectorAll('.settings-tab-button');
   const settingsTabContents = document.querySelectorAll('.settings-tab-content');
 
-  // --- KEYWORDS ---
   const keywordsInput = document.getElementById('keywords-input');
   const keywordsDisplay = document.getElementById('current-keywords-display');
   const saveBtn = document.getElementById('save-button');
 
-  // --- CHANNELS ---
   const loadDefaultsBtn = document.getElementById('load-defaults-btn');
   const addChannelBtn = document.getElementById('add-channel-btn');
   const channelInput = document.getElementById('channel-input');
   const channelsListContainer = document.getElementById('channels-list');
   const deleteAllBtn = document.getElementById('delete-all-btn');
 
-  // --- confirm overlay из HTML ---
-  const confirmOverlay = document.getElementById('custom-confirm-overlay');
-  const confirmText = document.getElementById('custom-confirm-text');
-  const confirmOkBtn = document.getElementById('confirm-btn-ok');
-  const confirmCancelBtn = document.getElementById('confirm-btn-cancel');
-
-  // ИСПРАВЛЕНИЕ: функция confirm переписана на Promise
-  function showCustomConfirm(message) {
-    return new Promise(resolve => {
-        if (!confirmOverlay) {
-            return resolve(window.confirm(message));
-        }
-        confirmText.textContent = message;
-        confirmOverlay.classList.remove('hidden');
-        const close = (result) => {
-            confirmOverlay.classList.add('hidden');
-            confirmOkBtn.onclick = null;
-            confirmCancelBtn.onclick = null;
-            resolve(result);
-        };
-        confirmOkBtn.onclick = () => close(true);
-        confirmCancelBtn.onclick = () => close(false);
-    });
-  }
-
-  // --- табы ---
   settingsTabButtons.forEach(button => {
     button.addEventListener('click', () => {
       settingsTabButtons.forEach(btn => btn.classList.remove('active'));
@@ -94,14 +41,13 @@
     });
   });
 
-  // --- KEYWORDS logic ---
   async function loadKeywords() {
     if (!keywordsDisplay) return;
     saveBtn.disabled = true;
     keywordsDisplay.textContent = 'Загрузка...';
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/settings?select=keywords`, {
-        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        headers: createSupabaseHeaders()
       });
       if (!response.ok) throw new Error('Network response was not ok');
       const data = await response.json();
@@ -115,6 +61,7 @@
       saveBtn.disabled = false;
     }
   }
+
   async function saveKeywords() {
     if (!keywordsInput) return;
     const kws = keywordsInput.value.trim();
@@ -122,25 +69,19 @@
     try {
       await fetch(`${SUPABASE_URL}/rest/v1/settings`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Prefer': 'resolution=merge-duplicates'
-        },
+        headers: createSupabaseHeaders({ prefer: 'resolution=merge-duplicates' }),
         body: JSON.stringify({ update_key: 1, keywords: kws })
       });
       keywordsDisplay.textContent = kws || '-- не заданы --';
-      uiAlert('Ключевые слова сохранены');
+      uiToast('Ключевые слова сохранены');
     } catch (error) {
       console.error('Ошибка при сохранении ключевых слов:', error);
-      uiAlert('Ошибка сохранения');
+      safeAlert('Ошибка сохранения');
     } finally {
       saveBtn.disabled = false;
     }
   }
 
-  // --- CHANNELS logic ---
   function renderChannel(channel) {
     const channelItem = document.createElement('div');
     channelItem.className = 'channel-item';
@@ -181,14 +122,14 @@
       try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?id=eq.${dbId}`, {
           method: 'DELETE',
-          headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+          headers: createSupabaseHeaders()
         });
         if (!response.ok) throw new Error('Ошибка ответа сети');
         channelItem.remove();
         uiToast('Канал удалён');
       } catch (error) {
         console.error('Ошибка удаления канала:', error);
-        uiAlert('Не удалось удалить канал');
+        safeAlert('Не удалось удалить канал');
         channelItem.style.opacity = '1';
       }
     });
@@ -200,14 +141,14 @@
       try {
         const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?id=eq.${dbId}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` },
+          headers: createSupabaseHeaders(),
           body: JSON.stringify({ is_enabled: is_enabled })
         });
         if (!response.ok) throw new Error('Ошибка ответа сети');
         uiToast(is_enabled ? 'Канал включён' : 'Канал выключен');
       } catch (error) {
         console.error('Ошибка обновления статуса канала:', error);
-        uiAlert('Не удалось обновить статус');
+        safeAlert('Не удалось обновить статус');
         event.target.checked = !is_enabled;
       }
     });
@@ -221,7 +162,7 @@
     if (emptyListMessage) emptyListMessage.remove();
     channelsListContainer.appendChild(channelItem);
   }
-
+  
   async function addChannel() {
     let channelId = channelInput.value.trim();
     if (!channelId) return;
@@ -237,12 +178,7 @@
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/channels`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Prefer': 'return=representation'
-        },
+        headers: createSupabaseHeaders({ prefer: 'return=representation' }),
         body: JSON.stringify(newChannelData)
       });
       if (!response.ok) throw new Error('Канал не найден или ошибка сети');
@@ -253,7 +189,7 @@
       uiToast('Канал добавлен');
     } catch (error) {
       console.error('Ошибка добавления канала:', error);
-      uiAlert('Не удалось добавить канал. Проверьте имя.');
+      safeAlert('Не удалось добавить канал. Проверьте имя.');
     } finally {
       addChannelBtn.disabled = false;
     }
@@ -264,7 +200,7 @@
     channelsListContainer.innerHTML = '<p>Загрузка каналов...</p>';
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/channels?select=*`, {
-        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        headers: createSupabaseHeaders()
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
@@ -279,46 +215,39 @@
     }
   }
 
-  // --- обработчики ---
   addChannelBtn?.addEventListener('click', addChannel);
 
   saveBtn?.addEventListener('click', () => {
     const activeTab = document.querySelector('.settings-tab-content.active');
     if (activeTab.id === 'tab-keywords') saveKeywords();
-    else uiAlert('Изменения в каналах сохраняются автоматически!');
+    else safeAlert('Изменения в каналах сохраняются автоматически!');
   });
 
   loadDefaultsBtn?.addEventListener('click', async () => {
     loadDefaultsBtn.disabled = true;
     try {
       const response = await fetch(`${SUPABASE_URL}/rest/v1/default_channels?select=channel_id`, {
-        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        headers: createSupabaseHeaders()
       });
       if (!response.ok) throw new Error('Не удалось получить стандартные каналы');
       const defaultChannels = await response.json();
-      if (defaultChannels.length === 0) { uiAlert('Список стандартных каналов пуст.'); return; }
+      if (defaultChannels.length === 0) { safeAlert('Список стандартных каналов пуст.'); return; }
       const channelsToUpsert = defaultChannels.map(ch => ({ channel_id: ch.channel_id, is_enabled: true }));
       await fetch(`${SUPABASE_URL}/rest/v1/channels`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Prefer': 'resolution=merge-duplicates'
-        },
+        headers: createSupabaseHeaders({ prefer: 'resolution=merge-duplicates' }),
         body: JSON.stringify(channelsToUpsert)
       });
       await loadChannels();
       uiToast('Стандартные каналы добавлены.');
     } catch (error) {
       console.error('Ошибка загрузки стандартных каналов:', error);
-      uiAlert('Ошибка загрузки стандартных каналов');
+      safeAlert('Ошибка загрузки стандартных каналов');
     } finally {
       loadDefaultsBtn.disabled = false;
     }
   });
 
-  // ИСПРАВЛЕНИЕ: вызов confirm переписан на async/await
   deleteAllBtn?.addEventListener('click', async () => {
     const message = 'Удалить все каналы из базы? Это действие необратимо.';
     const isConfirmed = await showCustomConfirm(message);
@@ -328,19 +257,18 @@
     try {
       await fetch(`${SUPABASE_URL}/rest/v1/channels?id=gt.0`, {
         method: 'DELETE',
-        headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+        headers: createSupabaseHeaders()
       });
       channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
       uiToast('Все каналы удалены.');
     } catch (error) {
       console.error('Ошибка удаления каналов:', error);
-      uiAlert(String(error));
+      safeAlert(String(error));
     } finally {
       deleteAllBtn.disabled = false;
     }
   });
 
-  // Initial
   loadKeywords();
   loadChannels();
 })();

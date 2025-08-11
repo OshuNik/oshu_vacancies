@@ -1,5 +1,5 @@
 // favorites.js — вкладка «Избранное»
-// ИЗМЕНЕНИЕ: Реализован быстрый поиск на стороне клиента и синхронизация страниц.
+// ИЗМЕНЕНИЕ: Добавлена подсветка найденных слов при поиске.
 
 (function () {
   'use strict';
@@ -28,11 +28,15 @@
     renderEmptyState,
     renderError,
     showCustomConfirm,
-    createSupabaseHeaders
+    createSupabaseHeaders,
+    highlightText // Нам понадобится эта утилита
   } = UTIL;
 
   const container      = document.getElementById('favorites-list');
   const searchInputFav = document.getElementById('search-input-fav');
+  const searchClearBtnFav = document.getElementById('search-clear-btn-fav');
+  const searchInputWrapperFav = searchInputFav?.parentElement;
+  
   let allFavorites = [];
 
   let favStatsEl = null;
@@ -41,7 +45,7 @@
     if (!parent || favStatsEl) return;
     favStatsEl = document.createElement('div');
     favStatsEl.className = 'search-stats';
-    parent.appendChild(favStatsEl);
+    searchInputWrapperFav.insertAdjacentElement('afterend', favStatsEl);
   }
   function updateFavStats(total, visible) {
     if (!favStatsEl) return;
@@ -49,15 +53,24 @@
     favStatsEl.textContent = q ? (visible===0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
   }
 
+  // ИЗМЕНЕНИЕ: Функция теперь также отвечает за подсветку текста
   function renderFilteredFavorites() {
     const query = (searchInputFav?.value || '').trim().toLowerCase();
     
-    const visibleCards = [];
+    let visibleCount = 0;
     
     container.querySelectorAll('.vacancy-card').forEach(card => {
         const isVisible = query ? card.dataset.searchText.toLowerCase().includes(query) : true;
         card.style.display = isVisible ? '' : 'none';
-        if (isVisible) visibleCards.push(card);
+        
+        if (isVisible) {
+            visibleCount++;
+            // Подсвечиваем текст на видимых карточках
+            const summaryEl = card.querySelector('.card-summary');
+            if (summaryEl && summaryEl.dataset.originalSummary) {
+                summaryEl.innerHTML = highlightText(summaryEl.dataset.originalSummary, query);
+            }
+        }
     });
 
     const emptyEl = container.querySelector('.empty-state');
@@ -65,16 +78,16 @@
 
     if (allFavorites.length === 0) {
         renderEmptyState(container, '-- В избранном пусто --');
-    } else if (visibleCards.length === 0 && query) {
+    } else if (visibleCount === 0 && query) {
         const div = document.createElement('div');
         renderEmptyState(div, 'Ничего не найдено по вашему запросу');
         container.prepend(div.firstElementChild);
     }
     
-    updateFavStats(allFavorites.length, visibleCards.length);
+    updateFavStats(allFavorites.length, visibleCount);
   }
 
-  async function loadFavorites(query = '') {
+  async function loadFavorites() {
     container.innerHTML = '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="retro-spinner-inline"></div></div>';
     try {
       const p = new URLSearchParams();
@@ -97,16 +110,18 @@
       } else {
         const frag = document.createDocumentFragment();
         allFavorites.forEach(v => {
-          const card = createVacancyCard(v, { pageType: 'favorites', searchQuery: query });
+          // ИЗМЕНЕНИЕ: При первой отрисовке не передаем searchQuery, чтобы сохранился чистый текст
+          const card = createVacancyCard(v, { pageType: 'favorites' });
           frag.appendChild(card);
         });
         container.appendChild(frag);
       }
-      renderFilteredFavorites();
+      // После загрузки применяем фильтрацию (и подсветку, если в поле поиска уже что-то есть)
+      renderFilteredFavorites(); 
       document.dispatchEvent(new CustomEvent('favorites:loaded'));
     } catch (e) {
       console.error(e);
-      renderError(container, 'Ошибка загрузки избранного', () => loadFavorites(query));
+      renderError(container, 'Ошибка загрузки избранного', () => loadFavorites());
       document.dispatchEvent(new CustomEvent('favorites:loaded'));
     }
   }
@@ -115,34 +130,52 @@
     const ok = await showCustomConfirm('Удалить из избранного?');
     if (!ok) return;
 
-    try {
-      const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(vacancyId)}`;
-      const resp = await fetchWithRetry(url, {
-        method: 'PATCH',
-        headers: createSupabaseHeaders({ prefer: 'return=minimal' }),
-        body: JSON.stringify({ status: newStatus })
-      }, RETRY_OPTIONS);
+    const cardElement = document.getElementById(`card-${vacancyId}`);
+    if (!cardElement) return;
 
-      if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+    cardElement.style.transition = 'opacity .3s, max-height .3s, margin .3s, padding .3s, border-width .3s';
+    cardElement.style.opacity = '0';
+    cardElement.style.maxHeight = '0px';
+    cardElement.style.paddingTop = '0';
+    cardElement.style.paddingBottom = '0';
+    cardElement.style.marginTop = '0';
+    cardElement.style.marginBottom = '0';
+    cardElement.style.borderWidth = '0';
 
-      uiToast('Удалено из избранного');
-      
-      allFavorites = allFavorites.filter(v => v.id !== vacancyId);
-      const cardElement = document.getElementById(`card-${vacancyId}`);
-      if (cardElement) {
-        cardElement.style.transition = 'opacity .2s ease-out, transform .2s ease-out';
-        cardElement.style.opacity = '0';
-        cardElement.style.transform = 'scale(0.95)';
-        setTimeout(() => {
-          cardElement.remove();
-          renderFilteredFavorites();
-        }, 200);
-      }
-      localStorage.setItem('needs-refresh-main', 'true');
-    } catch (e) {
-      console.error(e);
-      safeAlert('Не удалось изменить статус.');
-    }
+    const onUndo = () => {
+        cardElement.style.opacity = '1';
+        cardElement.style.maxHeight = '500px';
+        cardElement.style.paddingTop = '';
+        cardElement.style.paddingBottom = '';
+        cardElement.style.marginTop = '';
+        cardElement.style.marginBottom = '';
+        cardElement.style.borderWidth = '';
+    };
+
+    uiToast('Удалено из избранного', {
+        timeout: 5000,
+        onUndo: onUndo,
+        onTimeout: async () => {
+            try {
+              cardElement.remove();
+              const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(vacancyId)}`;
+              const resp = await fetchWithRetry(url, {
+                method: 'PATCH',
+                headers: createSupabaseHeaders({ prefer: 'return=minimal' }),
+                body: JSON.stringify({ status: newStatus })
+              }, RETRY_OPTIONS);
+
+              if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+              
+              localStorage.setItem('needs-refresh-main', 'true');
+              allFavorites = allFavorites.filter(v => v.id !== vacancyId);
+              renderFilteredFavorites();
+            } catch (e) {
+              safeAlert('Не удалось изменить статус.');
+              onUndo();
+            }
+        }
+    });
   }
 
   container?.addEventListener('click', (e) => {
@@ -153,13 +186,23 @@
     if (action === 'delete')  updateStatus(btn.dataset.id, STATUSES.NEW);
   });
 
-  const onSearch = debounce(() => {
-    renderFilteredFavorites();
-  }, 200);
-  searchInputFav?.addEventListener('input', onSearch);
+  const onSearch = debounce(() => renderFilteredFavorites(), 200);
+  
+  searchInputFav?.addEventListener('input', () => {
+      searchInputWrapperFav?.classList.toggle('has-text', searchInputFav.value.length > 0);
+      onSearch();
+  });
+  searchClearBtnFav?.addEventListener('click', () => {
+      if (searchInputFav) {
+        searchInputFav.value = '';
+        searchInputWrapperFav?.classList.remove('has-text');
+        onSearch();
+        searchInputFav.focus();
+      }
+  });
 
   setupPullToRefresh({
-      onRefresh: () => loadFavorites(searchInputFav?.value || ''),
+      onRefresh: () => loadFavorites(),
       refreshEventName: 'favorites:loaded'
   });
 

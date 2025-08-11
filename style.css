@@ -69,9 +69,12 @@ body {
 .search-container {
     padding: 0 0 15px 0;
 }
+.search-input-wrapper {
+    position: relative;
+}
 .search-input {
     width: 100%;
-    padding: 12px;
+    padding: 12px 36px 12px 12px; /* Оставляем место для кнопки */
     font-family: 'Roboto Mono', monospace;
     font-size: 15px;
     color: var(--text-color);
@@ -86,12 +89,39 @@ body {
     outline: none;
     border-color: var(--accent-blue);
 }
-input[type="search"]::-webkit-search-cancel-button,
-input[type="search"]::-webkit-search-decoration,
-input[type="search"]::-webkit-search-results-button,
-input[type="search"]::-webkit-search-results-decoration { -webkit-appearance: none; appearance: none; display: none; }
-input[type="search"]::-ms-clear { display: none; width: 0; height: 0; }
-.search-clear-btn { display: none !important; }
+.search-clear-btn {
+    position: absolute;
+    top: 50%;
+    right: 6px;
+    transform: translateY(-50%);
+    width: 30px;
+    height: 30px;
+    border: none;
+    background: transparent;
+    cursor: pointer;
+    padding: 0;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.2s, visibility 0.2s;
+}
+.search-clear-btn::before, 
+.search-clear-btn::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 18px;
+    height: var(--border-width);
+    background-color: var(--hint-color);
+    border-radius: 2px;
+}
+.search-clear-btn::before { transform: translate(-50%, -50%) rotate(45deg); }
+.search-clear-btn::after { transform: translate(-50%, -50%) rotate(-45deg); }
+.search-input-wrapper.has-text .search-clear-btn {
+    opacity: 1;
+    visibility: visible;
+}
+input[type="search"]::-webkit-search-cancel-button { display: none; }
 .search-stats {
     margin-top: 6px;
     font-size: 12px;
@@ -135,7 +165,6 @@ input[type="search"]::-ms-clear { display: none; width: 0; height: 0; }
 .card-body p:last-child { margin-bottom: 0; }
 .card-body p strong { font-weight: 700; }
 
-/* --- ОБЩИЕ СТИЛИ ИЗ JS (УНИФИЦИРОВАНО) --- */
 .vacancy-text a, .card-summary a {
   text-decoration: underline;
   color: #1f6feb;
@@ -183,14 +212,10 @@ details > summary::-webkit-details-marker {
 }
 .card-action-btn.favorite svg { stroke: var(--accent-blue); fill: none; }
 .card-action-btn.apply svg { stroke: var(--accent-green); fill: none; }
-
-/* УНИФИЦИРОВАННАЯ ИКОНКА УДАЛЕНИЯ */
 .card-action-btn.delete svg {
   stroke: var(--accent-red);
   fill: none;
 }
-/* --- КОНЕЦ ОБЩИХ СТИЛЕЙ --- */
-
 
 mark.highlight {
   background: var(--accent-yellow);
@@ -248,7 +273,24 @@ mark.highlight {
     user-select: none;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
+    overflow: hidden;
 }
+.tab-button::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.1);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.7s ease-out;
+}
+.tab-button.pressing::after {
+    transform: scaleX(1);
+}
+
 .tab-label { font-size: 13px; }
 .tab-count { font-size: 11px; margin-top: 4px; opacity: 0.8; }
 .tab-button.active {
@@ -281,7 +323,7 @@ mark.highlight {
     left: 0;
     right: 0;
     top: 0;
-    height: 56px;
+    height: var(--ptr-bar-height, 60px);
     background: #fff;
     color: #333;
     border-bottom: 3px solid #000;
@@ -797,7 +839,9 @@ details[open] .vacancy-text {
   left: 0; right: 0;
   bottom: calc(70px + env(safe-area-inset-bottom));
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
   z-index: 9999;
   pointer-events: none;
 }
@@ -814,8 +858,24 @@ details[open] .vacancy-text {
   opacity: 0;
   transform: translateY(10px);
   transition: opacity .2s ease, transform .2s ease;
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 .toast.show{
   opacity: 1;
   transform: translateY(0);
+}
+.toast-undo-btn {
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    font-size: 13px;
+    background: none;
+    border: none;
+    color: var(--accent-blue);
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 4px;
+    margin-left: auto;
+    flex-shrink: 0;
 }

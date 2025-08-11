@@ -1,5 +1,5 @@
 // favorites.js — вкладка «Избранное»
-// ИСПОЛЬЗУЕТ ОБЩИЕ ФУНКЦИИ из utils.js для рендеринга и pull-to-refresh
+// ИСПРАВЛЕНО: Поиск работает через сервер, добавлены уведомления
 
 (function () {
   'use strict';
@@ -15,161 +15,57 @@
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
     RETRY_OPTIONS = { retries: 2, backoffMs: 400 },
+    SEARCH_FIELDS,
   } = CFG;
 
   const {
-    escapeHtml, debounce, highlightText,
-    openLink, safeAlert, fetchWithRetry,
-    createVacancyCard, // Используем общую функцию
-    setupPullToRefresh // Используем общую функцию
+    debounce,
+    openLink,
+    safeAlert,
+    uiToast,
+    fetchWithRetry,
+    createVacancyCard,
+    setupPullToRefresh,
+    renderEmptyState,
+    renderError,
   } = UTIL;
 
   // --- DOM ---
   const container      = document.getElementById('favorites-list');
   const searchInputFav = document.getElementById('search-input-fav');
 
-  // --- Стили ---
-  (function injectCSS() {
-    const style = document.createElement('style');
-    style.textContent = `
-      .vacancy-text a, .card-summary a { text-decoration: underline; color:#1f6feb; word-break: break-word; }
-      .vacancy-text a:hover, .card-summary a:hover { opacity:.85; }
-      .image-link-button{
-        display:inline-flex; align-items:center; justify-content:center;
-        padding:6px 12px; background:#e6f3ff; color:#0b5ed7; font-weight:700;
-        border:3px solid #000; border-radius:12px; line-height:1; text-decoration:none;
-        box-shadow:0 3px 0 #000; transition:transform .08s ease, box-shadow .08s ease, filter .15s ease;
-        outline:none;
-      }
-      .image-link-button:hover{ filter:saturate(1.05) brightness(1.02); }
-      .image-link-button:active{ transform:translateY(2px); box-shadow:0 1px 0 #000; }
-      .image-link-button:focus-visible{ outline:3px solid #8ec5ff; outline-offset:2px; }
-      details > summary { list-style:none; cursor:pointer; user-select:none; outline:none; }
-      details > summary::-webkit-details-marker{ display:none; }
-      .vacancy-card{ position:relative; overflow:visible; }
-      .card-actions{
-        position:absolute; right:12px; top:12px; display:flex; gap:12px;
-        z-index:2; pointer-events:auto;
-      }
-      .card-action-btn{
-        width:34px; height:34px; display:inline-flex; align-items:center; justify-content:center;
-        background:transparent; border:0; padding:0; cursor:pointer;
-      }
-      .card-action-btn svg{ width:24px; height:24px; }
-      .card-action-btn.delete{ color:#ff5b5b; }
-      .card-action-btn.delete .icon-x{ stroke: currentColor; stroke-width: 2.5; fill: none; }
-      .fade-swap-enter{ opacity:0; }
-      .fade-swap-enter.fade-swap-enter-active{ opacity:1; transition:opacity .18s ease; }
-      .fade-swap-exit{ opacity:1; }
-      .fade-swap-exit.fade-swap-exit-active{ opacity:0; transition:opacity .12s ease; }
-    `;
-    document.head.appendChild(style);
-  })();
-
   // --- SEARCH UI (счётчик) ---
   let favStatsEl = null;
   function ensureFavSearchUI() {
     const parent = document.getElementById('search-container-fav') || searchInputFav?.parentElement;
-    if (!parent) return;
-    if (!favStatsEl) {
-      favStatsEl = document.createElement('div');
-      favStatsEl.className = 'search-stats';
-      parent.appendChild(favStatsEl);
-    }
+    if (!parent || favStatsEl) return;
+    favStatsEl = document.createElement('div');
+    favStatsEl.className = 'search-stats';
+    parent.appendChild(favStatsEl);
   }
-  function updateFavStats() {
+  function updateFavStats(total, visible) {
     if (!favStatsEl) return;
     const q = (searchInputFav?.value || '').trim();
-    const visible = container?.querySelectorAll('.vacancy-card:not([hidden])').length || 0;
-    const total   = container?.querySelectorAll('.vacancy-card').length || 0;
     favStatsEl.textContent = q ? (visible===0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
   }
 
-  // --- Пагинация в памяти ---
-  const PAGE_SIZE_FAV = 10;
-  const favState = { all: [], rendered: 0, pageSize: PAGE_SIZE_FAV, btn: null };
+  // --- API: загрузка избранного с поиском ---
+  async function loadFavorites(query = '') {
+    container.innerHTML = '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="progress-bar-outline" style="max-width:300px;"><div class="progress-bar" style="animation: loading-anim 1.5s ease-in-out infinite;"></div></div></div>';
 
-  function makeFavBtn() {
-    const b = document.createElement('button');
-    b.className = 'load-more-btn';
-    b.textContent = 'Показать ещё';
-    b.style.marginTop = '10px';
-    b.addEventListener('click', renderNextFav);
-    return b;
-  }
-  function updateFavBtn() {
-    if (!container) return;
-    if (!favState.btn) favState.btn = makeFavBtn();
-    const btn = favState.btn;
-    const total = favState.all.length, rendered = favState.rendered;
-    if (rendered < total) {
-      if (!btn.parentElement) container.appendChild(btn);
-      btn.disabled = false;
-    } else if (btn.parentElement) {
-      btn.parentElement.remove();
-    }
-  }
-
-  // --- Рендер порции ---
-  function renderNextFav() {
-    const start = favState.rendered;
-    const end   = Math.min(start + favState.pageSize, favState.all.length);
-
-    if (favState.all.length === 0 && start === 0) {
-      container.innerHTML = '<p class="empty-list">-- В избранном пусто --</p>';
-      updateFavBtn();
-      updateFavStats();
-      return;
-    }
-
-    const frag = document.createDocumentFragment();
-    for (let i = start; i < end; i++) {
-        // ИСПОЛЬЗУЕМ ОБЩУЮ ФУНКЦИЮ
-        const card = createVacancyCard(favState.all[i], {
-            pageType: 'favorites',
-            searchQuery: (searchInputFav?.value || '').trim()
-        });
-        frag.appendChild(card);
-    }
-    container.appendChild(frag);
-    favState.rendered = end;
-
-    updateFavBtn();
-    applySearchFav();
-  }
-
-  // --- Поиск по избранному (локально) ---
-  function applySearchFav() {
-    const q = (searchInputFav?.value || '').trim().toLowerCase();
-
-    const cards = container.querySelectorAll('.vacancy-card');
-    cards.forEach(card => {
-      const text = (card.dataset.searchText || '');
-      const hit  = q ? text.includes(q) : true;
-      card.hidden = !hit;
-
-      const summaryEl = card.querySelector('.card-summary');
-      if (summaryEl) {
-        const original = summaryEl.dataset.originalSummary || '';
-        summaryEl.innerHTML = q ? highlightText(original, q) : escapeHtml(original);
-      }
-    });
-
-    updateFavStats();
-  }
-
-  // --- API: мягкая перезагрузка без мигания ---
-  async function loadFavorites() {
     try {
       const p = new URLSearchParams();
       p.set('select', '*');
       p.set('status', 'eq.favorite');
       p.set('order', 'timestamp.desc');
 
-      const url  = `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+      const q = (query || '').trim();
+      if(q && Array.isArray(SEARCH_FIELDS) && SEARCH_FIELDS.length){
+        const orExpr = '('+SEARCH_FIELDS.map(f=>`${f}.ilike.*${q}*`).join(',')+')';
+        p.set('or', orExpr);
+      }
 
-      const keepHeight = container.offsetHeight;
-      if (keepHeight) container.style.minHeight = `${keepHeight}px`;
+      const url  = `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
 
       const resp = await fetchWithRetry(url, {
         headers: { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
@@ -177,48 +73,51 @@
       if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
       const data = await resp.json();
-      favState.all = data || [];
-      favState.rendered = 0;
+      container.innerHTML = ''; // Очищаем лоадер
 
-      const tmp = document.createElement('div');
-      const to = Math.min(favState.pageSize, favState.all.length);
-      for (let i = 0; i < to; i++) {
-          // ИСПОЛЬЗУЕМ ОБЩУЮ ФУНКЦИЮ
-          const card = createVacancyCard(favState.all[i], {
-              pageType: 'favorites',
-              searchQuery: (searchInputFav?.value || '').trim()
-          });
-          tmp.appendChild(card);
+      if (!data || data.length === 0) {
+        renderEmptyState(container, q ? 'Ничего не найдено по вашему запросу' : '-- В избранном пусто --');
+      } else {
+        const frag = document.createDocumentFragment();
+        data.forEach(v => {
+          const card = createVacancyCard(v, { pageType: 'favorites', searchQuery: q });
+          frag.appendChild(card);
+        });
+        container.appendChild(frag);
       }
-
-      const old = container;
-      old.classList.add('fade-swap-exit', 'fade-swap-exit-active');
-
-      setTimeout(() => {
-        old.innerHTML = tmp.innerHTML;
-        favState.rendered = to;
-        updateFavBtn();
-        applySearchFav();
-
-        old.classList.remove('fade-swap-exit','fade-swap-exit-active');
-        old.classList.add('fade-swap-enter', 'fade-swap-enter-active');
-
-        setTimeout(() => {
-          old.classList.remove('fade-swap-enter','fade-swap-enter-active');
-          old.style.minHeight = '';
-          document.dispatchEvent(new CustomEvent('favorites:loaded'));
-        }, 200);
-      }, 120);
+      updateFavStats(data.length, data.length);
+      document.dispatchEvent(new CustomEvent('favorites:loaded'));
 
     } catch (e) {
       console.error(e);
-      container.innerHTML = '<p class="empty-list">Ошибка загрузки избранного.</p>';
+      renderError(container, 'Ошибка загрузки избранного', () => loadFavorites(query));
       document.dispatchEvent(new CustomEvent('favorites:loaded'));
     }
   }
 
   async function updateStatus(vacancyId, newStatus) {
-    const cardElement = document.getElementById(`card-${vacancyId}`);
+    const ok = await new Promise(resolve => {
+        const confirmOverlay = document.querySelector('#custom-confirm-overlay'); // Находим его на главной
+        if (!confirmOverlay) return resolve(window.confirm('Удалить из избранного?'));
+        
+        const confirmText = confirmOverlay.querySelector('#custom-confirm-text');
+        const confirmOkBtn = confirmOverlay.querySelector('#confirm-btn-ok');
+        const confirmCancelBtn = confirmOverlay.querySelector('#confirm-btn-cancel');
+
+        confirmText.textContent = 'Удалить из избранного?';
+        confirmOverlay.classList.remove('hidden');
+        const close = (result) => {
+            confirmOverlay.classList.add('hidden');
+            confirmOkBtn.onclick = null;
+            confirmCancelBtn.onclick = null;
+            resolve(result);
+        };
+        confirmOkBtn.onclick = () => close(true);
+        confirmCancelBtn.onclick = () => close(false);
+    });
+
+    if (!ok) return;
+
     try {
       const url = `${SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(vacancyId)}`;
       const resp = await fetchWithRetry(url, {
@@ -234,39 +133,45 @@
 
       if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
+      uiToast('Удалено из избранного');
+      const cardElement = document.getElementById(`card-${vacancyId}`);
       if (cardElement) {
-        cardElement.style.transition = 'opacity .25s ease, transform .25s ease';
+        cardElement.style.transition = 'opacity .2s ease-out, transform .2s ease-out';
         cardElement.style.opacity = '0';
-        cardElement.style.transform = 'scale(0.98)';
+        cardElement.style.transform = 'scale(0.95)';
         setTimeout(() => {
           cardElement.remove();
-          if (container.querySelectorAll('.vacancy-card').length === 0) {
-            container.innerHTML = '<p class="empty-list">-- В избранном пусто --</p>';
+          if (container.children.length === 0) {
+             renderEmptyState(container, '-- В избранном пусто --');
           }
-          updateFavStats();
-        }, 250);
+          const total = container.querySelectorAll('.vacancy-card').length;
+          updateFavStats(total, total);
+        }, 200);
       }
     } catch (e) {
       console.error(e);
-      safeAlert('Не удалось изменить статус. Повторите позже.');
+      safeAlert('Не удалось изменить статус.');
     }
   }
 
-  // --- Слушатели карточек ---
+  // --- Слушатели ---
   container?.addEventListener('click', (e) => {
     const btn = e.target.closest('[data-action]');
     if (!btn) return;
     const action = btn.dataset.action;
     if (action === 'apply')   openLink(btn.dataset.url);
-    if (action === 'delete')  updateStatus(btn.dataset.id, 'deleted');
+    if (action === 'delete')  updateStatus(btn.dataset.id, 'new'); // Возвращаем в ленту
   });
 
-  // --- События и старт ---
-  searchInputFav?.addEventListener('input', debounce(applySearchFav, 220));
+  const onSearch = debounce(() => {
+      const query = searchInputFav?.value || '';
+      loadFavorites(query);
+  }, 300);
+  searchInputFav?.addEventListener('input', onSearch);
 
-  // ИСПОЛЬЗУЕМ ОБЩУЮ ФУНКЦИЮ
+  // --- Инициализация ---
   setupPullToRefresh({
-      onRefresh: loadFavorites,
+      onRefresh: () => loadFavorites(searchInputFav?.value || ''),
       refreshEventName: 'favorites:loaded'
   });
 

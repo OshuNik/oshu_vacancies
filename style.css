@@ -21,24 +21,16 @@ body {
     background-color: var(--background-color);
     color: var(--text-color);
     margin: 0;
+    padding: 15px 15px 120px 15px;
+    /* ИЗМЕНЕНИЕ: Добавляем отступ снизу, равный высоте панели вкладок + небольшой запас */
     padding: 15px 15px 95px 15px;
 }
 
-/* --- Классы для анимаций --- */
+/* --- Класс для бесшовной загрузки --- */
 .vacancy-list.loading-seamless {
     opacity: 0.5;
     pointer-events: none;
     transition: opacity 0.2s ease-in-out;
-}
-
-/* ИЗМЕНЕНИЕ: Новый класс и анимация для pull-to-refresh */
-.is-refreshing {
-    animation: pulse-animation 1.2s infinite ease-in-out;
-}
-@keyframes pulse-animation {
-    0% { opacity: 1; }
-    50% { opacity: 0.6; }
-    100% { opacity: 1; }
 }
 
 /* --- Шапка и основной контент --- */
@@ -332,9 +324,12 @@ mark.highlight {
 
 /* --- Other UI Elements --- */
 .vacancy-list, .settings-tab-content { display: none; }
+
+/* ИЗМЕНЕНИЕ: Добавляем !important, чтобы перебить любые другие стили, скрывающие блок */
 .vacancy-list.active, .settings-tab-content.active {
     display: block !important;
 }
+
 .empty-list { 
     text-align: center; 
     color: var(--hint-color); 

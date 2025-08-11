@@ -13,4 +13,15 @@ window.APP_CONFIG = {
 
   // Поля, по которым ищем на сервере (ilike)
   SEARCH_FIELDS: ['reason', 'text_highlighted', 'industry', 'company_name'],
+
+  // ИЗМЕНЕНИЕ: Централизованные константы для статусов и категорий
+  STATUSES: {
+    NEW: 'new',
+    FAVORITE: 'favorite',
+    DELETED: 'deleted',
+  },
+  CATEGORIES: {
+    MAIN: 'ТОЧНО ТВОЁ',
+    MAYBE: 'МОЖЕТ БЫТЬ',
+  }
 };

@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <title>oshu://work</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="main-wrapper">
+  <div class="ptr-bar"><div class="ptr-text">Потяните для обновления</div></div>
+  
+  <div id="main-header">
+    <header class="header">
+      <h1>oshu://work</h1>
+      <div id="header-actions" class="header-actions">
+        <a href="favorites.html" class="header-button">★ Избранное</a>
+        <a href="settings.html" class="header-button">⚙︎ Настройки</a>
+      </div>
+    </header>
+    <div id="search-container" class="search-container">
+      <div class="search-input-wrapper">
+        <input type="search" id="search-input" class="search-input" placeholder="Поиск по тексту...">
+        <button id="search-clear-btn" class="search-clear-btn" aria-label="Очистить поиск"></button>
+      </div>
+    </div>
+  </div>
+
+  <main class="content" id="vacancies-content">
+    <div id="vacancies-list-main" class="vacancy-list active"></div>
+    <div id="vacancies-list-maybe" class="vacancy-list"></div>
+    <div id="vacancies-list-other" class="vacancy-list"></div>
+  </main>
+</div>
+
+<div id="loader" class="loader-container hidden">
+  <div class="retro-progress-bar-outline">
+    <div class="retro-progress-bar-fill"></div>
+  </div>
+  <p class="loader-text">Загрузка вакансий...</p>
+</div>
+
+<div id="category-tabs" class="category-tabs">
+  <button class="tab-button main active" data-target="vacancies-list-main" data-category-name="ТОЧНО ТВОЁ">
+    <span class="tab-label">ТОЧНО ТВОЁ</span>
+    <span id="count-main" class="tab-count">(0)</span>
+  </button>
+  <button class="tab-button maybe" data-target="vacancies-list-maybe" data-category-name="МОЖЕТ БЫТЬ">
+    <span class="tab-label">МОЖЕТ БЫТЬ</span>
+    <span id="count-maybe" class="tab-count">(0)</span>
+  </button>
+  <button class="tab-button other" data-target="vacancies-list-other" data-category-name="НЕ ТВОЁ">
+    <span class="tab-label">НЕ ТВОЁ</span>
+    <span id="count-other" class="tab-count">(0)</span>
+  </button>
+</div>
+
+<div id="custom-confirm-overlay" class="custom-confirm-overlay hidden">
+  <div class="custom-confirm-box">
+    <p id="custom-confirm-text"></p>
+    <div class="custom-confirm-actions">
+      <button id="confirm-btn-cancel" class="custom-confirm-button">Отмена</button>
+      <button id="confirm-btn-ok" class="custom-confirm-button ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" class="toast-container"></div>
+
+<template id="vacancy-card-template">
+  <div class="vacancy-card">
+    <div class="card-actions">
+      <button class="card-action-btn apply" data-element="apply-btn" aria-label="Откликнуться">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>
+      <button class="card-action-btn favorite" data-element="favorite-btn" aria-label="В избранное">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </button>
+      <button class="card-action-btn delete" data-element="delete-btn" aria-label="Удалить">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>
+    </div>
+    <div class="card-header">
+      <h3 data-element="category">NO_CATEGORY</h3>
+    </div>
+    <div class="card-body">
+      <p class="card-summary" data-element="summary"></p>
+      <div class="info-window" data-element="info-window"></div>
+      <details data-element="details">
+        <summary>Показать полный текст</summary>
+        <div class="vacancy-text" style="margin-top:10px;">
+            <div class="attachments" data-element="attachments"></div>
+            <div data-element="full-text"></div>
+        </div>
+      </details>
+    </div>
+    <div class="card-footer">
+      <div class="footer-skill-tags" data-element="skills"></div>
+      <div class="footer-meta">
+        <span class="channel-name" data-element="channel"></span>
+        <span class="meta-separator"> • </span>
+        <span class="timestamp-footer" data-element="timestamp"></span>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="config.js"></script>
+<script src="utils.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

@@ -15,24 +15,23 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="preconnect" href="https://lwfhtwnfqmdjwzrdznvv.supabase.co">
-
-  <!-- относительный путь, чтобы не было 404 на Pages -->
   <link rel="icon" href="./favicon.ico">
-
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-<header class="header">
-  <h1>oshu://work</h1>
-  <div id="header-actions" class="header-actions">
-    <a href="favorites.html" class="header-button">★ Избранное</a>
-    <a href="settings.html" class="header-button">⚙︎ Настройки</a>
+<!-- ОБЁРТКА ДЛЯ СКРЫТИЯ ВО ВРЕМЯ ЗАГРУЗКИ -->
+<div id="main-header">
+  <header class="header">
+    <h1>oshu://work</h1>
+    <div id="header-actions" class="header-actions">
+      <a href="favorites.html" class="header-button">★ Избранное</a>
+      <a href="settings.html" class="header-button">⚙︎ Настройки</a>
+    </div>
+  </header>
+  <div id="search-container" class="search-container">
+    <input type="search" id="search-input" class="search-input" placeholder="Поиск по тексту...">
   </div>
-</header>
-
-<div id="search-container" class="search-container">
-  <input type="search" id="search-input" class="search-input" placeholder="Поиск по тексту...">
 </div>
 
 <main class="content" id="vacancies-content">

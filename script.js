@@ -1,5 +1,5 @@
 /* script.js — главная страница
- * ИЗМЕНЕНИЕ: Оптимизирована начальная загрузка, добавлена синхронизация страниц.
+ * ИСПРАВЛЕНО: Устранён баг с зависанием "Обновление..." при поиске.
  */
 (function () {
   'use strict';
@@ -239,6 +239,7 @@
     if (!container || st.busy) return;
     st.busy = true;
 
+    // ИЗМЕНЕНИЕ: Показываем индикатор загрузки только если он нужен
     if (st.offset === 0 && !isInitialLoad) {
         container.innerHTML = '<div class="empty-list"><div class="retro-spinner-inline"></div> Загрузка...</div>';
     }
@@ -257,10 +258,17 @@
       if (Number.isFinite(total)){ st.total = total; counts[key].textContent = `(${total})`; }
 
       const items = await resp.json();
-      if (st.offset === 0) clearContainer(container);
+      
+      // ИЗМЕНЕНИЕ: Очищаем контейнер только перед вставкой новых элементов
+      if (st.offset === 0) {
+          clearContainer(container);
+      }
 
       if (items.length === 0) {
-        if (st.offset === 0) renderEmptyState(container, '-- Пусто в этой категории --');
+        if (st.offset === 0) {
+            const message = state.query ? 'По вашему запросу ничего не найдено' : '-- Пусто в этой категории --';
+            renderEmptyState(container, message);
+        }
       } else {
         const frag = document.createDocumentFragment();
         for (const it of items) frag.appendChild(createVacancyCard(it, { pageType: 'main', searchQuery: state.query }));
@@ -280,7 +288,7 @@
       if (e.name === 'AbortError') return;
       console.error('Load error:', e);
       if (st.offset === 0) {
-        renderError(container, e.message, () => fetchNext(key, false));
+        renderError(container, e.message, () => refetchFromZeroSmooth(key));
       }
     } finally {
       st.busy = false;
@@ -290,23 +298,20 @@
       document.dispatchEvent(new CustomEvent(`feed:loaded:${key}`));
     }
   }
-
+  
+  // ИЗМЕНЕНИЕ: Упрощенная и более надежная функция "мягкой" перезагрузки
   async function refetchFromZeroSmooth(key) {
-      const st = state[key];
-      const container = containers[key];
-      if (!container || st.busy) return;
+    const st = state[key];
+    const container = containers[key];
+    if (!container || st.busy) return;
 
-      abortCurrent();
-      st.busy = true;
-      st.offset = 0;
-
-      const keepHeight = container.offsetHeight;
-      if (keepHeight) container.style.minHeight = `${keepHeight}px`;
-      container.innerHTML = '<div class="empty-list"><div class="retro-spinner-inline"></div> Обновление...</div>';
-
-      await fetchNext(key, false);
-      container.style.minHeight = '';
-      document.dispatchEvent(new CustomEvent('feed:loaded'));
+    // Сбрасываем пагинацию и просто вызываем fetchNext,
+    // который сам корректно покажет индикатор загрузки.
+    st.offset = 0;
+    
+    await fetchNext(key, false);
+    
+    document.dispatchEvent(new CustomEvent('feed:loaded'));
   }
 
   const onSearch = debounce(async () => {

@@ -282,18 +282,17 @@
 
     const bar = document.createElement('div');
     bar.className = 'ptr-bar';
-    bar.innerHTML = '<div class="ptr-spinner"></div><span class="ptr-text">Потяните для обновления</span>';
+    bar.innerHTML = '<span class="ptr-text">Потяните для обновления</span>';
     document.body.appendChild(bar);
     const barText = bar.querySelector('.ptr-text');
 
-    const setBar = (y, isRefreshing = false) => {
+    const setBar = (y) => {
         bar.style.transform = `translateY(${Math.min(0, -100 + (y / (threshold / 100)))}%)`;
         bar.classList.toggle('visible', y > 6);
-        bar.classList.toggle('refreshing', isRefreshing);
     };
 
     const resetBar = () => {
-        bar.classList.remove('visible', 'refreshing');
+        bar.classList.remove('visible');
         bar.style.transform = 'translateY(-100%)';
         if(barText) barText.textContent = 'Потяните для обновления';
     };
@@ -336,8 +335,8 @@
       }
       if (ready) {
         locked = true;
-        if(barText) barText.textContent = 'Обновление...';
-        setBar(threshold * 1.2, true);
+        if(barText) barText.textContent = 'Обновляю…';
+        setBar(threshold * 1.2);
         const done = () => { locked = false; pulling = false; resetBar(); };
         const onLoaded = () => { document.removeEventListener(refreshEventName, onLoaded); done(); };
         document.addEventListener(refreshEventName, onLoaded);

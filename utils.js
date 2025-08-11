@@ -433,7 +433,7 @@
             wrapper.style.transform = `translateY(${BAR_HEIGHT}px)`;
             ptrText.innerHTML = '<div class="retro-spinner-inline"></div> Обновление...';
             
-            if (tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
+            if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
                 tg.HapticFeedback.impactOccurred('medium');
             }
             

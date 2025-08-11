@@ -14,13 +14,13 @@
 
   const {
     RETRY_OPTIONS,
-    STATUSES,
-    SEARCH_FIELDS
+    STATUSES
   } = CFG;
 
   const {
     debounce,
     openLink,
+    safeAlert,
     uiToast,
     fetchWithRetry,
     createVacancyCard,
@@ -33,7 +33,7 @@
 
   const container      = document.getElementById('favorites-list');
   const searchInputFav = document.getElementById('search-input-fav');
-  let allFavorites = []; // Кэш для всех избранных вакансий
+  let allFavorites = [];
 
   let favStatsEl = null;
   function ensureFavSearchUI() {
@@ -53,7 +53,6 @@
     const query = (searchInputFav?.value || '').trim().toLowerCase();
     
     const visibleCards = [];
-    let hasContent = false;
     
     container.querySelectorAll('.vacancy-card').forEach(card => {
         const isVisible = query ? card.dataset.searchText.toLowerCase().includes(query) : true;
@@ -67,14 +66,16 @@
     if (allFavorites.length === 0) {
         renderEmptyState(container, '-- В избранном пусто --');
     } else if (visibleCards.length === 0 && query) {
-        renderEmptyState(container, 'Ничего не найдено по вашему запросу');
+        const div = document.createElement('div');
+        renderEmptyState(div, 'Ничего не найдено по вашему запросу');
+        container.prepend(div.firstElementChild);
     }
     
     updateFavStats(allFavorites.length, visibleCards.length);
   }
 
   async function loadFavorites(query = '') {
-    container.innerHTML = '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="retro-spinner"></div></div>';
+    container.innerHTML = '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="retro-spinner-inline"></div></div>';
     try {
       const p = new URLSearchParams();
       p.set('select', '*');
@@ -140,7 +141,7 @@
       localStorage.setItem('needs-refresh-main', 'true');
     } catch (e) {
       console.error(e);
-      UTIL.safeAlert('Не удалось изменить статус.');
+      safeAlert('Не удалось изменить статус.');
     }
   }
 

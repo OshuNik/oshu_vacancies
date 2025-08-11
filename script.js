@@ -42,7 +42,6 @@
     other: document.getElementById('vacancies-list-other'),
   };
   
-  // ИЗМЕНЕНИЕ: Возвращаем на место инициализацию элементов счётчиков
   const counts = {
     main:  document.getElementById('count-main'),
     maybe: document.getElementById('count-maybe'),

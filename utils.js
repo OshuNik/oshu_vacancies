@@ -125,35 +125,38 @@
     return escapeHtml(text).replace(rx, '<mark class="highlight">$1</mark>');
   };
 
-  function normalizeUrl(raw = '') {
-    let s = String(raw).trim();
-    if (!s) return '';
-    if (/^(t\.me|telegram\.me)\//i.test(s)) s = 'https://' + s;
-    if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
-    try { return new URL(s, window.location.origin).href; } catch { return ''; }
+  // ИЗМЕНЕНИЕ: Новая, более гибкая функция для проверки всех типов ссылок
+  function sanitizeLink(raw = '') {
+    const urlStr = String(raw).trim();
+    if (!urlStr) return '';
+    // Проверяем на стандартные протоколы, включая tg://
+    if (/^(https?|tg):\/\//.test(urlStr)) {
+      try {
+        // Проверяем, что URL валидный, и возвращаем его
+        return new URL(urlStr).href;
+      } catch (e) {
+        return ''; // Невалидный URL
+      }
+    }
+    return '';
   }
-  const isHttpUrl = (u = '') => /^https?:\/\//i.test(u);
-  const sanitizeUrl = (raw = '') => {
-    const norm = normalizeUrl(raw);
-    return isHttpUrl(norm) ? norm : '';
-  };
   
   function openLink(url) {
-    const safeUrl = String(url || '');
-    if (/^tg:\/\//.test(safeUrl)) {
+    const safeUrl = sanitizeLink(url); // Используем новую функцию
+    if (!safeUrl) return;
+
+    if (safeUrl.startsWith('tg://')) {
         if (tg && typeof tg.openTelegramLink === 'function') {
             tg.openTelegramLink(safeUrl);
         } else {
             window.location.href = safeUrl;
         }
-        return;
-    }
-    const safeHttpUrl = sanitizeUrl(url);
-    if (!safeHttpUrl) return;
-    if (tg && typeof tg.openLink === 'function') {
-        tg.openLink(safeHttpUrl);
     } else {
-        window.open(safeHttpUrl, '_blank', 'noopener');
+        if (tg && typeof tg.openLink === 'function') {
+            tg.openLink(safeUrl);
+        } else {
+            window.open(safeUrl, '_blank', 'noopener');
+        }
     }
   }
 
@@ -188,8 +191,8 @@
     /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
   const cleanImageMarkers = (text = '') => String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
   function pickImageUrl(v, detailsText = '') {
-    const msg = sanitizeUrl(v.message_link || '');
-    const img = sanitizeUrl(v.image_link || '');
+    const msg = sanitizeLink(v.message_link || '');
+    const img = sanitizeLink(v.image_link || '');
     const allow = (v.has_image === true) || containsImageMarker(detailsText) || containsImageMarker(v.reason || '');
     if (!allow) return '';
     if (msg) return msg;
@@ -284,7 +287,8 @@
       metaSeparator: card.querySelector('.meta-separator'),
     };
 
-    const applyUrl = sanitizeUrl(v.apply_url || '');
+    // ИЗМЕНЕНИЕ: Используем новую, правильную функцию sanitizeLink
+    const applyUrl = sanitizeLink(v.apply_url || '');
     if (applyUrl) {
       elements.applyBtn.dataset.action = 'apply';
       elements.applyBtn.dataset.url = applyUrl;
@@ -417,7 +421,6 @@
       if (!pulling || locked) return;
       const dist = e.touches[0].clientY - startY;
       if (dist > 0) {
-        // e.preventDefault();
         setBar(dist);
         if (dist > THRESHOLD && !ready) {
             ready = true;
@@ -431,7 +434,7 @@
         pulling = false;
         resetBar();
       }
-    }, { passive: true });
+    }, { passive: false });
 
     container.addEventListener('touchend', () => {
       if (!pulling || locked) {
@@ -457,7 +460,7 @@
 
   window.utils = {
     tg, escapeHtml, stripTags, debounce, highlightText, safeAlert, uiToast,
-    formatTimestamp, sanitizeUrl, openLink,
+    formatTimestamp, sanitizeLink, openLink,
     containsImageMarker, cleanImageMarkers, pickImageUrl,
     fetchWithRetry, renderEmptyState, renderError,
     ensureLoadMore, updateLoadMore,

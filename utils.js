@@ -1,6 +1,9 @@
 // utils.js — общие утилиты (без зависимостей)
+// ДОБАВЛЕНО: createVacancyCard, setupPullToRefresh для устранения дублирования
 
 (function () {
+  'use strict';
+
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 
   const escapeHtml = (s = '') =>
@@ -38,25 +41,23 @@
     if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
     try { return new URL(s, window.location.origin).href; } catch { return ''; }
   }
-
   const isHttpUrl = (u = '') => /^https?:\/\//i.test(u);
-  const isTelegramUrl = (u = '') => /^tg:\/\//i.test(u) || /^https?:\/\/t\.me\//i.test(u);
-
   const sanitizeUrl = (raw = '') => {
     const norm = normalizeUrl(raw);
-    return (isHttpUrl(norm) || isTelegramUrl(norm)) ? norm : '';
+    return isHttpUrl(norm) ? norm : '';
   };
-
   function openLink(url) {
-    const safe = sanitizeUrl(url);
-    if (!safe) return;
-    if (isTelegramUrl(safe)) {
-      if (tg && typeof tg.openTelegramLink === 'function') tg.openTelegramLink(safe);
-      else window.location.href = safe;
-      return;
+    const safeUrl = String(url || '');
+    // Допускаем tg:// ссылки напрямую, без sanitizeUrl
+    if (/^tg:\/\//.test(safeUrl)) {
+        if (tg && typeof tg.openTelegramLink === 'function') tg.openTelegramLink(safeUrl);
+        else window.open(safeUrl, '_blank', 'noopener');
+        return;
     }
-    if (tg && typeof tg.openLink === 'function') tg.openLink(safe);
-    else window.open(safe, '_blank', 'noopener');
+    const safeHttpUrl = sanitizeUrl(url);
+    if (!safeHttpUrl) return;
+    if (tg && typeof tg.openLink === 'function') tg.openLink(safeHttpUrl);
+    else window.open(safeHttpUrl, '_blank', 'noopener');
   }
 
   // ---- time ----
@@ -86,10 +87,7 @@
   // ---- image markers ----
   const containsImageMarker = (text = '') =>
     /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
-
-  const cleanImageMarkers = (text = '') =>
-    String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
-
+  const cleanImageMarkers = (text = '') => String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
   function pickImageUrl(v, detailsText = '') {
     const msg = sanitizeUrl(v.message_link || '');
     const img = sanitizeUrl(v.image_link || '');
@@ -119,25 +117,35 @@
 
   // ---- empty/error ----
   function renderEmptyState(container, message) {
-    if (!container) return;
-    container.innerHTML = `<p class="empty-list">${escapeHtml(message || '-- Пусто --')}</p>`;
+    const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif';
+    container.innerHTML = `<div class="empty-state"><img src="${catGifUrl}" class="empty-state-gif" alt=""><p class="empty-state-text">${escapeHtml(message)}</p></div>`;
   }
-  function renderError(container, message) {
-    if (!container) return;
-    container.innerHTML = `<p class="empty-list">${escapeHtml(message || 'Ошибка')}</p>`;
+  function renderError(container, message, onRetry) {
+    container.innerHTML = `
+      <div class="empty-state">
+        <p class="empty-state-text">Ошибка: ${escapeHtml(message || 'Ошибка сети')}</p>
+        <div class="load-more-wrap"><button class="load-more-btn">Повторить</button></div>
+      </div>`;
+    const btn = container.querySelector('.load-more-btn');
+    btn?.addEventListener('click', () => onRetry?.());
   }
 
-  // ---- Load More helpers ----
+  // ---- Load More button per container ----
   function ensureLoadMore(container, onClick) {
-    if (!container) return;
     let wrap = container.querySelector('.load-more-wrap');
+    let btn = container.querySelector('.load-more-btn');
     if (!wrap) {
       wrap = document.createElement('div');
       wrap.className = 'load-more-wrap';
-      wrap.innerHTML = `<button class="load-more-btn" type="button">Загрузить ещё</button>`;
+      btn = document.createElement('button');
+      btn.className = 'load-more-btn';
+      btn.type = 'button';
+      btn.textContent = 'Загрузить ещё';
+      wrap.appendChild(btn);
       container.appendChild(wrap);
-      wrap.querySelector('button')?.addEventListener('click', onClick);
     }
+    btn.onclick = onClick;
+    return { wrap, btn };
   }
   function updateLoadMore(container, visible) {
     let wrap = container.querySelector('.load-more-wrap');
@@ -145,11 +153,190 @@
     wrap.style.display = visible ? '' : 'none';
   }
 
+  // ---- НОВАЯ ОБЩАЯ ФУНКЦИЯ ДЛЯ КАРТОЧЕК ----
+  function createVacancyCard(v, options = {}) {
+    const { pageType = 'main', searchQuery = '' } = options;
+    const card = document.createElement('div');
+    card.className = 'vacancy-card';
+    card.id = `card-${v.id}`;
+
+    if (v.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
+    else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
+    else card.classList.add('category-other');
+
+    // --- Action Buttons ---
+    const allowHttpOrTg = (url) => {
+        if (!url) return '';
+        try {
+            const u = new URL(url, window.location.href);
+            if (/^https?:$/.test(u.protocol) || /^tg:$/.test(u.protocol)) return u.href;
+            return '';
+        } catch { return ''; }
+    };
+    const applyUrl = allowHttpOrTg(String(v.apply_url || ''));
+    const applyBtnHtml = applyUrl ? `
+      <button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(applyUrl)}" aria-label="Откликнуться">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>` : '';
+
+    const favoriteBtnHtml = pageType === 'main' ? `
+      <button class="card-action-btn favorite" data-action="favorite" data-id="${v.id}" aria-label="В избранное">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+      </button>` : '';
+
+    const deleteBtnHtml = `
+      <button class="card-action-btn delete" data-action="delete" data-id="${v.id}" aria-label="Удалить">
+        <svg class="icon-x" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+      </button>`;
+
+    const actionsHtml = `<div class="card-actions">${applyBtnHtml}${favoriteBtnHtml}${deleteBtnHtml}</div>`;
+
+    // --- Info Block ---
+    const UNKNOWN = ['не указано', 'n/a', 'none', 'null', '/'];
+    const cleanVal = val => String(val ?? '').replace(/[«»"“”'‘’`]/g,'').trim();
+    const isMeaningful = val => {
+        const s = cleanVal(val).toLowerCase();
+        return !!s && !UNKNOWN.includes(s);
+    };
+    const infoRows = [];
+    const fmt = [v.employment_type, v.work_format].map(cleanVal).filter(isMeaningful).join(' / ');
+    if (fmt) infoRows.push({ label: 'ФОРМАТ', value: fmt, type: 'default' });
+    if (isMeaningful(v.salary_display_text)) infoRows.push({ label: 'ОПЛАТА', value: cleanVal(v.salary_display_text), type: 'salary' });
+    const sphereSrc = isMeaningful(v.industry) ? v.industry : v.sphere;
+    if (isMeaningful(sphereSrc)) infoRows.push({ label: 'СФЕРА', value: cleanVal(sphereSrc), type: 'industry' });
+
+    const infoHtml = infoRows.length ? '<div class="info-window">' + infoRows.map(r => `
+        <div class="info-row info-row--${r.type}">
+          <div class="info-label">${escapeHtml(r.label)} >></div>
+          <div class="info-value">${escapeHtml(r.value)}</div>
+        </div>`).join('') + '</div>' : '';
+
+    // --- Details & Summary ---
+    const summaryText = v.reason || 'Описание не было сгенерировано.';
+    const originalDetailsHtml = String(v.text_highlighted || '').replace(/\[\s*Изображение\s*\]\s*/gi, '');
+    const bestImageUrl = pickImageUrl(v, originalDetailsHtml);
+    const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
+    const hasDetails = Boolean(originalDetailsHtml) || Boolean(attachmentsHTML);
+    const detailsHTML = hasDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
+
+    // --- Footer ---
+    const skillsFooterHtml = (Array.isArray(v.skills) && v.skills.length) ? `<div class="footer-skill-tags">${
+        v.skills.slice(0,3).map(s=>`<span class="footer-skill-tag">${escapeHtml(String(s))}</span>`).join('')
+      }</div>` : '';
+    const channelHtml = v.channel ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
+    const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
+    const sep = channelHtml && timestampHtml ? ' • ' : '';
+    const footerMetaHtml = `<div class="footer-meta">${channelHtml}${sep}${timestampHtml}</div>`;
+
+    // --- Final Assembly ---
+    card.innerHTML = `
+      ${actionsHtml}
+      <div class="card-header"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
+      <div class="card-body">
+        <p class="card-summary"></p>
+        ${infoHtml}
+        ${detailsHTML}
+      </div>
+      <div class="card-footer">${skillsFooterHtml}${footerMetaHtml}</div>
+    `;
+
+    // --- Dynamic Content & Data ---
+    const summaryEl = card.querySelector('.card-summary');
+    if (summaryEl) {
+      summaryEl.dataset.originalSummary = summaryText;
+      summaryEl.innerHTML = searchQuery ? highlightText(summaryText, searchQuery) : escapeHtml(summaryText);
+    }
+    const detailsEl = card.querySelector('.vacancy-text');
+    if (detailsEl) {
+      detailsEl.innerHTML = attachmentsHTML + originalDetailsHtml;
+    }
+    const searchChunks = [
+      v.category, v.reason, v.industry, v.company_name,
+      Array.isArray(v.skills) ? v.skills.join(' ') : '',
+      stripTags(originalDetailsHtml)
+    ].filter(Boolean);
+    card.dataset.searchText = searchChunks.join(' ').toLowerCase();
+
+    return card;
+  }
+
+  // ---- НОВАЯ ОБЩАЯ ФУНКЦИЯ ДЛЯ PULL-TO-REFRESH ----
+  function setupPullToRefresh(options = {}) {
+    const { onRefresh, refreshEventName, container = window } = options;
+    if (typeof onRefresh !== 'function' || !refreshEventName) return;
+
+    const threshold = 78;
+    let startY = 0, pulling = false, ready = false, locked = false;
+
+    const bar = document.createElement('div');
+    bar.style.cssText = [
+      'position:fixed','left:0','right:0','top:0','height:56px',
+      'background:#fff','color:#333','border-bottom:3px solid #000','box-shadow:0 2px 0 #000',
+      'transform:translateY(-100%)','transition:transform .2s ease,opacity .14s linear',
+      'z-index:9999','font-family:inherit','font-weight:700','display:flex','align-items:center','justify-content:center',
+      'letter-spacing:.2px','opacity:0','pointer-events:none'
+    ].join(';');
+    bar.textContent = 'Потяните вниз для обновления';
+    document.body.appendChild(bar);
+
+    const setBar = y => { bar.style.transform = `translateY(${Math.min(0, -100 + (y/0.56))}%)`; bar.style.opacity = y > 6 ? '1' : '0'; };
+    const resetBar = () => { bar.style.transform = 'translateY(-100%)'; bar.style.opacity = '0'; };
+
+    container.addEventListener('touchstart', (e) => {
+      if (locked || window.scrollY > 0 || e.touches.length !== 1) {
+        pulling = false;
+        return;
+      }
+      startY = e.touches[0].clientY;
+      pulling = true;
+      ready = false;
+    }, { passive: true });
+
+    container.addEventListener('touchmove', (e) => {
+      if (!pulling || locked) return;
+      const dist = e.touches[0].clientY - startY;
+      if (dist > 0) {
+        e.preventDefault();
+        setBar(dist);
+        if (dist > threshold && !ready) { ready = true; bar.textContent = 'Отпустите для обновления'; }
+        if (dist <= threshold && ready) { ready = false; bar.textContent = 'Потяните вниз для обновления'; }
+      } else {
+        pulling = false;
+        resetBar();
+      }
+    }, { passive: false });
+
+    container.addEventListener('touchend', () => {
+      if (!pulling || locked) {
+        resetBar();
+        pulling = false;
+        return;
+      }
+      if (ready) {
+        locked = true;
+        bar.textContent = 'Обновляю…';
+        setBar(threshold * 1.2);
+        const done = () => { locked = false; pulling = false; resetBar(); };
+        const onLoaded = () => { document.removeEventListener(refreshEventName, onLoaded); done(); };
+        document.addEventListener(refreshEventName, onLoaded);
+        onRefresh();
+        setTimeout(() => { if (locked) done(); }, 8000); // Timeout safety
+      } else {
+        resetBar();
+        pulling = false;
+      }
+    }, { passive: true });
+  }
+
+
   window.utils = {
     tg, escapeHtml, stripTags, debounce, highlightText, safeAlert,
     formatTimestamp, sanitizeUrl, openLink,
     containsImageMarker, cleanImageMarkers, pickImageUrl,
     fetchWithRetry, renderEmptyState, renderError,
-    ensureLoadMore, updateLoadMore
+    ensureLoadMore, updateLoadMore,
+    // Новые общие функции
+    createVacancyCard,
+    setupPullToRefresh
   };
 })();

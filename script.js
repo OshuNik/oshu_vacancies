@@ -1,6 +1,5 @@
 /* script.js — главная страница
- * ИСПОЛЬЗУЕТ ОБЩИЕ ФУНКЦИИ из utils.js для рендеринга и pull-to-refresh
- * ИСПРАВЛЕНО: Возвращён и используется индикатор загрузки (loader)
+ * ИСПРАВЛЕНО: Возвращён долгий тап для массового удаления категории
  */
 
 (function () {
@@ -18,6 +17,7 @@
   const {
     debounce,
     safeAlert,
+    uiToast,
     openLink,
     fetchWithRetry,
     renderEmptyState,
@@ -42,9 +42,8 @@
   const tabButtons      = document.querySelectorAll('.tab-button');
   const vacancyLists    = document.querySelectorAll('.vacancy-list');
   const searchInput     = document.getElementById('search-input');
-  const searchContainer = document.getElementById('search-container');
+  const mainHeader      = document.getElementById('main-header');
   const vacanciesContent= document.getElementById('vacancies-content');
-  // Элемент загрузки
   const loader          = document.getElementById('loader');
 
   // Кастомный confirm
@@ -57,9 +56,9 @@
       if(!confirmOverlay) return res(window.confirm(message));
       confirmText.textContent = message;
       confirmOverlay.classList.remove('hidden');
-      const close=()=>{confirmOverlay.classList.add('hidden');confirmOkBtn.onclick=null;confirmCancelBtn.onclick=null;};
-      confirmOkBtn.onclick=()=>{close();res(true);};
-      confirmCancelBtn.onclick=()=>{close();res(false);};
+      const close=(result)=>{confirmOverlay.classList.add('hidden');confirmOkBtn.onclick=null;confirmCancelBtn.onclick=null;res(result);};
+      confirmOkBtn.onclick=()=>close(true);
+      confirmCancelBtn.onclick=()=>close(false);
     });
   }
 
@@ -75,31 +74,36 @@
     other: { offset:0, total:0, busy:false, loadedOnce:false, loadedForQuery:'' },
   };
 
-  // --- Функции управления загрузчиком ---
+  // --- Улучшенные функции управления загрузчиком ---
   function showLoader() {
     if (loader) loader.classList.remove('hidden');
+    if (mainHeader) mainHeader.classList.add('hidden');
     if (vacanciesContent) vacanciesContent.classList.add('hidden');
+    if (document.body) document.body.style.overflow = 'hidden';
   }
   function hideLoader() {
     if (loader) loader.classList.add('hidden');
+    if (mainHeader) mainHeader.classList.remove('hidden');
     if (vacanciesContent) vacanciesContent.classList.remove('hidden');
+    if (document.body) document.body.style.overflow = '';
   }
-
 
   // -------- Статистика поиска --------
   let searchStatsEl=null;
   function ensureSearchUI(){
-    if(!searchContainer) return;
-    if(!searchStatsEl){
-      searchStatsEl=document.createElement('div');
-      searchStatsEl.className='search-stats';
-      searchContainer.appendChild(searchStatsEl);
-    }
+    const searchContainer = document.getElementById('search-container');
+    if(!searchContainer || searchStatsEl) return;
+    searchStatsEl=document.createElement('div');
+    searchStatsEl.className='search-stats';
+    searchContainer.appendChild(searchStatsEl);
   }
   function updateSearchStats(){
     ensureSearchUI();
     const active = containers[state.activeKey];
-    if(!active){ searchStatsEl.textContent=''; return; }
+    if(!active || !searchStatsEl){
+        if(searchStatsEl) searchStatsEl.textContent='';
+        return;
+    }
     const visible = active.querySelectorAll('.vacancy-card').length;
     const total   = state[state.activeKey].total || visible;
     const q = (searchInput?.value||'').trim();
@@ -123,9 +127,6 @@
   function keyFromTargetId(targetId){
     if (targetId.endsWith('-main'))  return 'main';
     if (targetId.endsWith('-maybe')) return 'maybe';
-    if (targetId.endsWith('-other')) return 'other';
-    if (/main$/i.test(targetId))  return 'main';
-    if (/maybe$/i.test(targetId)) return 'maybe';
     return 'other';
   }
   function clearContainer(el){
@@ -166,32 +167,32 @@
   }
 
   // -------- Счётчики --------
-  async function fetchCount(key, query){
-    const p=new URLSearchParams();
-    p.set('select','id');
-    p.set('status','eq.new');
-    p.set('limit','1');
-    if(key==='main') p.set('category', `eq.${CAT_NAME.main}`);
-    else if(key==='maybe') p.set('category', `eq.${CAT_NAME.maybe}`);
-    else p.set('category', `not.in.("${CAT_NAME.main}","${CAT_NAME.maybe}")`);
-    const q=(query||'').trim();
-    if(q && Array.isArray(SEARCH_FIELDS) && SEARCH_FIELDS.length){
-      const orExpr = '('+SEARCH_FIELDS.map(f=>`${f}.ilike.*${q}*`).join(',')+')';
-      p.set('or', orExpr);
-    }
-    const url = `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
-    const resp = await fetchWithRetry(url,{
-      headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, Prefer:'count=exact' }
-    }, RETRY_OPTIONS);
-    if(!resp.ok) throw new Error('count failed');
-    return parseTotal(resp);
-  }
   async function fetchCountsAll(query){
+    const fetchCount = async (key) => {
+        const p=new URLSearchParams();
+        p.set('select','id');
+        p.set('status','eq.new');
+        p.set('limit','1');
+        if(key==='main') p.set('category', `eq.${CAT_NAME.main}`);
+        else if(key==='maybe') p.set('category', `eq.${CAT_NAME.maybe}`);
+        else p.set('category', `not.in.("${CAT_NAME.main}","${CAT_NAME.maybe}")`);
+        const q=(query||'').trim();
+        if(q && Array.isArray(SEARCH_FIELDS) && SEARCH_FIELDS.length){
+          const orExpr = '('+SEARCH_FIELDS.map(f=>`${f}.ilike.*${q}*`).join(',')+')';
+          p.set('or', orExpr);
+        }
+        const url = `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+        const resp = await fetchWithRetry(url,{
+          headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, Prefer:'count=exact' }
+        }, RETRY_OPTIONS);
+        if(!resp.ok) throw new Error('count failed');
+        return parseTotal(resp);
+    };
     try{
       const [cMain,cMaybe,cOther] = await Promise.all([
-        fetchCount('main',query),
-        fetchCount('maybe',query),
-        fetchCount('other',query),
+        fetchCount('main', query),
+        fetchCount('maybe', query),
+        fetchCount('other', query),
       ]);
       state.main.total  = cMain;  counts.main.textContent  = `(${cMain})`;
       state.maybe.total = cMaybe; counts.maybe.textContent = `(${cMaybe})`;
@@ -211,8 +212,10 @@
 
   async function updateStatus(id,newStatus){
     if(!id) return;
-    const ok = await showCustomConfirm(newStatus==='deleted' ? 'Удалить вакансию из ленты?' : 'Добавить вакансию в избранное?');
+    const isFavorite = newStatus === 'favorite';
+    const ok = await showCustomConfirm(isFavorite ? 'Добавить в избранное?' : 'Удалить из ленты?');
     if(!ok) return;
+
     try{
       const url = `${SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
       const resp = await fetchWithRetry(url,{
@@ -221,15 +224,19 @@
           apikey:SUPABASE_ANON_KEY,
           Authorization:`Bearer ${SUPABASE_ANON_KEY}`,
           'Content-Type':'application/json',
-          Prefer:'return=representation',
+          Prefer:'return=minimal',
         },
         body:JSON.stringify({ status:newStatus }),
       }, RETRY_OPTIONS);
       if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
+      uiToast(isFavorite ? 'Добавлено в избранное' : 'Вакансия удалена');
+
       document.querySelectorAll(`#card-${CSS.escape(id)}`).forEach((el) => {
+        el.style.transition = 'opacity .2s ease-out, transform .2s ease-out';
         el.style.opacity = '0';
-        setTimeout(() => el.remove(), 150);
+        el.style.transform = 'scale(0.95)';
+        setTimeout(() => el.remove(), 200);
       });
 
       const k = state.activeKey;
@@ -243,7 +250,7 @@
       updateSearchStats();
     }catch(err){
       console.error(err);
-      safeAlert('Не удалось выполнить действие. Повторите позже.');
+      safeAlert('Не удалось выполнить действие.');
     }
   }
 
@@ -254,10 +261,7 @@
     if(!container || st.busy) return;
     st.busy=true;
 
-    // Показываем лоадер только при самой первой загрузке вкладки
-    if (st.offset === 0) {
-        showLoader();
-    }
+    if (st.offset === 0) showLoader();
 
     const url = buildCategoryUrl(key, PAGE_SIZE_MAIN||10, st.offset, state.query);
     const controller = abortCurrent();
@@ -274,130 +278,67 @@
 
       const items=await resp.json();
 
-      if (st.offset===0 && (total===0 || items.length===0)) {
+      if (st.offset===0 && items.length===0) {
         clearContainer(container);
         hideLoadMore(container);
         renderEmptyState(container,'-- Пусто в этой категории --');
-        st.loadedOnce=true; st.loadedForQuery=state.query;
-        updateSearchStats();
-        return;
+      } else {
+        const frag=document.createDocumentFragment();
+        for(const it of items) frag.appendChild(
+            createVacancyCard(it, { pageType: 'main', searchQuery: state.query })
+        );
+        if (st.offset === 0) clearContainer(container);
+        container.appendChild(frag);
+        pinLoadMoreToBottom(container);
+
+        const {btn}=ensureLoadMore(container,()=>fetchNext(key));
+        st.offset += items.length;
+        const hasMore = st.offset < st.total;
+        updateLoadMore(container,hasMore);
+        if(btn) btn.disabled=!hasMore;
       }
-
-      const frag=document.createDocumentFragment();
-      for(const it of items) frag.appendChild(
-          createVacancyCard(it, { pageType: 'main', searchQuery: state.query })
-      );
-      if (st.offset === 0) { // Если это первая загрузка, очищаем контейнер
-          clearContainer(container);
-      }
-      container.appendChild(frag);
-      pinLoadMoreToBottom(container);
-
-      const {btn}=ensureLoadMore(container,()=>fetchNext(key));
-      st.offset += items.length;
-      const hasMore = st.offset < st.total;
-      updateLoadMore(container,hasMore);
-      if(btn) btn.disabled=!hasMore;
-
-      if(state.activeKey===key) updateSearchStats();
       st.loadedOnce=true;
       st.loadedForQuery=state.query;
+      updateSearchStats();
     }catch(e){
       if(e.name==='AbortError') return;
       console.error('Load error:',e);
-      if (st.offset === 0) { // Показываем ошибку только если это первая загрузка
+      if (st.offset === 0) {
         renderError(container,e.message,()=>fetchNext(key));
         pinLoadMoreToBottom(container);
       }
     }finally{
       st.busy=false;
-      // Скрываем лоадер после первой загрузки
-      if (st.offset > 0 || !st.busy) {
-        hideLoader();
-      }
+      hideLoader();
     }
   }
 
-  // -------- Мягкая перезагрузка текущей вкладки --------
+  // -------- Мягкая перезагрузка --------
   async function refetchFromZeroSmooth(key){
-    const st=state[key], container=containers[key];
-    if(!container) return;
-
-    abortCurrent();
-    st.busy=true;
-    showLoader(); // Показываем лоадер при каждом обновлении
-
-    const url = buildCategoryUrl(key, PAGE_SIZE_MAIN||10, 0, state.query);
-    const controller = currentController;
-
-    try{
-      const resp = await fetchWithRetry(url,{
-        headers:{ apikey:SUPABASE_ANON_KEY, Authorization:`Bearer ${SUPABASE_ANON_KEY}`, Prefer:'count=exact' },
-        signal: controller.signal
-      }, RETRY_OPTIONS);
-      if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
-
-      const total=parseTotal(resp);
-      const items=await resp.json();
-
-      const frag=document.createDocumentFragment();
-      for(const it of items) frag.appendChild(
-          createVacancyCard(it, { pageType: 'main', searchQuery: state.query })
-      );
-
-      clearContainer(container);
-      container.appendChild(frag);
-
-      st.offset=items.length;
-      st.total=Number.isFinite(total)?total:items.length;
-      st.loadedOnce=true;
-      st.loadedForQuery=state.query;
-
-      if(counts[key]) counts[key].textContent=`(${st.total})`;
-
-      if (st.total === 0) {
-        hideLoadMore(container);
-        renderEmptyState(container,'-- Пусто в этой категории --');
-      } else {
-        const {btn}=ensureLoadMore(container,()=>fetchNext(key));
-        const hasMore = st.offset < st.total;
-        updateLoadMore(container,hasMore);
-        if(btn) btn.disabled=!hasMore;
-        pinLoadMoreToBottom(container);
-      }
-
-      if(state.activeKey===key) updateSearchStats();
-
-      flashRefreshed(container);
-      document.dispatchEvent(new CustomEvent('feed:loaded'));
-    }catch(e){
-      if(e.name!=='AbortError'){
-        console.error('Refetch error:',e);
-        renderError(container,e.message,()=>refetchFromZeroSmooth(key));
-        pinLoadMoreToBottom(container);
-        document.dispatchEvent(new CustomEvent('feed:loaded'));
-      }
-    }finally{
-      hideLoader(); // Скрываем лоадер после завершения
-      st.busy=false;
-    }
+    const st=state[key];
+    st.offset = 0;
+    st.loadedOnce = false;
+    await fetchNext(key);
+    document.dispatchEvent(new CustomEvent('feed:loaded'));
+    flashRefreshed(containers[key]);
   }
 
   // -------- Поиск --------
   const onSearch = debounce(async ()=>{
     state.query = (searchInput?.value||'').trim();
-    fetchCountsAll(state.query);
+    await fetchCountsAll(state.query);
     await refetchFromZeroSmooth(state.activeKey);
     ['main','maybe','other'].forEach(key=>{
       if(key!==state.activeKey){
         const st=state[key];
-        st.loadedOnce=false; st.loadedForQuery='';
-        st.offset = 0; // Сбрасываем offset для других вкладок
+        st.loadedOnce=false;
+        st.loadedForQuery='';
+        st.offset = 0;
         clearContainer(containers[key]);
         hideLoadMore(containers[key]);
       }
     });
-  }, 220);
+  }, 300);
   searchInput?.addEventListener('input', onSearch);
 
   // -------- Переключение вкладок --------
@@ -423,11 +364,52 @@
     updateSearchStats();
 
     const st=state[key];
-    // Загружаем данные, если вкладка еще не загружалась с текущим поисковым запросом
     if(!st.loadedOnce || st.loadedForQuery !== state.query) {
        await fetchNext(key);
     }
   }
+
+  // --- ВОЗВРАЩЕН ДОЛГИЙ ТАП ---
+  async function bulkDeleteCategory(key) {
+    const ok = await showCustomConfirm('Удалить ВСЕ вакансии в этой категории?');
+    if(!ok) return;
+
+    try {
+        const p = new URLSearchParams();
+        p.set('status', 'eq.new');
+        if (key === 'main') p.set('category', `eq.${CAT_NAME.main}`);
+        else if (key === 'maybe') p.set('category', `eq.${CAT_NAME.maybe}`);
+        else p.set('category', `not.in.("${CAT_NAME.main}","${CAT_NAME.maybe}")`);
+
+        const url = `${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+        const resp = await fetchWithRetry(url, {
+            method: 'PATCH',
+            headers: {
+                'apikey': SUPABASE_ANON_KEY,
+                'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                'Content-Type': 'application/json',
+                'Prefer': 'return=minimal',
+            },
+            body: JSON.stringify({ status: 'deleted' }),
+        }, RETRY_OPTIONS);
+
+        if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+
+        // Обновление UI
+        clearContainer(containers[key]);
+        state[key] = { offset: 0, total: 0, busy: false, loadedOnce: true, loadedForQuery: state.query };
+        counts[key].textContent = '(0)';
+        hideLoadMore(containers[key]);
+        renderEmptyState(containers[key], '-- Пусто в этой категории --');
+        updateSearchStats();
+        uiToast('Категория очищена');
+
+    } catch(e) {
+        console.error(e);
+        safeAlert('Ошибка: не получилось очистить категорию.');
+    }
+  }
+
   tabButtons.forEach(btn=>{
     btn.addEventListener('click', ()=>{
       const targetId = btn.dataset.target;
@@ -435,64 +417,25 @@
       activateTabByTarget(targetId);
     });
 
-    // Долгий тап — массовое удаление категории
-    let pressTimer=null; const holdMs=700;
-    const start=()=>{
+    // Логика долгого нажатия
+    let pressTimer = null;
+    const holdMs = 700;
+    const start = () => {
       clearTimeout(pressTimer);
-      pressTimer=setTimeout(async ()=>{
-        const key = keyFromTargetId(btn.dataset.target||'');
-        const ok = await showCustomConfirm('Удалить ВСЕ вакансии в этой категории?');
-        if(!ok) return;
-        try{
-          await bulkSetStatusForCategory(key,'deleted');
-          clearContainer(containers[key]);
-          state[key]={ offset:0,total:0,busy:false,loadedOnce:false,loadedForQuery:'' };
-          counts[key].textContent='(0)';
-          hideLoadMore(containers[key]);
-          if(state.activeKey===key) updateSearchStats();
-          renderEmptyState(containers[key],'-- Пусто в этой категории --');
-          safeAlert('Готово: категория очищена.');
-        }catch(e){ console.error(e); safeAlert('Ошибка: не получилось удалить категорию.'); }
+      pressTimer = setTimeout(() => {
+        const key = keyFromTargetId(btn.dataset.target || '');
+        bulkDeleteCategory(key);
       }, holdMs);
     };
-    const cancel=()=>{ clearTimeout(pressTimer); };
+    const cancel = () => { clearTimeout(pressTimer); };
+
     btn.addEventListener('pointerdown', start);
     btn.addEventListener('pointerup', cancel);
     btn.addEventListener('pointerleave', cancel);
   });
-
-  // -------- Массовое изменение статуса --------
-  async function bulkSetStatusForCategory(key,newStatus){
-    const p=new URLSearchParams();
-    p.set('status','eq.new');
-    if(key==='main') p.set('category',`eq.${CAT_NAME.main}`);
-    else if(key==='maybe') p.set('category',`eq.${CAT_NAME.maybe}`);
-    else p.set('category',`not.in.("${CAT_NAME.main}","${CAT_NAME.maybe}")`);
-    const url=`${SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
-    const resp=await fetchWithRetry(url,{
-      method:'PATCH',
-      headers:{
-        apikey:SUPABASE_ANON_KEY,
-        Authorization:`Bearer ${SUPABASE_ANON_KEY}`,
-        'Content-Type':'application/json',
-        Prefer:'return=minimal',
-      },
-      body:JSON.stringify({ status:newStatus }),
-    }, RETRY_OPTIONS);
-    if(!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
-  }
+  // --- КОНЕЦ БЛОКА С ДОЛГИМ ТАПОМ ---
 
   // -------- Вспышка после обновления --------
-  (function injectFlashCSS(){
-    const style=document.createElement('style');
-    style.textContent=`
-      @keyframes refreshedFlash { 0%{background:#fffbe6;} 100%{background:transparent;} }
-      .refreshed-flash { animation: refreshedFlash .6s ease forwards; }
-      .vacancy-text a, .card-summary a { text-decoration: underline; color:#1f6feb; word-break: break-word; }
-      .vacancy-text a:hover, .card-summary a:hover { opacity:.85; }
-    `;
-    document.head.appendChild(style);
-  })();
   function flashRefreshed(container){
     if(!container) return;
     container.classList.remove('refreshed-flash');
@@ -502,7 +445,7 @@
 
   // -------- Префетч скрытых вкладок --------
   async function prefetchHidden(){
-    fetchCountsAll(state.query);
+    await fetchCountsAll(state.query);
     ['maybe','other'].forEach(k=>{
       if(!containers[k].querySelector('.vacancy-card')){
         fetchNext(k);
@@ -527,9 +470,8 @@
         refreshEventName: 'feed:loaded'
     });
 
-    fetchCountsAll(state.query);
-    await fetchNext('main'); // Эта функция теперь сама управляет лоадером
-    prefetchHidden();
+    await fetchNext('main');
+    await prefetchHidden();
     updateSearchStats();
   }
 

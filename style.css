@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@500;700&family=Press+Start+2P&display.swap');
 
 :root {
     --background-color: #F0F0F0;
@@ -25,7 +25,6 @@ body {
     overflow-x: hidden;
 }
 
-/* --- Стили для обертки и красивой плашки обновления --- */
 .main-wrapper {
     position: relative;
     z-index: 1;
@@ -35,19 +34,18 @@ body {
 
 .ptr-bar {
     position: absolute;
-    top: -50px; /* Прячем плашку над видимой областью */
+    top: -50px;
     left: 0;
     right: 0;
     height: 50px;
     background-color: var(--card-color);
     color: var(--text-color);
-    z-index: -1; /* Находится за main-wrapper, но видна при сдвиге */
+    z-index: -1;
     font-family: inherit;
     font-weight: 700;
     display: flex;
     align-items: center;
     justify-content: center;
-    letter-spacing: .2px;
     border: var(--border-width) solid var(--border-color);
     border-top: none;
     border-radius: 0 0 12px 12px;

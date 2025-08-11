@@ -519,7 +519,7 @@
     setupPullToRefresh({
         onRefresh: () => refetchFromZeroSmooth(state.activeKey),
         refreshEventName: 'feed:loaded',
-        container: vacanciesContent,
+        container: document.documentElement,
         mainElement: document.body
     });
     

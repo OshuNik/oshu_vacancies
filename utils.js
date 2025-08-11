@@ -125,28 +125,24 @@
     return escapeHtml(text).replace(rx, '<mark class="highlight">$1</mark>');
   };
 
-  // ИЗМЕНЕНИЕ: Новая, более надежная функция для проверки и нормализации ссылок
   function sanitizeLink(raw = '') {
     let s = String(raw).trim();
     if (!s) return '';
 
-    // Если это телеграм ссылка без протокола, добавляем https
     if (/^(t\.me|telegram\.me)\//i.test(s)) {
         s = 'https://' + s;
     }
-    // Если это похоже на домен без протокола (но не tg://), добавляем https
     if (!/^[a-z]+:\/\//i.test(s) && s.includes('.')) {
         s = 'https://' + s;
     }
 
-    // Теперь проверяем, что это валидный URL с разрешенным протоколом
     try {
         const url = new URL(s);
         if (['https:', 'http:', 'tg:'].includes(url.protocol)) {
             return url.href;
         }
     } catch (e) {
-        // Невалидный URL
+        // Not a valid URL
     }
     
     return '';
@@ -158,7 +154,6 @@
 
     if (safeUrl.startsWith('tg://') || safeUrl.startsWith('https://t.me')) {
         if (tg && typeof tg.openTelegramLink === 'function') {
-            // Для ссылок t.me тоже лучше использовать нативный метод Telegram
             tg.openTelegramLink(safeUrl);
         } else {
             window.open(safeUrl, '_blank', 'noopener');
@@ -470,11 +465,25 @@
   }
 
   window.utils = {
-    tg, escapeHtml, stripTags, debounce, highlightText, safeAlert, uiToast,
-    formatTimestamp, sanitizeLink, openLink,
-    containsImageMarker, cleanImageMarkers, pickImageUrl,
-    fetchWithRetry, renderEmptyState, renderError,
-    ensureLoadMore, updateLoadMore,
+    tg, 
+    escapeHtml, 
+    stripTags, 
+    debounce, 
+    highlightText, 
+    // ИЗМЕНЕНИЕ: Добавляем забытую функцию в экспорт
+    safeAlert, 
+    uiToast,
+    formatTimestamp, 
+    sanitizeLink, 
+    openLink,
+    containsImageMarker, 
+    cleanImageMarkers, 
+    pickImageUrl,
+    fetchWithRetry, 
+    renderEmptyState, 
+    renderError,
+    ensureLoadMore, 
+    updateLoadMore,
     createVacancyCard,
     setupPullToRefresh,
     showCustomConfirm,

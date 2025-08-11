@@ -148,11 +148,18 @@
     return '';
   }
   
+  // ИЗМЕНЕНИЕ: openLink теперь исправляет некорректные tg:// ссылки
   function openLink(url) {
-    const safeUrl = sanitizeLink(url);
+    let safeUrl = sanitizeLink(url);
     if (!safeUrl) return;
 
-    if (safeUrl.startsWith('tg://') || safeUrl.startsWith('https://t.me')) {
+    // Преобразуем "плохие" tg:// ссылки в "хорошие" https://t.me/
+    if (safeUrl.startsWith('tg://') && !safeUrl.includes('?')) {
+        const username = safeUrl.replace('tg://', '').replace('/', '');
+        safeUrl = `https://t.me/${username}`;
+    }
+
+    if (safeUrl.startsWith('https://t.me')) {
         if (tg && typeof tg.openTelegramLink === 'function') {
             tg.openTelegramLink(safeUrl);
         } else {
@@ -470,7 +477,6 @@
     stripTags, 
     debounce, 
     highlightText, 
-    // ИЗМЕНЕНИЕ: Добавляем забытую функцию в экспорт
     safeAlert, 
     uiToast,
     formatTimestamp, 

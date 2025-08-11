@@ -1,5 +1,5 @@
 /* script.js — главная страница
- * ИСПРАВЛЕНО: Устранён баг с зависанием "Обновление..." при поиске.
+ * ИЗМЕНЕНИЕ: Отмена удаления, кнопка очистки поиска, анимация долгого нажатия.
  */
 (function () {
   'use strict';
@@ -33,7 +33,8 @@
     createVacancyCard,
     setupPullToRefresh,
     showCustomConfirm,
-    createSupabaseHeaders
+    createSupabaseHeaders,
+    parseTotal
   } = UTIL;
 
   const containers = {
@@ -52,6 +53,8 @@
   const mainHeader      = document.getElementById('main-header');
   const vacanciesContent= document.getElementById('vacancies-content');
   const loader          = document.getElementById('loader');
+  const searchClearBtn  = document.getElementById('search-clear-btn');
+  const searchInputWrapper = searchInput?.parentElement;
 
   const state = {
     query: '',
@@ -64,15 +67,9 @@
 
   function showLoader() {
     if (loader) loader.classList.remove('hidden');
-    if (mainHeader) mainHeader.classList.add('hidden');
-    if (vacanciesContent) vacanciesContent.classList.add('hidden');
-    if (document.body) document.body.style.overflow = 'hidden';
   }
   function hideLoader() {
     if (loader) loader.classList.add('hidden');
-    if (mainHeader) mainHeader.classList.remove('hidden');
-    if (vacanciesContent) vacanciesContent.classList.remove('hidden');
-    if (document.body) document.body.style.overflow = '';
   }
 
   let searchStatsEl=null;
@@ -81,7 +78,7 @@
     if(!searchContainer || searchStatsEl) return;
     searchStatsEl=document.createElement('div');
     searchStatsEl.className='search-stats';
-    searchContainer.appendChild(searchStatsEl);
+    searchInputWrapper.insertAdjacentElement('afterend', searchStatsEl);
   }
   function updateSearchStats(){
     ensureSearchUI();
@@ -102,12 +99,6 @@
     return currentController;
   }
   
-  function parseTotal(resp){
-    const cr=resp.headers.get('content-range');
-    if(!cr||!cr.includes('/')) return 0;
-    const total=cr.split('/').pop();
-    return Number(total)||0;
-  }
   function keyFromTargetId(targetId){
     if (targetId.endsWith('-main'))  return 'main';
     if (targetId.endsWith('-maybe')) return 'maybe';
@@ -179,9 +170,9 @@
         fetchCount('maybe', query),
         fetchCount('other', query),
       ]);
-      state.main.total  = cMain;  counts.main.textContent  = `(${cMain})`;
-      state.maybe.total = cMaybe; counts.maybe.textContent = `(${cMaybe})`;
-      state.other.total = cOther; counts.other.textContent = `(${cOther})`;
+      state.main.total  = cMain;  counts.main.textContent  = `(${cMain}`;
+      state.maybe.total = cMaybe; counts.maybe.textContent = `(${cMaybe}`;
+      state.other.total = cOther; counts.other.textContent = `(${cOther}`;
     } catch(e) { console.warn('counts err', e); }
   }
 
@@ -197,40 +188,74 @@
   async function updateStatus(id, newStatus){
     if (!id) return;
     const isFavorite = newStatus === STATUSES.FAVORITE;
-    const ok = await showCustomConfirm(isFavorite ? 'Добавить в избранное?' : 'Удалить из ленты?');
-    if (!ok) return;
-
-    try {
-      const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
-      const resp = await fetchWithRetry(url, {
-        method: 'PATCH',
-        headers: createSupabaseHeaders({ prefer: 'return=minimal' }),
-        body: JSON.stringify({ status: newStatus }),
-      }, RETRY_OPTIONS);
-      if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
-
-      uiToast(isFavorite ? 'Добавлено в избранное' : 'Вакансия удалена');
-
-      document.querySelectorAll(`#card-${CSS.escape(id)}`).forEach((el) => {
-        el.style.transition = 'opacity .2s ease-out, transform .2s ease-out';
-        el.style.opacity = '0';
-        el.style.transform = 'scale(0.95)';
-        setTimeout(() => el.remove(), 200);
-      });
-
-      const k = state.activeKey;
-      if (state[k].total > 0) state[k].total -= 1;
-      counts[k].textContent = `(${state[k].total})`;
-      const cont = containers[k];
-      if (cont && cont.querySelectorAll('.vacancy-card').length === 0) {
-        hideLoadMore(cont);
-        renderEmptyState(cont, '-- Пусто в этой категории --');
-      }
-      updateSearchStats();
-    } catch(err) {
-      console.error(err);
-      safeAlert('Не удалось выполнить действие.');
+    
+    // Для добавления в избранное спрашиваем подтверждение
+    if (isFavorite) {
+        const ok = await showCustomConfirm('Добавить в избранное?');
+        if (!ok) return;
     }
+    
+    const cardEl = document.querySelector(`#card-${CSS.escape(id)}`);
+    if (!cardEl) return;
+    
+    // 1. Сразу скрываем карточку из UI для мгновенной реакции
+    cardEl.style.transition = 'opacity .3s, transform .3s, max-height .3s, margin .3s, padding .3s';
+    cardEl.style.opacity = '0';
+    cardEl.style.transform = 'scale(0.95)';
+    cardEl.style.maxHeight = '0px';
+    cardEl.style.padding = '0';
+    cardEl.style.margin = '0';
+    cardEl.style.borderWidth = '0';
+    
+    const parent = cardEl.parentElement;
+    const nextSibling = cardEl.nextElementSibling;
+    setTimeout(() => cardEl.remove(), 300);
+
+    const onUndo = () => {
+      // Возвращаем карточку в DOM
+      if (nextSibling) {
+          parent.insertBefore(cardEl, nextSibling);
+      } else {
+          parent.appendChild(cardEl);
+      }
+      requestAnimationFrame(() => {
+          cardEl.style.opacity = '1';
+          cardEl.style.transform = 'scale(1)';
+          cardEl.style.maxHeight = '500px';
+          cardEl.style.padding = '15px';
+          cardEl.style.margin = '';
+          cardEl.style.borderWidth = '';
+      });
+    };
+
+    // 2. Показываем уведомление с возможностью отмены
+    const toastMessage = isFavorite ? 'Добавлено в избранное' : 'Вакансия удалена';
+    const toast = uiToast(toastMessage, {
+      timeout: 5000,
+      onUndo: () => onUndo(),
+      onTimeout: async () => {
+          // 3. Если отмены не было, отправляем запрос в API
+          try {
+            const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
+            const resp = await fetchWithRetry(url, {
+              method: 'PATCH',
+              headers: createSupabaseHeaders({ prefer: 'return=minimal' }),
+              body: JSON.stringify({ status: newStatus }),
+            }, RETRY_OPTIONS);
+            if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+            
+            const k = state.activeKey;
+            if (state[k].total > 0) state[k].total -= 1;
+            counts[k].textContent = `(${state[k].total})`;
+            if (parent && parent.children.length === 0) {
+                renderEmptyState(parent, '-- Пусто в этой категории --');
+            }
+          } catch(err) {
+            safeAlert('Не удалось выполнить действие.');
+            onUndo(); // Возвращаем карточку, если была ошибка сети
+          }
+      }
+    });
   }
 
   async function fetchNext(key, isInitialLoad = false) {
@@ -239,7 +264,6 @@
     if (!container || st.busy) return;
     st.busy = true;
 
-    // ИЗМЕНЕНИЕ: Показываем индикатор загрузки только если он нужен
     if (st.offset === 0 && !isInitialLoad) {
         container.innerHTML = '<div class="empty-list"><div class="retro-spinner-inline"></div> Загрузка...</div>';
     }
@@ -259,7 +283,6 @@
 
       const items = await resp.json();
       
-      // ИЗМЕНЕНИЕ: Очищаем контейнер только перед вставкой новых элементов
       if (st.offset === 0) {
           clearContainer(container);
       }
@@ -299,25 +322,19 @@
     }
   }
   
-  // ИЗМЕНЕНИЕ: Упрощенная и более надежная функция "мягкой" перезагрузки
   async function refetchFromZeroSmooth(key) {
     const st = state[key];
     const container = containers[key];
     if (!container || st.busy) return;
-
-    // Сбрасываем пагинацию и просто вызываем fetchNext,
-    // который сам корректно покажет индикатор загрузки.
     st.offset = 0;
-    
     await fetchNext(key, false);
-    
     document.dispatchEvent(new CustomEvent('feed:loaded'));
   }
 
-  const onSearch = debounce(async () => {
+  const onSearch = debounce(() => {
     state.query = (searchInput?.value || '').trim();
-    await fetchCountsAll(state.query);
-    await refetchFromZeroSmooth(state.activeKey);
+    fetchCountsAll(state.query);
+    refetchFromZeroSmooth(state.activeKey);
     ['main', 'maybe', 'other'].forEach(key => {
       if (key !== state.activeKey) {
         const st = state[key];
@@ -329,7 +346,19 @@
       }
     });
   }, 300);
-  searchInput?.addEventListener('input', onSearch);
+  
+  searchInput?.addEventListener('input', () => {
+      searchInputWrapper?.classList.toggle('has-text', searchInput.value.length > 0);
+      onSearch();
+  });
+  searchClearBtn?.addEventListener('click', () => {
+      if (searchInput) {
+        searchInput.value = '';
+        searchInputWrapper?.classList.remove('has-text');
+        onSearch();
+        searchInput.focus();
+      }
+  });
 
   function showOnly(targetId){
     vacancyLists.forEach(list=>{
@@ -339,6 +368,7 @@
     const target=document.getElementById(targetId);
     if(target){ target.classList.add('active'); target.style.display=''; }
   }
+  
   async function activateTabByTarget(targetId){
     const key = keyFromTargetId(targetId);
     state.activeKey = key;
@@ -393,26 +423,42 @@
   }
 
   tabButtons.forEach(btn=>{
-    btn.addEventListener('click', ()=>{
-      const targetId = btn.dataset.target;
-      if(!targetId) return;
-      activateTabByTarget(targetId);
-    });
-
     let pressTimer = null;
+    let isHeld = false;
     const holdMs = 700;
-    const start = () => {
-      clearTimeout(pressTimer);
+
+    const start = (e) => {
+      isHeld = false;
+      btn.classList.add('pressing');
       pressTimer = setTimeout(() => {
+        isHeld = true;
+        btn.classList.remove('pressing');
         const key = keyFromTargetId(btn.dataset.target || '');
         bulkDeleteCategory(key);
       }, holdMs);
     };
-    const cancel = () => { clearTimeout(pressTimer); };
+    
+    const cancel = (e) => {
+      btn.classList.remove('pressing');
+      clearTimeout(pressTimer);
+      // Если долгое нажатие не сработало, считаем это обычным кликом.
+      // Но событие click обработается само, если isHeld=false.
+    };
+
+    const clickHandler = (e) => {
+        if (isHeld) {
+            e.preventDefault(); // Предотвращаем клик после долгого нажатия
+            e.stopPropagation();
+        } else {
+            const targetId = btn.dataset.target;
+            if(targetId) activateTabByTarget(targetId);
+        }
+    };
 
     btn.addEventListener('pointerdown', start);
     btn.addEventListener('pointerup', cancel);
     btn.addEventListener('pointerleave', cancel);
+    btn.addEventListener('click', clickHandler);
   });
 
   async function init() {

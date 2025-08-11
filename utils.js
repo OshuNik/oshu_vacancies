@@ -1,5 +1,5 @@
 // utils.js — общие утилиты
-// ДОБАВЛЕНО: uiToast для уведомлений
+// ИСПРАВЛЕНО: Pull-to-refresh теперь использует спиннер
 
 (function () {
   'use strict';
@@ -281,18 +281,22 @@
     let startY = 0, pulling = false, ready = false, locked = false;
 
     const bar = document.createElement('div');
-    bar.style.cssText = [
-      'position:fixed','left:0','right:0','top:0','height:56px',
-      'background:#fff','color:#333','border-bottom:3px solid #000','box-shadow:0 2px 0 #000',
-      'transform:translateY(-100%)','transition:transform .2s ease,opacity .14s linear',
-      'z-index:9999','font-family:inherit','font-weight:700','display:flex','align-items:center','justify-content:center',
-      'letter-spacing:.2px','opacity:0','pointer-events:none'
-    ].join(';');
-    bar.textContent = 'Потяните вниз для обновления';
+    bar.className = 'ptr-bar';
+    bar.innerHTML = '<div class="ptr-spinner"></div><span class="ptr-text">Потяните для обновления</span>';
     document.body.appendChild(bar);
+    const barText = bar.querySelector('.ptr-text');
 
-    const setBar = y => { bar.style.transform = `translateY(${Math.min(0, -100 + (y/0.56))}%)`; bar.style.opacity = y > 6 ? '1' : '0'; };
-    const resetBar = () => { bar.style.transform = 'translateY(-100%)'; bar.style.opacity = '0'; };
+    const setBar = (y, isRefreshing = false) => {
+        bar.style.transform = `translateY(${Math.min(0, -100 + (y / (threshold / 100)))}%)`;
+        bar.classList.toggle('visible', y > 6);
+        bar.classList.toggle('refreshing', isRefreshing);
+    };
+
+    const resetBar = () => {
+        bar.classList.remove('visible', 'refreshing');
+        bar.style.transform = 'translateY(-100%)';
+        if(barText) barText.textContent = 'Потяните для обновления';
+    };
 
     container.addEventListener('touchstart', (e) => {
       if (locked || window.scrollY > 0 || e.touches.length !== 1) {
@@ -310,8 +314,14 @@
       if (dist > 0) {
         e.preventDefault();
         setBar(dist);
-        if (dist > threshold && !ready) { ready = true; bar.textContent = 'Отпустите для обновления'; }
-        if (dist <= threshold && ready) { ready = false; bar.textContent = 'Потяните вниз для обновления'; }
+        if (dist > threshold && !ready) {
+            ready = true;
+            if(barText) barText.textContent = 'Отпустите для обновления';
+        }
+        if (dist <= threshold && ready) {
+            ready = false;
+            if(barText) barText.textContent = 'Потяните для обновления';
+        }
       } else {
         pulling = false;
         resetBar();
@@ -326,8 +336,8 @@
       }
       if (ready) {
         locked = true;
-        bar.textContent = 'Обновляю…';
-        setBar(threshold * 1.2);
+        if(barText) barText.textContent = 'Обновление...';
+        setBar(threshold * 1.2, true);
         const done = () => { locked = false; pulling = false; resetBar(); };
         const onLoaded = () => { document.removeEventListener(refreshEventName, onLoaded); done(); };
         document.addEventListener(refreshEventName, onLoaded);

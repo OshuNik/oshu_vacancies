@@ -29,7 +29,10 @@
     </div>
   </header>
   <div id="search-container" class="search-container">
-    <input type="search" id="search-input" class="search-input" placeholder="Поиск по тексту...">
+    <div class="search-input-wrapper">
+      <input type="search" id="search-input" class="search-input" placeholder="Поиск по тексту...">
+      <button id="search-clear-btn" class="search-clear-btn" aria-label="Очистить поиск"></button>
+    </div>
   </div>
 </div>
 
@@ -39,7 +42,6 @@
   <div id="vacancies-list-other" class="vacancy-list"></div>
 </main>
 
-<!-- ИЗМЕНЕНА РАЗМЕТКА ЗАГРУЗЧИКА -->
 <div id="loader" class="loader-container hidden">
   <div class="retro-progress-bar-outline">
     <div class="retro-progress-bar-fill"></div>
@@ -71,6 +73,8 @@
     </div>
   </div>
 </div>
+
+<div id="toast-container" class="toast-container"></div>
 
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <script src="config.js"></script>

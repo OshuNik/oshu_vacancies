@@ -148,12 +148,10 @@
     return '';
   }
   
-  // ИЗМЕНЕНИЕ: openLink теперь исправляет некорректные tg:// ссылки
   function openLink(url) {
     let safeUrl = sanitizeLink(url);
     if (!safeUrl) return;
 
-    // Преобразуем "плохие" tg:// ссылки в "хорошие" https://t.me/
     if (safeUrl.startsWith('tg://') && !safeUrl.includes('?')) {
         const username = safeUrl.replace('tg://', '').replace('/', '');
         safeUrl = `https://t.me/${username}`;
@@ -325,7 +323,8 @@
     elements.summary.innerHTML = searchQuery ? highlightText(summaryText, searchQuery) : escapeHtml(summaryText);
 
     const infoRows = [];
-    const cleanVal = val => String(val ?? '').trim();
+    // ИЗМЕНЕНИЕ: Добавляем обычную одинарную кавычку в регулярное выражение
+    const cleanVal = val => String(val ?? '').replace(/[«»"“”'‘’`']/g,'').trim();
     const isMeaningful = val => !!cleanVal(val) && !['не указано', 'n/a'].includes(cleanVal(val).toLowerCase());
     
     const fmt = [v.employment_type, v.work_format].map(cleanVal).filter(isMeaningful).join(' / ');

@@ -27,10 +27,15 @@
   </header>
 
   <div class="search-container" id="search-container-fav">
-    <input type="search" id="search-input-fav" class="search-input" placeholder="Поиск по избранному...">
+    <div class="search-input-wrapper">
+      <input type="search" id="search-input-fav" class="search-input" placeholder="Поиск по избранному...">
+      <button id="search-clear-btn-fav" class="search-clear-btn" aria-label="Очистить поиск"></button>
+    </div>
   </div>
 
   <main class="content" id="favorites-list"></main>
+  
+  <div id="toast-container" class="toast-container"></div>
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="config.js"></script>

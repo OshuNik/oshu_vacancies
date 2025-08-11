@@ -31,20 +31,20 @@ body {
     transition: opacity 0.2s ease-in-out;
 }
 
-/* ИЗМЕНЕНИЕ: Стили для новой, правильной плашки Pull-to-Refresh */
+/* ИЗМЕНЕНИЕ: Новые стили для Pull-to-Refresh */
 .content {
-    position: relative; /* Чтобы плашка позиционировалась внутри этого блока */
-    overflow-x: hidden;
+    position: relative;
+    overflow-x: hidden; /* Предотвращаем случайный горизонтальный скролл */
 }
 .ptr-bar {
     position: absolute;
-    left: 15px; /* Учитываем padding у body */
-    right: 15px; /* Учитываем padding у body */
+    left: 0;
+    right: 0;
     top: 0;
     height: 50px;
-    background: #e0e0e0;
+    background: var(--background-color);
     color: var(--text-color);
-    transform: translateY(-150%); /* Скрываем выше с запасом */
+    transform: translateY(-100%); /* Прячем плашку над контейнером */
     z-index: 5;
     font-family: inherit;
     font-weight: 700;
@@ -54,11 +54,8 @@ body {
     letter-spacing: .2px;
     opacity: 0;
     pointer-events: none;
-    border: var(--border-width) solid var(--border-color);
-    border-top: none;
-    border-radius: 0 0 12px 12px;
-    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
 }
+
 .is-refreshing {
     animation: pulse-animation 1.2s infinite ease-in-out;
 }

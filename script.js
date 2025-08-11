@@ -125,7 +125,7 @@
   function buildCategoryUrl(key, limit, offset, query){
     const p = new URLSearchParams();
     p.set('select', '*');
-    // p.set('status', `eq.${STATUSES.NEW}`);
+    p.set('status', `eq.${STATUSES.NEW}`);
     p.set('order', 'timestamp.desc');
     p.set('limit', String(limit));
     p.set('offset', String(offset));
@@ -146,7 +146,7 @@
     const fetchCount = async (key) => {
         const p = new URLSearchParams();
         p.set('select', 'id');
-        // p.set('status', `eq.${STATUSES.NEW}`);
+        p.set('status', `eq.${STATUSES.NEW}`);
         p.set('limit', '1');
         
         if (key === 'main') p.set('category', `eq.${CATEGORIES.MAIN}`);
@@ -444,15 +444,16 @@
 
     try {
         const p = new URLSearchParams();
-        // p.set('status', `eq.${STATUSES.NEW}`);
+        p.set('status', `eq.${STATUSES.NEW}`);
         if (key === 'main') p.set('category', `eq.${CATEGORIES.MAIN}`);
         else if (key === 'maybe') p.set('category', `eq.${CATEGORIES.MAYBE}`);
         else p.set('category', `not.in.("${CATEGORIES.MAIN}","${CATEGORIES.MAYBE}")`);
 
         const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
         const resp = await fetchWithRetry(url, {
-            method: 'DELETE',
+            method: 'PATCH',
             headers: createSupabaseHeaders({ prefer: 'return=minimal' }),
+            body: JSON.stringify({ status: STATUSES.DELETED }),
         }, RETRY_OPTIONS);
 
         if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);

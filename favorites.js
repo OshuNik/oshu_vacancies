@@ -27,7 +27,8 @@
     renderEmptyState,
     renderError,
     showCustomConfirm,
-    createSupabaseHeaders
+    createSupabaseHeaders,
+    highlightText
   } = UTIL;
 
   const container      = document.getElementById('favorites-list');
@@ -55,6 +56,7 @@
     const query = (searchInputFav?.value || '').trim().toLowerCase();
     
     let visibleCount = 0;
+    
     container.querySelectorAll('.vacancy-card').forEach(card => {
         const isVisible = query ? card.dataset.searchText.toLowerCase().includes(query) : true;
         card.style.display = isVisible ? '' : 'none';
@@ -63,7 +65,7 @@
             visibleCount++;
             const summaryEl = card.querySelector('.card-summary');
             if (summaryEl && summaryEl.dataset.originalSummary) {
-                summaryEl.innerHTML = UTIL.highlightText(summaryEl.dataset.originalSummary, query);
+                summaryEl.innerHTML = highlightText(summaryEl.dataset.originalSummary, query);
             }
         }
     });
@@ -114,7 +116,7 @@
       document.dispatchEvent(new CustomEvent('favorites:loaded'));
     } catch (e) {
       console.error(e);
-      renderError(container, 'Ошибка загрузки избранного', () => loadFavorites(query));
+      renderError(container, 'Ошибка загрузки избранного', () => loadFavorites());
       document.dispatchEvent(new CustomEvent('favorites:loaded'));
     }
   }
@@ -195,7 +197,7 @@
   });
   
   setupPullToRefresh({
-      onRefresh: () => loadFavorites(searchInputFav?.value || ''),
+      onRefresh: () => loadFavorites(),
       refreshEventName: 'favorites:loaded'
   });
 

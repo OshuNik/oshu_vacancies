@@ -1,5 +1,5 @@
 /* script.js — главная страница
- * ИСПРАВЛЕНО: Полностью исправлен баг с зависанием "pull-to-refresh".
+ * ИСПРАВЛЕНО: Убран эффект жёлтой "вспышки" при обновлении.
  */
 
 (function () {
@@ -317,7 +317,7 @@
     }
   }
 
-  // -------- ИСПРАВЛЕННАЯ Мягкая перезагрузка (без полноэкранного лоадера) --------
+  // -------- Мягкая перезагрузка (без полноэкранного лоадера) --------
   async function refetchFromZeroSmooth(key){
     const st=state[key];
     const container=containers[key];
@@ -373,7 +373,6 @@
         st.busy = false;
         container.style.minHeight = '';
         document.dispatchEvent(new CustomEvent('feed:loaded'));
-        flashRefreshed(container);
     }
   }
 
@@ -488,14 +487,6 @@
     btn.addEventListener('pointerleave', cancel);
   });
   // --- КОНЕЦ БЛОКА С ДОЛГИМ ТАПОМ ---
-
-  // -------- Вспышка после обновления --------
-  function flashRefreshed(container){
-    if(!container) return;
-    container.classList.remove('refreshed-flash');
-    void container.offsetWidth;
-    container.classList.add('refreshed-flash');
-  }
 
   // -------- Префетч скрытых вкладок --------
   async function prefetchHidden(){

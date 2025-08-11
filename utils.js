@@ -1,10 +1,36 @@
-// utils.js — общие утилиты (без зависимостей)
-// ДОБАВЛЕНО: createVacancyCard, setupPullToRefresh для устранения дублирования
+// utils.js — общие утилиты
+// ДОБАВЛЕНО: uiToast для уведомлений
 
 (function () {
   'use strict';
 
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+
+  // --- ОБЩИЕ UI-УТИЛИТЫ ---
+  function uiToast(message = '') {
+    let cont = document.getElementById('toast-container');
+    if (!cont) {
+      cont = document.createElement('div');
+      cont.id = 'toast-container';
+      cont.className = 'toast-container';
+      document.body.appendChild(cont);
+    }
+    const toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = message;
+    cont.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 200);
+    }, 2200);
+  }
+
+  const safeAlert = (msg) => {
+    if (tg && typeof tg.showAlert === 'function') tg.showAlert(String(msg));
+    else uiToast(String(msg));
+  };
+
 
   const escapeHtml = (s = '') =>
     String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -29,10 +55,6 @@
     return escapeHtml(text).replace(rx, '<mark class="highlight">$1</mark>');
   };
 
-  const safeAlert = (msg) => {
-    try { tg?.showAlert?.(String(msg)); } catch { alert(String(msg)); }
-  };
-
   // ---- URL helpers ----
   function normalizeUrl(raw = '') {
     let s = String(raw).trim();
@@ -48,7 +70,6 @@
   };
   function openLink(url) {
     const safeUrl = String(url || '');
-    // Допускаем tg:// ссылки напрямую, без sanitizeUrl
     if (/^tg:\/\//.test(safeUrl)) {
         if (tg && typeof tg.openTelegramLink === 'function') tg.openTelegramLink(safeUrl);
         else window.open(safeUrl, '_blank', 'noopener');
@@ -68,14 +89,11 @@
     const diffMs = now - d;
     const sec = Math.floor(diffMs / 1000);
     const min = Math.floor(sec / 60);
-
     const pad = n => n.toString().padStart(2, '0');
     const months = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
-
     const isSameDay = now.toDateString() === d.toDateString();
     const yest = new Date(now); yest.setDate(now.getDate() - 1);
     const isYesterday = yest.toDateString() === d.toDateString();
-
     if (sec < 30) return 'только что';
     if (min < 60 && min >= 1) return `${min} мин назад`;
     if (isSameDay) return `сегодня, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
@@ -153,7 +171,7 @@
     wrap.style.display = visible ? '' : 'none';
   }
 
-  // ---- НОВАЯ ОБЩАЯ ФУНКЦИЯ ДЛЯ КАРТОЧЕК ----
+  // ---- ОБЩАЯ ФУНКЦИЯ ДЛЯ КАРТОЧЕК ----
   function createVacancyCard(v, options = {}) {
     const { pageType = 'main', searchQuery = '' } = options;
     const card = document.createElement('div');
@@ -164,7 +182,6 @@
     else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
     else card.classList.add('category-other');
 
-    // --- Action Buttons ---
     const allowHttpOrTg = (url) => {
         if (!url) return '';
         try {
@@ -186,12 +203,11 @@
 
     const deleteBtnHtml = `
       <button class="card-action-btn delete" data-action="delete" data-id="${v.id}" aria-label="Удалить">
-        <svg class="icon-x" viewBox="0 0 24 24" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
       </button>`;
 
     const actionsHtml = `<div class="card-actions">${applyBtnHtml}${favoriteBtnHtml}${deleteBtnHtml}</div>`;
 
-    // --- Info Block ---
     const UNKNOWN = ['не указано', 'n/a', 'none', 'null', '/'];
     const cleanVal = val => String(val ?? '').replace(/[«»"“”'‘’`]/g,'').trim();
     const isMeaningful = val => {
@@ -211,7 +227,6 @@
           <div class="info-value">${escapeHtml(r.value)}</div>
         </div>`).join('') + '</div>' : '';
 
-    // --- Details & Summary ---
     const summaryText = v.reason || 'Описание не было сгенерировано.';
     const originalDetailsHtml = String(v.text_highlighted || '').replace(/\[\s*Изображение\s*\]\s*/gi, '');
     const bestImageUrl = pickImageUrl(v, originalDetailsHtml);
@@ -219,7 +234,6 @@
     const hasDetails = Boolean(originalDetailsHtml) || Boolean(attachmentsHTML);
     const detailsHTML = hasDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
-    // --- Footer ---
     const skillsFooterHtml = (Array.isArray(v.skills) && v.skills.length) ? `<div class="footer-skill-tags">${
         v.skills.slice(0,3).map(s=>`<span class="footer-skill-tag">${escapeHtml(String(s))}</span>`).join('')
       }</div>` : '';
@@ -228,7 +242,6 @@
     const sep = channelHtml && timestampHtml ? ' • ' : '';
     const footerMetaHtml = `<div class="footer-meta">${channelHtml}${sep}${timestampHtml}</div>`;
 
-    // --- Final Assembly ---
     card.innerHTML = `
       ${actionsHtml}
       <div class="card-header"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
@@ -240,7 +253,6 @@
       <div class="card-footer">${skillsFooterHtml}${footerMetaHtml}</div>
     `;
 
-    // --- Dynamic Content & Data ---
     const summaryEl = card.querySelector('.card-summary');
     if (summaryEl) {
       summaryEl.dataset.originalSummary = summaryText;
@@ -260,7 +272,7 @@
     return card;
   }
 
-  // ---- НОВАЯ ОБЩАЯ ФУНКЦИЯ ДЛЯ PULL-TO-REFRESH ----
+  // ---- ОБЩАЯ ФУНКЦИЯ ДЛЯ PULL-TO-REFRESH ----
   function setupPullToRefresh(options = {}) {
     const { onRefresh, refreshEventName, container = window } = options;
     if (typeof onRefresh !== 'function' || !refreshEventName) return;
@@ -320,7 +332,7 @@
         const onLoaded = () => { document.removeEventListener(refreshEventName, onLoaded); done(); };
         document.addEventListener(refreshEventName, onLoaded);
         onRefresh();
-        setTimeout(() => { if (locked) done(); }, 8000); // Timeout safety
+        setTimeout(() => { if (locked) done(); }, 8000);
       } else {
         resetBar();
         pulling = false;
@@ -330,12 +342,11 @@
 
 
   window.utils = {
-    tg, escapeHtml, stripTags, debounce, highlightText, safeAlert,
+    tg, escapeHtml, stripTags, debounce, highlightText, safeAlert, uiToast,
     formatTimestamp, sanitizeUrl, openLink,
     containsImageMarker, cleanImageMarkers, pickImageUrl,
     fetchWithRetry, renderEmptyState, renderError,
     ensureLoadMore, updateLoadMore,
-    // Новые общие функции
     createVacancyCard,
     setupPullToRefresh
   };

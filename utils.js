@@ -165,7 +165,7 @@
     const sec = Math.floor(diffMs / 1000);
     const min = Math.floor(sec / 60);
     const pad = n => n.toString().padStart(2, '0');
-    const months = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+    const months = ['янв','фев','мар','апр','мая','июн','юл','авг','сен','окт','ноя','дек'];
     const isSameDay = now.toDateString() === d.toDateString();
     const yest = new Date(now); yest.setDate(now.getDate() - 1);
     const isYesterday = yest.toDateString() === d.toDateString();
@@ -261,7 +261,6 @@
         return el;
     }
     
-    // ИЗМЕНЕНИЕ: Используем querySelector для надежного получения элемента
     const card = template.content.cloneNode(true).querySelector('.vacancy-card');
     if (!card) {
         console.error('Could not find .vacancy-card in template');
@@ -373,43 +372,21 @@
         onRefresh,
         refreshEventName,
         container,
-        mainElement
     } = options;
 
-    if (!container || !mainElement) return;
-
-    const { THRESHOLD, BAR_HEIGHT } = CFG.PTR_CONFIG || { THRESHOLD: 60, BAR_HEIGHT: 50 };
-    let startY = 0, pulling = false, locked = false;
-
-    let bar = mainElement.querySelector('.ptr-bar');
-    if (!bar) {
-        bar = document.createElement('div');
-        bar.className = 'ptr-bar';
-        mainElement.prepend(bar);
-    }
+    if (!container) return;
     
-    let barText = bar.querySelector('.ptr-text');
-    if (!barText) {
-        barText = document.createElement('span');
-        barText.className = 'ptr-text';
-        bar.innerHTML = '';
-        bar.appendChild(barText);
-    }
-    barText.textContent = 'Потяните для обновления';
-
-    const resetState = () => {
+    // Возвращаемся к версии с "пульсацией", она самая надежная
+    const { THRESHOLD } = CFG.PTR_CONFIG || { THRESHOLD: 80 };
+    let startY = 0,
+        pulling = false,
+        ready = false,
         locked = false;
-        mainElement.style.transition = 'transform 0.2s';
-        mainElement.style.transform = 'translateY(0px)';
-        bar.style.transition = 'transform 0.2s, opacity 0.2s';
-        bar.style.transform = `translateY(0)`;
-        bar.style.opacity = '0';
-        barText.textContent = 'Потяните для обновления';
-    };
 
     const onLoaded = () => {
         document.removeEventListener(refreshEventName, onLoaded);
-        resetState();
+        locked = false;
+        container.classList.remove('is-refreshing');
     };
 
     container.addEventListener('touchstart', (e) => {
@@ -417,54 +394,41 @@
             pulling = false;
             return;
         }
-        mainElement.style.transition = 'none';
-        bar.style.transition = 'none';
         startY = e.touches[0].clientY;
         pulling = true;
+        ready = false;
     }, { passive: true });
 
     container.addEventListener('touchmove', (e) => {
         if (!pulling || locked) return;
         const dist = e.touches[0].clientY - startY;
-
         if (dist > 0 && container.scrollTop === 0) {
-            e.preventDefault();
-            const pullDist = Math.pow(dist, 0.85);
-            mainElement.style.transform = `translateY(${pullDist}px)`;
-            bar.style.opacity = `${Math.min(pullDist / THRESHOLD, 1)}`;
-            
-            if (pullDist > THRESHOLD) {
-                barText.textContent = 'Отпустите для обновления';
-            } else {
-                barText.textContent = 'Потяните для обновления';
+            if (dist > THRESHOLD && !ready) {
+                ready = true;
+                if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
             }
-        }
-    }, { passive: false });
-
-    container.addEventListener('touchend', (e) => {
-        if (!pulling || locked) {
+            if (dist <= THRESHOLD && ready) {
+                ready = false;
+            }
+        } else {
             pulling = false;
-            return;
-        };
-        
-        const finalDist = e.changedTouches[0].clientY - startY;
-        
-        if (Math.pow(finalDist, 0.85) > THRESHOLD) {
+        }
+    }, { passive: true });
+
+    container.addEventListener('touchend', () => {
+        if (ready && !locked) {
             locked = true;
-            mainElement.style.transition = 'transform 0.2s';
-            mainElement.style.transform = `translateY(${BAR_HEIGHT}px)`;
-            barText.innerHTML = '<div class="retro-spinner-inline"></div> Обновление...';
-            
-            if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-            
+            container.classList.add('is-refreshing');
             document.addEventListener(refreshEventName, onLoaded);
+            
             onRefresh();
             
-            setTimeout(() => { if (locked) onLoaded(); }, 8000);
-        } else {
-            resetState();
+            setTimeout(() => {
+                if (locked) onLoaded();
+            }, 8000);
         }
         pulling = false;
+        ready = false;
     }, { passive: true });
   }
 

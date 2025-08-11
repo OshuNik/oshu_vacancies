@@ -1,5 +1,5 @@
 /* script.js — главная страница
- * ИСПРАВЛЕНО: Убран эффект жёлтой "вспышки" при обновлении.
+ * ИСПРАВЛЕНО: Полностью исправлен баг с зависанием "pull-to-refresh".
  */
 
 (function () {
@@ -264,7 +264,7 @@
     if (isInitialLoad) {
         showLoader();
     } else if (st.offset === 0) {
-        container.innerHTML = '<p class="empty-list">Загрузка...</p>';
+        container.innerHTML = '<div class="empty-list"><div class="retro-spinner-inline"></div> Загрузка...</div>';
     }
 
     const url = buildCategoryUrl(key, PAGE_SIZE_MAIN||10, st.offset, state.query);
@@ -329,7 +329,7 @@
 
     const keepHeight = container.offsetHeight;
     if (keepHeight) container.style.minHeight = `${keepHeight}px`;
-    container.innerHTML = '<p class="empty-list">Обновление...</p>';
+    container.innerHTML = '<div class="empty-list"><div class="retro-spinner-inline"></div> Обновление...</div>';
 
     try {
         const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, 0, state.query);

@@ -1,5 +1,6 @@
 /* script.js — главная страница
  * ИСПОЛЬЗУЕТ ОБЩИЕ ФУНКЦИИ из utils.js для рендеринга и pull-to-refresh
+ * ИСПРАВЛЕНО: Возвращён и используется индикатор загрузки (loader)
  */
 
 (function () {
@@ -23,8 +24,8 @@
     renderError,
     ensureLoadMore,
     updateLoadMore,
-    createVacancyCard, // Используем общую функцию
-    setupPullToRefresh // Используем общую функцию
+    createVacancyCard,
+    setupPullToRefresh
   } = window.utils || {};
 
   // -------- DOM --------
@@ -43,6 +44,8 @@
   const searchInput     = document.getElementById('search-input');
   const searchContainer = document.getElementById('search-container');
   const vacanciesContent= document.getElementById('vacancies-content');
+  // Элемент загрузки
+  const loader          = document.getElementById('loader');
 
   // Кастомный confirm
   const confirmOverlay   = document.getElementById('custom-confirm-overlay');
@@ -71,6 +74,17 @@
     maybe: { offset:0, total:0, busy:false, loadedOnce:false, loadedForQuery:'' },
     other: { offset:0, total:0, busy:false, loadedOnce:false, loadedForQuery:'' },
   };
+
+  // --- Функции управления загрузчиком ---
+  function showLoader() {
+    if (loader) loader.classList.remove('hidden');
+    if (vacanciesContent) vacanciesContent.classList.add('hidden');
+  }
+  function hideLoader() {
+    if (loader) loader.classList.add('hidden');
+    if (vacanciesContent) vacanciesContent.classList.remove('hidden');
+  }
+
 
   // -------- Статистика поиска --------
   let searchStatsEl=null;
@@ -240,6 +254,11 @@
     if(!container || st.busy) return;
     st.busy=true;
 
+    // Показываем лоадер только при самой первой загрузке вкладки
+    if (st.offset === 0) {
+        showLoader();
+    }
+
     const url = buildCategoryUrl(key, PAGE_SIZE_MAIN||10, st.offset, state.query);
     const controller = abortCurrent();
 
@@ -265,10 +284,12 @@
       }
 
       const frag=document.createDocumentFragment();
-      // ИСПОЛЬЗУЕМ ОБЩУЮ ФУНКЦИЮ
       for(const it of items) frag.appendChild(
           createVacancyCard(it, { pageType: 'main', searchQuery: state.query })
       );
+      if (st.offset === 0) { // Если это первая загрузка, очищаем контейнер
+          clearContainer(container);
+      }
       container.appendChild(frag);
       pinLoadMoreToBottom(container);
 
@@ -284,10 +305,16 @@
     }catch(e){
       if(e.name==='AbortError') return;
       console.error('Load error:',e);
-      renderError(container,e.message,()=>fetchNext(key));
-      pinLoadMoreToBottom(container);
+      if (st.offset === 0) { // Показываем ошибку только если это первая загрузка
+        renderError(container,e.message,()=>fetchNext(key));
+        pinLoadMoreToBottom(container);
+      }
     }finally{
       st.busy=false;
+      // Скрываем лоадер после первой загрузки
+      if (st.offset > 0 || !st.busy) {
+        hideLoader();
+      }
     }
   }
 
@@ -298,9 +325,7 @@
 
     abortCurrent();
     st.busy=true;
-
-    const keepHeight = container.offsetHeight;
-    container.style.minHeight = keepHeight ? `${keepHeight}px` : '';
+    showLoader(); // Показываем лоадер при каждом обновлении
 
     const url = buildCategoryUrl(key, PAGE_SIZE_MAIN||10, 0, state.query);
     const controller = currentController;
@@ -316,14 +341,12 @@
       const items=await resp.json();
 
       const frag=document.createDocumentFragment();
-      // ИСПОЛЬЗУЕМ ОБЩУЮ ФУНКЦИЮ
       for(const it of items) frag.appendChild(
           createVacancyCard(it, { pageType: 'main', searchQuery: state.query })
       );
 
-      const lm=container.querySelector('.load-more-wrap');
-      container.replaceChildren(frag);
-      if(lm) container.appendChild(lm);
+      clearContainer(container);
+      container.appendChild(frag);
 
       st.offset=items.length;
       st.total=Number.isFinite(total)?total:items.length;
@@ -355,7 +378,7 @@
         document.dispatchEvent(new CustomEvent('feed:loaded'));
       }
     }finally{
-      container.style.minHeight='';
+      hideLoader(); // Скрываем лоадер после завершения
       st.busy=false;
     }
   }
@@ -369,6 +392,8 @@
       if(key!==state.activeKey){
         const st=state[key];
         st.loadedOnce=false; st.loadedForQuery='';
+        st.offset = 0; // Сбрасываем offset для других вкладок
+        clearContainer(containers[key]);
         hideLoadMore(containers[key]);
       }
     });
@@ -398,12 +423,9 @@
     updateSearchStats();
 
     const st=state[key];
-    if(st.loadedOnce && st.loadedForQuery===state.query) return;
-
-    if(containers[key].querySelector('.vacancy-card')){
-      await refetchFromZeroSmooth(key);
-    }else{
-      await fetchNext(key);
+    // Загружаем данные, если вкладка еще не загружалась с текущим поисковым запросом
+    if(!st.loadedOnce || st.loadedForQuery !== state.query) {
+       await fetchNext(key);
     }
   }
   tabButtons.forEach(btn=>{
@@ -500,14 +522,13 @@
       b.setAttribute('aria-selected', active ? 'true':'false');
     });
 
-    // ИСПОЛЬЗУЕМ ОБЩУЮ ФУНКЦИЮ
     setupPullToRefresh({
         onRefresh: () => refetchFromZeroSmooth(state.activeKey),
         refreshEventName: 'feed:loaded'
     });
 
     fetchCountsAll(state.query);
-    await fetchNext('main');
+    await fetchNext('main'); // Эта функция теперь сама управляет лоадером
     prefetchHidden();
     updateSearchStats();
   }

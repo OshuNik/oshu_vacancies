@@ -25,7 +25,7 @@ body {
     overflow-x: hidden;
 }
 
-/* --- ИЗМЕНЕНИЕ: Стили для обертки и красивой плашки обновления --- */
+/* --- Стили для обертки и красивой плашки обновления --- */
 .main-wrapper {
     position: relative;
     z-index: 1;
@@ -52,6 +52,9 @@ body {
     border-top: none;
     border-radius: 0 0 12px 12px;
     box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+}
+.ptr-bar .retro-spinner-inline {
+    display: none;
 }
 .is-refreshing .retro-spinner-inline {
     display: inline-block;

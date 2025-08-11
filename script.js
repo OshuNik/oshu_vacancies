@@ -1,5 +1,5 @@
 /* script.js — главная страница
- * ИЗМЕНЕНИЕ: Отмена удаления, кнопка очистки поиска, анимация долгого нажатия, бесшовный поиск.
+ * ИСПРАВЛЕНО: Убран баг с потерей фокуса и "затемнением" поля поиска.
  */
 (function () {
   'use strict';
@@ -229,7 +229,7 @@
       onUndo: onUndo,
       onTimeout: async () => {
           try {
-            cardEl.remove(); // Окончательно удаляем из DOM
+            cardEl.remove();
             const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
             const resp = await fetchWithRetry(url, {
               method: 'PATCH',
@@ -324,7 +324,6 @@
     await fetchNext(key, false);
   }
 
-  // ИЗМЕНЕНИЕ: Новая функция для бесшовного поиска
   async function seamlessSearch(key) {
       const st = state[key];
       const container = containers[key];
@@ -334,7 +333,7 @@
       st.offset = 0;
       
       container.classList.add('loading-seamless');
-      if(searchInput) searchInput.disabled = true;
+      // ИЗМЕНЕНИЕ: Эта строка удалена -> if(searchInput) searchInput.disabled = true;
 
       const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, 0, state.query);
       const controller = abortCurrent();
@@ -350,22 +349,24 @@
           if (Number.isFinite(total)) { st.total = total; counts[key].textContent = `(${total})`; }
 
           const items = await resp.json();
-          clearContainer(container);
-
+          
+          const frag = document.createDocumentFragment();
           if (items.length === 0) {
               const message = state.query ? 'По вашему запросу ничего не найдено' : '-- Пусто в этой категории --';
-              renderEmptyState(container, message);
+              const emptyEl = document.createElement('div');
+              renderEmptyState(emptyEl, message);
+              frag.appendChild(emptyEl.firstElementChild);
           } else {
-              const frag = document.createDocumentFragment();
               items.forEach(it => frag.appendChild(createVacancyCard(it, { pageType: 'main', searchQuery: state.query })));
-              container.appendChild(frag);
-              pinLoadMoreToBottom(container);
-
+              
               st.offset = items.length;
-              const hasMore = st.offset < st.total;
-              ensureLoadMore(container, () => fetchNext(key));
-              updateLoadMore(container, hasMore);
+              const hasMore = st.offset < total;
+              const { wrap } = ensureLoadMore(document.createElement('div'), () => fetchNext(key));
+              updateLoadMore(wrap, hasMore);
+              frag.appendChild(wrap);
           }
+          container.replaceChildren(frag); // Атомарная замена контента
+
           st.loadedOnce = true;
           st.loadedForQuery = state.query;
           updateSearchStats();
@@ -376,14 +377,14 @@
       } finally {
           st.busy = false;
           container.classList.remove('loading-seamless');
-          if(searchInput) searchInput.disabled = false;
+          // ИЗМЕНЕНИЕ: Эта строка удалена -> if(searchInput) searchInput.disabled = false;
       }
   }
 
   const onSearch = debounce(() => {
     state.query = (searchInput?.value || '').trim();
     fetchCountsAll(state.query);
-    seamlessSearch(state.activeKey); // Используем новую бесшовную функцию
+    seamlessSearch(state.activeKey);
     ['main', 'maybe', 'other'].forEach(key => {
       if (key !== state.activeKey) {
         const st = state[key];

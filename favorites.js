@@ -196,8 +196,7 @@
   
   setupPullToRefresh({
       onRefresh: () => loadFavorites(searchInputFav?.value || ''),
-      refreshEventName: 'favorites:loaded',
-      container: document.documentElement
+      refreshEventName: 'favorites:loaded'
   });
 
   ensureFavSearchUI();

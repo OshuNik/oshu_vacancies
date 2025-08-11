@@ -515,11 +515,13 @@
       b.classList.toggle('active', active);
       b.setAttribute('aria-selected', active ? 'true' : 'false');
     });
-
+    
+    // ИЗМЕНЕНИЕ: Обновляем вызов функции
     setupPullToRefresh({
         onRefresh: () => refetchFromZeroSmooth(state.activeKey),
         refreshEventName: 'feed:loaded',
-        contentElement: vacanciesContent 
+        container: vacanciesContent,
+        mainElement: document.querySelector('body')
     });
     
     showLoader();

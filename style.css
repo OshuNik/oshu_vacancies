@@ -21,7 +21,7 @@ body {
     background-color: var(--background-color);
     color: var(--text-color);
     margin: 0;
-    padding: 15px; /* Убираем нижний отступ отсюда */
+    padding: 15px 15px 95px 15px; /* Возвращаем нижний отступ */
 }
 
 /* ИЗМЕНЕНИЕ: Стили для новой обертки и плашки обновления */

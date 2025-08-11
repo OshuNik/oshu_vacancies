@@ -34,15 +34,10 @@
   </main>
 </div>
 
-<div id="loader" class="loader-container hidden">
-  <div class="retro-progress-bar-outline">
-    <div class="retro-progress-bar-fill"></div>
-  </div>
-  <p class="loader-text">Загрузка вакансий...</p>
-</div>
+<div id="loader" class="loader-container hidden"></div>
 
 <div id="category-tabs" class="category-tabs">
-  <button class="tab-button main active" data-target="vacancies-list-main" data-category-name="ТОЧНО ТВОЁ">
+    <button class="tab-button main active" data-target="vacancies-list-main" data-category-name="ТОЧНО ТВОЁ">
     <span class="tab-label">ТОЧНО ТВОЁ</span>
     <span id="count-main" class="tab-count">(0)</span>
   </button>
@@ -57,7 +52,7 @@
 </div>
 
 <div id="custom-confirm-overlay" class="custom-confirm-overlay hidden">
-  <div class="custom-confirm-box">
+    <div class="custom-confirm-box">
     <p id="custom-confirm-text"></p>
     <div class="custom-confirm-actions">
       <button id="confirm-btn-cancel" class="custom-confirm-button">Отмена</button>
@@ -69,7 +64,7 @@
 <div id="toast-container" class="toast-container"></div>
 
 <template id="vacancy-card-template">
-  <div class="vacancy-card">
+    <div class="vacancy-card">
     <div class="card-actions">
       <button class="card-action-btn apply" data-element="apply-btn" aria-label="Откликнуться">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>

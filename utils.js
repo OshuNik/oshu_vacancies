@@ -260,7 +260,16 @@
         el.textContent = 'Ошибка: шаблон не найден.';
         return el;
     }
-    const card = template.content.cloneNode(true).firstElementChild;
+    
+    // ИЗМЕНЕНИЕ: Используем querySelector для надежного получения элемента
+    const card = template.content.cloneNode(true).querySelector('.vacancy-card');
+    if (!card) {
+        console.error('Could not find .vacancy-card in template');
+        const el = document.createElement('div');
+        el.textContent = 'Ошибка: структура шаблона неверна.';
+        return el;
+    }
+
     card.id = `card-${v.id}`;
     if (v.category === CFG.CATEGORIES.MAIN) card.classList.add('category-main');
     else if (v.category === CFG.CATEGORIES.MAYBE) card.classList.add('category-maybe');
@@ -458,7 +467,6 @@
         pulling = false;
     }, { passive: true });
   }
-
 
   window.utils = {
     tg, 

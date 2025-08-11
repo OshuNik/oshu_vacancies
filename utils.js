@@ -1,5 +1,4 @@
 // utils.js — общие утилиты
-// ИЗМЕНЕНИЕ: Добавлены общие функции showCustomConfirm и createSupabaseHeaders
 
 (function () {
   'use strict';
@@ -7,24 +6,63 @@
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
   const CFG = window.APP_CONFIG || {};
 
-  // --- ОБЩИЕ UI-УТИЛИТЫ ---
-  function uiToast(message = '') {
-    let cont = document.getElementById('toast-container');
-    if (!cont) {
-      cont = document.createElement('div');
-      cont.id = 'toast-container';
-      cont.className = 'toast-container';
-      document.body.appendChild(cont);
+  function uiToast(message = '', options = {}) {
+    const { onUndo } = options;
+    const toastContainer = document.getElementById('toast-container');
+    if (!toastContainer) {
+        console.error('Toast container not found');
+        return;
     }
+
     const toast = document.createElement('div');
     toast.className = 'toast';
-    toast.textContent = message;
-    cont.appendChild(toast);
-    requestAnimationFrame(() => toast.classList.add('show'));
-    setTimeout(() => {
-      toast.classList.remove('show');
-      setTimeout(() => toast.remove(), 200);
-    }, 2200);
+
+    const textEl = document.createElement('span');
+    textEl.textContent = message;
+    toast.appendChild(textEl);
+
+    let actionTimeout;
+
+    const removeToast = () => {
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentElement === toastContainer) {
+                toastContainer.removeChild(toast);
+            }
+        }, 300);
+    };
+
+    if (typeof onUndo === 'function') {
+      const undoBtn = document.createElement('button');
+      undoBtn.className = 'toast-undo-btn';
+      undoBtn.textContent = 'Отменить';
+      undoBtn.onclick = (e) => {
+        e.stopPropagation();
+        clearTimeout(actionTimeout);
+        onUndo();
+        removeToast();
+      };
+      toast.appendChild(undoBtn);
+    }
+    
+    toastContainer.appendChild(toast);
+    requestAnimationFrame(() => {
+      toast.classList.add('show');
+    });
+
+    actionTimeout = setTimeout(() => {
+        removeToast();
+        if (options.onTimeout) {
+            options.onTimeout();
+        }
+    }, options.timeout || 3000);
+
+    return {
+        clear: () => {
+            clearTimeout(actionTimeout);
+            removeToast();
+        }
+    };
   }
 
   const safeAlert = (msg) => {
@@ -146,6 +184,13 @@
   }
   const formatTimestamp = (s) => formatSmartTime(s);
 
+  function parseTotal(resp){
+    const cr = resp.headers.get('content-range');
+    if (!cr || !cr.includes('/')) return 0;
+    const total = cr.split('/').pop();
+    return Number(total) || 0;
+  }
+  
   const containsImageMarker = (text = '') =>
     /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
   const cleanImageMarkers = (text = '') => String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
@@ -317,17 +362,18 @@
     const { onRefresh, refreshEventName, container = window } = options;
     if (typeof onRefresh !== 'function' || !refreshEventName) return;
 
-    const threshold = 78;
+    const { THRESHOLD, BAR_HEIGHT } = CFG.PTR_CONFIG || { THRESHOLD: 80, BAR_HEIGHT: 60 };
     let startY = 0, pulling = false, ready = false, locked = false;
 
     const bar = document.createElement('div');
     bar.className = 'ptr-bar';
+    document.body.style.setProperty('--ptr-bar-height', `${BAR_HEIGHT}px`);
     bar.innerHTML = '<span class="ptr-text">Потяните для обновления</span>';
     document.body.appendChild(bar);
     const barText = bar.querySelector('.ptr-text');
 
     const setBar = (y) => {
-        bar.style.transform = `translateY(${Math.min(0, -100 + (y / (threshold / 100)))}%)`;
+        bar.style.transform = `translateY(${Math.min(0, -100 + (y / (THRESHOLD / 100)))}%)`;
         bar.classList.toggle('visible', y > 6);
     };
 
@@ -351,13 +397,12 @@
       if (!pulling || locked) return;
       const dist = e.touches[0].clientY - startY;
       if (dist > 0) {
-        e.preventDefault();
         setBar(dist);
-        if (dist > threshold && !ready) {
+        if (dist > THRESHOLD && !ready) {
             ready = true;
             if(barText) barText.textContent = 'Отпустите для обновления';
         }
-        if (dist <= threshold && ready) {
+        if (dist <= THRESHOLD && ready) {
             ready = false;
             if(barText) barText.textContent = 'Потяните для обновления';
         }
@@ -376,7 +421,7 @@
       if (ready) {
         locked = true;
         if(barText) barText.textContent = 'Обновляю…';
-        setBar(threshold * 1.2);
+        setBar(THRESHOLD * 1.2);
         const done = () => { locked = false; pulling = false; resetBar(); };
         const onLoaded = () => { document.removeEventListener(refreshEventName, onLoaded); done(); };
         document.addEventListener(refreshEventName, onLoaded);
@@ -398,6 +443,7 @@
     createVacancyCard,
     setupPullToRefresh,
     showCustomConfirm,
-    createSupabaseHeaders
+    createSupabaseHeaders,
+    parseTotal
   };
 })();

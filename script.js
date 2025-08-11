@@ -516,12 +516,11 @@
       b.setAttribute('aria-selected', active ? 'true' : 'false');
     });
     
-    // ИЗМЕНЕНИЕ: Обновляем вызов функции
     setupPullToRefresh({
         onRefresh: () => refetchFromZeroSmooth(state.activeKey),
         refreshEventName: 'feed:loaded',
         container: vacanciesContent,
-        mainElement: document.querySelector('body')
+        mainElement: document.body
     });
     
     showLoader();

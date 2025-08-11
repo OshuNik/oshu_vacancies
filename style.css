@@ -21,30 +21,22 @@ body {
     background-color: var(--background-color);
     color: var(--text-color);
     margin: 0;
-    padding: 15px 15px 95px 15px;
+    padding: 15px; /* Убираем нижний отступ отсюда */
 }
 
-/* --- Классы для анимаций --- */
-.vacancy-list.loading-seamless {
-    opacity: 0.5;
-    pointer-events: none;
-    transition: opacity 0.2s ease-in-out;
-}
-
-/* ИЗМЕНЕНИЕ: Новые стили для Pull-to-Refresh */
-.content {
+/* ИЗМЕНЕНИЕ: Стили для новой обертки и плашки обновления */
+.main-wrapper {
     position: relative;
-    overflow-x: hidden; /* Предотвращаем случайный горизонтальный скролл */
+    padding-bottom: 80px; /* Переносим нижний отступ сюда */
 }
 .ptr-bar {
     position: absolute;
+    top: -50px; /* Прячем плашку над экраном */
     left: 0;
     right: 0;
-    top: 0;
     height: 50px;
-    background: var(--background-color);
+    background: #e0e0e0;
     color: var(--text-color);
-    transform: translateY(-100%); /* Прячем плашку над контейнером */
     z-index: 5;
     font-family: inherit;
     font-weight: 700;
@@ -52,9 +44,12 @@ body {
     align-items: center;
     justify-content: center;
     letter-spacing: .2px;
-    opacity: 0;
-    pointer-events: none;
+    border: var(--border-width) solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
 }
+.is-refreshing .retro-spinner-inline { display: inline-block; }
 
 .is-refreshing {
     animation: pulse-animation 1.2s infinite ease-in-out;

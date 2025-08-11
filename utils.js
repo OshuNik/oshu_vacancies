@@ -1,5 +1,5 @@
 // utils.js — общие утилиты
-// ИСПРАВЛЕНО: Pull-to-refresh теперь использует старый дизайн (только текст)
+// ИСПРАВЛЕНО: Корректная обработка tg:// ссылок в браузере
 
 (function () {
   'use strict';
@@ -68,17 +68,26 @@
     const norm = normalizeUrl(raw);
     return isHttpUrl(norm) ? norm : '';
   };
+  
+  // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
   function openLink(url) {
     const safeUrl = String(url || '');
     if (/^tg:\/\//.test(safeUrl)) {
-        if (tg && typeof tg.openTelegramLink === 'function') tg.openTelegramLink(safeUrl);
-        else window.open(safeUrl, '_blank', 'noopener');
+        if (tg && typeof tg.openTelegramLink === 'function') {
+            tg.openTelegramLink(safeUrl);
+        } else {
+            // В обычном браузере используем location.href для tg://
+            window.location.href = safeUrl;
+        }
         return;
     }
     const safeHttpUrl = sanitizeUrl(url);
     if (!safeHttpUrl) return;
-    if (tg && typeof tg.openLink === 'function') tg.openLink(safeHttpUrl);
-    else window.open(safeHttpUrl, '_blank', 'noopener');
+    if (tg && typeof tg.openLink === 'function') {
+        tg.openLink(safeHttpUrl);
+    } else {
+        window.open(safeHttpUrl, '_blank', 'noopener');
+    }
   }
 
   // ---- time ----

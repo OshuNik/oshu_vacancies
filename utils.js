@@ -253,94 +253,121 @@
 
   function createVacancyCard(v, options = {}) {
     const { pageType = 'main', searchQuery = '' } = options;
-    const card = document.createElement('div');
-    card.className = 'vacancy-card';
-    card.id = `card-${v.id}`;
+    const template = document.getElementById('vacancy-card-template');
+    if (!template) {
+        console.error('Template #vacancy-card-template not found!');
+        const el = document.createElement('div');
+        el.textContent = 'Ошибка: шаблон не найден.';
+        return el;
+    }
 
+    const card = template.content.cloneNode(true).firstElementChild;
+
+    card.id = `card-${v.id}`;
     if (v.category === CFG.CATEGORIES.MAIN) card.classList.add('category-main');
     else if (v.category === CFG.CATEGORIES.MAYBE) card.classList.add('category-maybe');
     else card.classList.add('category-other');
 
-    const allowHttpOrTg = (url) => {
-        if (!url) return '';
-        try {
-            const u = new URL(url, window.location.href);
-            if (/^https?:$/.test(u.protocol) || /^tg:$/.test(u.protocol)) return u.href;
-            return '';
-        } catch { return ''; }
+    const elements = {
+      applyBtn: card.querySelector('[data-element="apply-btn"]'),
+      favoriteBtn: card.querySelector('[data-element="favorite-btn"]'),
+      deleteBtn: card.querySelector('[data-element="delete-btn"]'),
+      category: card.querySelector('[data-element="category"]'),
+      summary: card.querySelector('[data-element="summary"]'),
+      infoWindow: card.querySelector('[data-element="info-window"]'),
+      details: card.querySelector('[data-element="details"]'),
+      attachments: card.querySelector('[data-element="attachments"]'),
+      fullText: card.querySelector('[data-element="full-text"]'),
+      skills: card.querySelector('[data-element="skills"]'),
+      channel: card.querySelector('[data-element="channel"]'),
+      timestamp: card.querySelector('[data-element="timestamp"]'),
+      metaSeparator: card.querySelector('.meta-separator'),
     };
-    const applyUrl = allowHttpOrTg(String(v.apply_url || ''));
-    const applyBtnHtml = applyUrl ? `
-      <button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(applyUrl)}" aria-label="Откликнуться">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
-      </button>` : '';
 
-    const favoriteBtnHtml = pageType === 'main' ? `
-      <button class="card-action-btn favorite" data-action="favorite" data-id="${v.id}" aria-label="В избранное">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-      </button>` : '';
+    const applyUrl = sanitizeUrl(v.apply_url || '');
+    if (applyUrl) {
+      elements.applyBtn.dataset.action = 'apply';
+      elements.applyBtn.dataset.url = applyUrl;
+    } else {
+      elements.applyBtn.remove();
+    }
 
-    const deleteBtnHtml = `
-      <button class="card-action-btn delete" data-action="delete" data-id="${v.id}" aria-label="Удалить">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
-      </button>`;
+    if (pageType === 'main') {
+      elements.favoriteBtn.dataset.action = 'favorite';
+      elements.favoriteBtn.dataset.id = v.id;
+    } else {
+      elements.favoriteBtn.remove();
+    }
 
-    const actionsHtml = `<div class="card-actions">${applyBtnHtml}${favoriteBtnHtml}${deleteBtnHtml}</div>`;
+    elements.deleteBtn.dataset.action = 'delete';
+    elements.deleteBtn.dataset.id = v.id;
 
-    const UNKNOWN = ['не указано', 'n/a', 'none', 'null', '/'];
-    const cleanVal = val => String(val ?? '').replace(/[«»"“”'‘’`]/g,'').trim();
-    const isMeaningful = val => {
-        const s = cleanVal(val).toLowerCase();
-        return !!s && !UNKNOWN.includes(s);
-    };
+    elements.category.textContent = v.category || 'NO_CATEGORY';
+    const summaryText = v.reason || 'Описание не было сгенерировано.';
+    elements.summary.dataset.originalSummary = summaryText;
+    elements.summary.innerHTML = searchQuery ? highlightText(summaryText, searchQuery) : escapeHtml(summaryText);
+
     const infoRows = [];
+    const cleanVal = val => String(val ?? '').trim();
+    const isMeaningful = val => !!cleanVal(val) && !['не указано', 'n/a'].includes(cleanVal(val).toLowerCase());
+    
     const fmt = [v.employment_type, v.work_format].map(cleanVal).filter(isMeaningful).join(' / ');
     if (fmt) infoRows.push({ label: 'ФОРМАТ', value: fmt, type: 'default' });
     if (isMeaningful(v.salary_display_text)) infoRows.push({ label: 'ОПЛАТА', value: cleanVal(v.salary_display_text), type: 'salary' });
-    const sphereSrc = isMeaningful(v.industry) ? v.industry : v.sphere;
-    if (isMeaningful(sphereSrc)) infoRows.push({ label: 'СФЕРА', value: cleanVal(sphereSrc), type: 'industry' });
+    if (isMeaningful(v.industry)) infoRows.push({ label: 'СФЕРА', value: cleanVal(v.industry), type: 'industry' });
 
-    const infoHtml = infoRows.length ? '<div class="info-window">' + infoRows.map(r => `
-        <div class="info-row info-row--${r.type}">
-          <div class="info-label">${escapeHtml(r.label)} >></div>
-          <div class="info-value">${escapeHtml(r.value)}</div>
-        </div>`).join('') + '</div>' : '';
+    if (infoRows.length > 0) {
+      infoRows.forEach(r => {
+        const row = document.createElement('div');
+        row.className = `info-row info-row--${r.type}`;
+        row.innerHTML = `<div class="info-label">${escapeHtml(r.label)} >></div><div class="info-value">${escapeHtml(r.value)}</div>`;
+        elements.infoWindow.appendChild(row);
+      });
+    } else {
+      elements.infoWindow.remove();
+    }
 
-    const summaryText = v.reason || 'Описание не было сгенерировано.';
     const originalDetailsHtml = String(v.text_highlighted || '').replace(/\[\s*Изображение\s*\]\s*/gi, '');
     const bestImageUrl = pickImageUrl(v, originalDetailsHtml);
-    const attachmentsHTML = bestImageUrl ? `<div class="attachments"><a class="image-link-button" href="${bestImageUrl}" target="_blank" rel="noopener noreferrer">Изображение</a></div>` : '';
-    const hasDetails = Boolean(originalDetailsHtml) || Boolean(attachmentsHTML);
-    const detailsHTML = hasDetails ? `<details><summary>Показать полный текст</summary><div class="vacancy-text" style="margin-top:10px;"></div></details>` : '';
 
-    const skillsFooterHtml = (Array.isArray(v.skills) && v.skills.length) ? `<div class="footer-skill-tags">${
-        v.skills.slice(0,3).map(s=>`<span class="footer-skill-tag">${escapeHtml(String(s))}</span>`).join('')
-      }</div>` : '';
-    const channelHtml = v.channel ? `<span class="channel-name">${escapeHtml(v.channel)}</span>` : '';
-    const timestampHtml = `<span class="timestamp-footer">${escapeHtml(formatTimestamp(v.timestamp))}</span>`;
-    const sep = channelHtml && timestampHtml ? ' • ' : '';
-    const footerMetaHtml = `<div class="footer-meta">${channelHtml}${sep}${timestampHtml}</div>`;
-
-    card.innerHTML = `
-      ${actionsHtml}
-      <div class="card-header"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
-      <div class="card-body">
-        <p class="card-summary"></p>
-        ${infoHtml}
-        ${detailsHTML}
-      </div>
-      <div class="card-footer">${skillsFooterHtml}${footerMetaHtml}</div>
-    `;
-
-    const summaryEl = card.querySelector('.card-summary');
-    if (summaryEl) {
-      summaryEl.dataset.originalSummary = summaryText;
-      summaryEl.innerHTML = searchQuery ? highlightText(summaryText, searchQuery) : escapeHtml(summaryText);
+    if (bestImageUrl) {
+        const imgBtn = document.createElement('a');
+        imgBtn.className = 'image-link-button';
+        imgBtn.href = bestImageUrl;
+        imgBtn.target = '_blank';
+        imgBtn.rel = 'noopener noreferrer';
+        imgBtn.textContent = 'Изображение';
+        elements.attachments.appendChild(imgBtn);
     }
-    const detailsEl = card.querySelector('.vacancy-text');
-    if (detailsEl) {
-      detailsEl.innerHTML = attachmentsHTML + originalDetailsHtml;
+    
+    if (originalDetailsHtml) {
+        elements.fullText.innerHTML = originalDetailsHtml;
     }
+
+    if (!bestImageUrl && !originalDetailsHtml) {
+        elements.details.remove();
+    }
+
+    if (Array.isArray(v.skills) && v.skills.length > 0) {
+        v.skills.slice(0, 3).forEach(s => {
+            const tag = document.createElement('span');
+            tag.className = 'footer-skill-tag';
+            tag.textContent = s;
+            elements.skills.appendChild(tag);
+        });
+    } else {
+      elements.skills.remove();
+    }
+    
+    if(v.channel) {
+      elements.channel.textContent = v.channel;
+    } else {
+      elements.channel.remove();
+      elements.metaSeparator.remove();
+    }
+
+    elements.timestamp.textContent = formatTimestamp(v.timestamp);
+
     const searchChunks = [
       v.category, v.reason, v.industry, v.company_name,
       Array.isArray(v.skills) ? v.skills.join(' ') : '',
@@ -390,6 +417,7 @@
       if (!pulling || locked) return;
       const dist = e.touches[0].clientY - startY;
       if (dist > 0) {
+        // e.preventDefault();
         setBar(dist);
         if (dist > THRESHOLD && !ready) {
             ready = true;
@@ -403,7 +431,7 @@
         pulling = false;
         resetBar();
       }
-    }, { passive: false });
+    }, { passive: true });
 
     container.addEventListener('touchend', () => {
       if (!pulling || locked) {

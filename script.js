@@ -1,5 +1,5 @@
 /* script.js — главная страница
- * ИЗМЕНЕНИЕ: Отмена удаления, кнопка очистки поиска, анимация долгого нажатия.
+ * ИЗМЕНЕНИЕ: Отмена удаления, кнопка очистки поиска, анимация долгого нажатия, бесшовный поиск.
  */
 (function () {
   'use strict';
@@ -170,9 +170,9 @@
         fetchCount('maybe', query),
         fetchCount('other', query),
       ]);
-      state.main.total  = cMain;  counts.main.textContent  = `(${cMain}`;
-      state.maybe.total = cMaybe; counts.maybe.textContent = `(${cMaybe}`;
-      state.other.total = cOther; counts.other.textContent = `(${cOther}`;
+      state.main.total  = cMain;  counts.main.textContent  = `(${cMain})`;
+      state.maybe.total = cMaybe; counts.maybe.textContent = `(${cMaybe})`;
+      state.other.total = cOther; counts.other.textContent = `(${cOther})`;
     } catch(e) { console.warn('counts err', e); }
   }
 
@@ -189,7 +189,6 @@
     if (!id) return;
     const isFavorite = newStatus === STATUSES.FAVORITE;
     
-    // Для добавления в избранное спрашиваем подтверждение
     if (isFavorite) {
         const ok = await showCustomConfirm('Добавить в избранное?');
         if (!ok) return;
@@ -198,44 +197,39 @@
     const cardEl = document.querySelector(`#card-${CSS.escape(id)}`);
     if (!cardEl) return;
     
-    // 1. Сразу скрываем карточку из UI для мгновенной реакции
-    cardEl.style.transition = 'opacity .3s, transform .3s, max-height .3s, margin .3s, padding .3s';
+    cardEl.style.transition = 'opacity .3s, transform .3s, max-height .3s, margin .3s, padding .3s, border-width .3s';
     cardEl.style.opacity = '0';
     cardEl.style.transform = 'scale(0.95)';
     cardEl.style.maxHeight = '0px';
-    cardEl.style.padding = '0';
-    cardEl.style.margin = '0';
+    cardEl.style.paddingTop = '0';
+    cardEl.style.paddingBottom = '0';
+    cardEl.style.marginTop = '0';
+    cardEl.style.marginBottom = '0';
     cardEl.style.borderWidth = '0';
     
     const parent = cardEl.parentElement;
     const nextSibling = cardEl.nextElementSibling;
-    setTimeout(() => cardEl.remove(), 300);
-
+    
     const onUndo = () => {
-      // Возвращаем карточку в DOM
-      if (nextSibling) {
-          parent.insertBefore(cardEl, nextSibling);
-      } else {
-          parent.appendChild(cardEl);
-      }
-      requestAnimationFrame(() => {
-          cardEl.style.opacity = '1';
-          cardEl.style.transform = 'scale(1)';
-          cardEl.style.maxHeight = '500px';
-          cardEl.style.padding = '15px';
-          cardEl.style.margin = '';
-          cardEl.style.borderWidth = '';
-      });
+        parent.insertBefore(cardEl, nextSibling);
+        requestAnimationFrame(() => {
+            cardEl.style.opacity = '1';
+            cardEl.style.transform = 'scale(1)';
+            cardEl.style.maxHeight = '500px';
+            cardEl.style.paddingTop = '';
+            cardEl.style.paddingBottom = '';
+            cardEl.style.marginTop = '';
+            cardEl.style.marginBottom = '';
+            cardEl.style.borderWidth = '';
+        });
     };
-
-    // 2. Показываем уведомление с возможностью отмены
-    const toastMessage = isFavorite ? 'Добавлено в избранное' : 'Вакансия удалена';
-    const toast = uiToast(toastMessage, {
+    
+    uiToast(isFavorite ? 'Добавлено в избранное' : 'Вакансия удалена', {
       timeout: 5000,
-      onUndo: () => onUndo(),
+      onUndo: onUndo,
       onTimeout: async () => {
-          // 3. Если отмены не было, отправляем запрос в API
           try {
+            cardEl.remove(); // Окончательно удаляем из DOM
             const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
             const resp = await fetchWithRetry(url, {
               method: 'PATCH',
@@ -247,12 +241,12 @@
             const k = state.activeKey;
             if (state[k].total > 0) state[k].total -= 1;
             counts[k].textContent = `(${state[k].total})`;
-            if (parent && parent.children.length === 0) {
+            if (parent && parent.querySelectorAll('.vacancy-card').length === 0) {
                 renderEmptyState(parent, '-- Пусто в этой категории --');
             }
           } catch(err) {
             safeAlert('Не удалось выполнить действие.');
-            onUndo(); // Возвращаем карточку, если была ошибка сети
+            onUndo();
           }
       }
     });
@@ -318,7 +312,7 @@
       if (isInitialLoad) {
           hideLoader();
       }
-      document.dispatchEvent(new CustomEvent(`feed:loaded:${key}`));
+      document.dispatchEvent(new CustomEvent(`feed:loaded`));
     }
   }
   
@@ -328,13 +322,68 @@
     if (!container || st.busy) return;
     st.offset = 0;
     await fetchNext(key, false);
-    document.dispatchEvent(new CustomEvent('feed:loaded'));
+  }
+
+  // ИЗМЕНЕНИЕ: Новая функция для бесшовного поиска
+  async function seamlessSearch(key) {
+      const st = state[key];
+      const container = containers[key];
+      if (!container || st.busy) return;
+      
+      st.busy = true;
+      st.offset = 0;
+      
+      container.classList.add('loading-seamless');
+      if(searchInput) searchInput.disabled = true;
+
+      const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, 0, state.query);
+      const controller = abortCurrent();
+
+      try {
+          const resp = await fetchWithRetry(url, {
+              headers: createSupabaseHeaders({ prefer: 'count=exact' }),
+              signal: controller.signal
+          }, RETRY_OPTIONS);
+          if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
+
+          const total = parseTotal(resp);
+          if (Number.isFinite(total)) { st.total = total; counts[key].textContent = `(${total})`; }
+
+          const items = await resp.json();
+          clearContainer(container);
+
+          if (items.length === 0) {
+              const message = state.query ? 'По вашему запросу ничего не найдено' : '-- Пусто в этой категории --';
+              renderEmptyState(container, message);
+          } else {
+              const frag = document.createDocumentFragment();
+              items.forEach(it => frag.appendChild(createVacancyCard(it, { pageType: 'main', searchQuery: state.query })));
+              container.appendChild(frag);
+              pinLoadMoreToBottom(container);
+
+              st.offset = items.length;
+              const hasMore = st.offset < st.total;
+              ensureLoadMore(container, () => fetchNext(key));
+              updateLoadMore(container, hasMore);
+          }
+          st.loadedOnce = true;
+          st.loadedForQuery = state.query;
+          updateSearchStats();
+      } catch (e) {
+          if (e.name !== 'AbortError') {
+              renderError(container, e.message, () => seamlessSearch(key));
+          }
+      } finally {
+          st.busy = false;
+          container.classList.remove('loading-seamless');
+          if(searchInput) searchInput.disabled = false;
+      }
   }
 
   const onSearch = debounce(() => {
     state.query = (searchInput?.value || '').trim();
     fetchCountsAll(state.query);
-    refetchFromZeroSmooth(state.activeKey);
+    seamlessSearch(state.activeKey); // Используем новую бесшовную функцию
     ['main', 'maybe', 'other'].forEach(key => {
       if (key !== state.activeKey) {
         const st = state[key];
@@ -441,13 +490,11 @@
     const cancel = (e) => {
       btn.classList.remove('pressing');
       clearTimeout(pressTimer);
-      // Если долгое нажатие не сработало, считаем это обычным кликом.
-      // Но событие click обработается само, если isHeld=false.
     };
 
     const clickHandler = (e) => {
         if (isHeld) {
-            e.preventDefault(); // Предотвращаем клик после долгого нажатия
+            e.preventDefault();
             e.stopPropagation();
         } else {
             const targetId = btn.dataset.target;

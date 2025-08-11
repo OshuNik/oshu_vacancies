@@ -1,5 +1,5 @@
 /* script.js — главная страница
- * ИСПРАВЛЕНО: Возвращён долгий тап для массового удаления категории
+ * ИСПРАВЛЕНО: Загрузчик появляется только при первом запуске, а не при каждом действии.
  */
 
 (function () {
@@ -74,7 +74,7 @@
     other: { offset:0, total:0, busy:false, loadedOnce:false, loadedForQuery:'' },
   };
 
-  // --- Улучшенные функции управления загрузчиком ---
+  // --- Функции управления загрузчиком ---
   function showLoader() {
     if (loader) loader.classList.remove('hidden');
     if (mainHeader) mainHeader.classList.add('hidden');
@@ -255,13 +255,19 @@
   }
 
   // -------- Загрузка порций --------
-  async function fetchNext(key){
+  async function fetchNext(key, isInitialLoad = false) {
     const st=state[key];
     const container=containers[key];
     if(!container || st.busy) return;
     st.busy=true;
 
-    if (st.offset === 0) showLoader();
+    // ИСПРАВЛЕНО: Лоадер показывается только при самом первом запуске
+    if (isInitialLoad && st.offset === 0) {
+        showLoader();
+    } else if (st.offset === 0) {
+        // Для последующих загрузок (смена вкладок) показываем заглушку
+        container.innerHTML = '<p class="empty-list">Загрузка...</p>';
+    }
 
     const url = buildCategoryUrl(key, PAGE_SIZE_MAIN||10, st.offset, state.query);
     const controller = abortCurrent();
@@ -278,16 +284,15 @@
 
       const items=await resp.json();
 
-      if (st.offset===0 && items.length===0) {
-        clearContainer(container);
-        hideLoadMore(container);
-        renderEmptyState(container,'-- Пусто в этой категории --');
+      if (st.offset === 0) clearContainer(container);
+
+      if (items.length===0) {
+        if (st.offset === 0) renderEmptyState(container,'-- Пусто в этой категории --');
       } else {
         const frag=document.createDocumentFragment();
         for(const it of items) frag.appendChild(
             createVacancyCard(it, { pageType: 'main', searchQuery: state.query })
         );
-        if (st.offset === 0) clearContainer(container);
         container.appendChild(frag);
         pinLoadMoreToBottom(container);
 
@@ -309,16 +314,32 @@
       }
     }finally{
       st.busy=false;
-      hideLoader();
+      // ИСПРАВЛЕНО: Лоадер скрывается только после самой первой загрузки
+      if (isInitialLoad) {
+        hideLoader();
+      }
     }
   }
 
-  // -------- Мягкая перезагрузка --------
+  // -------- Мягкая перезагрузка (без полноэкранного лоадера) --------
   async function refetchFromZeroSmooth(key){
     const st=state[key];
-    st.offset = 0;
-    st.loadedOnce = false;
-    await fetchNext(key);
+    const container=containers[key];
+    if(!container) return;
+
+    abortCurrent();
+    st.busy=true;
+    st.offset = 0; // Сбрасываем offset для перезагрузки
+
+    // ИСПРАВЛЕНО: Полноэкранный лоадер здесь больше не вызывается
+    const keepHeight = container.offsetHeight;
+    if (keepHeight) container.style.minHeight = `${keepHeight}px`;
+    container.innerHTML = '<p class="empty-list">Обновление...</p>';
+
+
+    await fetchNext(key); // Используем fetchNext для загрузки
+    
+    container.style.minHeight = '';
     document.dispatchEvent(new CustomEvent('feed:loaded'));
     flashRefreshed(containers[key]);
   }
@@ -470,7 +491,7 @@
         refreshEventName: 'feed:loaded'
     });
 
-    await fetchNext('main');
+    await fetchNext('main', true); // Передаем флаг, что это самая первая загрузка
     await prefetchHidden();
     updateSearchStats();
   }

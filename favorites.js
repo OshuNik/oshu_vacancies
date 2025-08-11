@@ -193,11 +193,13 @@
         searchInputFav.focus();
       }
   });
-
+  
+  // ИЗМЕНЕНИЕ: Обновляем вызов функции
   setupPullToRefresh({
       onRefresh: () => loadFavorites(searchInputFav?.value || ''),
       refreshEventName: 'favorites:loaded',
-      contentElement: container 
+      container: container,
+      mainElement: document.querySelector('body')
   });
 
   ensureFavSearchUI();

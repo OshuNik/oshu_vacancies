@@ -13,16 +13,12 @@
         console.error('Toast container not found');
         return;
     }
-
     const toast = document.createElement('div');
     toast.className = 'toast';
-
     const textEl = document.createElement('span');
     textEl.textContent = message;
     toast.appendChild(textEl);
-
     let actionTimeout;
-
     const removeToast = () => {
         toast.classList.remove('show');
         setTimeout(() => {
@@ -31,7 +27,6 @@
             }
         }, 300);
     };
-
     if (typeof onUndo === 'function') {
       const undoBtn = document.createElement('button');
       undoBtn.className = 'toast-undo-btn';
@@ -44,12 +39,10 @@
       };
       toast.appendChild(undoBtn);
     }
-    
     toastContainer.appendChild(toast);
     requestAnimationFrame(() => {
       toast.classList.add('show');
     });
-
     actionTimeout = setTimeout(() => {
         removeToast();
         if (onTimeout) {
@@ -62,20 +55,17 @@
     if (tg && typeof tg.showAlert === 'function') tg.showAlert(String(msg));
     else uiToast(String(msg));
   };
-
+  
   function showCustomConfirm(message) {
     return new Promise(resolve => {
         const confirmOverlay = document.querySelector('#custom-confirm-overlay');
         if (!confirmOverlay) return resolve(window.confirm(message));
-        
         const confirmText = confirmOverlay.querySelector('#custom-confirm-text');
         const confirmOkBtn = confirmOverlay.querySelector('#confirm-btn-ok');
         const confirmCancelBtn = confirmOverlay.querySelector('#confirm-btn-cancel');
-
         if (!confirmText || !confirmOkBtn || !confirmCancelBtn) {
             return resolve(window.confirm(message));
         }
-
         confirmText.textContent = message;
         confirmOverlay.classList.remove('hidden');
         const close = (result) => {
@@ -88,7 +78,7 @@
         confirmCancelBtn.onclick = () => close(false);
     });
   }
-
+  
   function createSupabaseHeaders(options = {}) {
     const { prefer } = options;
     const headers = {
@@ -142,7 +132,7 @@
     } catch (e) {}
     return '';
   }
-
+  
   function openLink(url) {
     let safeUrl = sanitizeLink(url);
     if (!safeUrl) return;
@@ -175,7 +165,7 @@
     const sec = Math.floor(diffMs / 1000);
     const min = Math.floor(sec / 60);
     const pad = n => n.toString().padStart(2, '0');
-    const months = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
+    const months = ['янв','фев','мар','апр','мая','июн','юл','авг','сен','окт','ноя','дек'];
     const isSameDay = now.toDateString() === d.toDateString();
     const yest = new Date(now); yest.setDate(now.getDate() - 1);
     const isYesterday = yest.toDateString() === d.toDateString();
@@ -193,7 +183,7 @@
     const total = cr.split('/').pop();
     return Number(total) || 0;
   }
-
+  
   const containsImageMarker = (text = '') =>
     /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
   const cleanImageMarkers = (text = '') => String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
@@ -254,7 +244,7 @@
     btn.onclick = onClick;
     return { wrap, btn };
   }
-
+  
   function updateLoadMore(container, visible) {
     let wrap = container.querySelector('.load-more-wrap');
     if (!wrap) return;
@@ -270,14 +260,19 @@
         el.textContent = 'Ошибка: шаблон не найден.';
         return el;
     }
-
-    const card = template.content.cloneNode(true).firstElementChild;
+    
+    const card = template.content.cloneNode(true).querySelector('.vacancy-card');
+    if (!card) {
+        console.error('Could not find .vacancy-card in template');
+        const el = document.createElement('div');
+        el.textContent = 'Ошибка: структура шаблона неверна.';
+        return el;
+    }
 
     card.id = `card-${v.id}`;
     if (v.category === CFG.CATEGORIES.MAIN) card.classList.add('category-main');
     else if (v.category === CFG.CATEGORIES.MAYBE) card.classList.add('category-maybe');
     else card.classList.add('category-other');
-
     const elements = {
       applyBtn: card.querySelector('[data-element="apply-btn"]'),
       favoriteBtn: card.querySelector('[data-element="favorite-btn"]'),
@@ -293,7 +288,6 @@
       timestamp: card.querySelector('[data-element="timestamp"]'),
       metaSeparator: card.querySelector('.meta-separator'),
     };
-
     const applyUrl = sanitizeLink(v.apply_url || '');
     if (applyUrl) {
       elements.applyBtn.dataset.action = 'apply';
@@ -301,31 +295,25 @@
     } else {
       elements.applyBtn.remove();
     }
-
     if (pageType === 'main') {
       elements.favoriteBtn.dataset.action = 'favorite';
       elements.favoriteBtn.dataset.id = v.id;
     } else {
       elements.favoriteBtn.remove();
     }
-
     elements.deleteBtn.dataset.action = 'delete';
     elements.deleteBtn.dataset.id = v.id;
-
     elements.category.textContent = v.category || 'NO_CATEGORY';
     const summaryText = v.reason || 'Описание не было сгенерировано.';
     elements.summary.dataset.originalSummary = summaryText;
     elements.summary.innerHTML = searchQuery ? highlightText(summaryText, searchQuery) : escapeHtml(summaryText);
-
     const infoRows = [];
     const cleanVal = val => String(val ?? '').replace(/[«»"“”'‘’`']/g,'').trim();
     const isMeaningful = val => !!cleanVal(val) && !['не указано', 'n/a'].includes(cleanVal(val).toLowerCase());
-    
     const fmt = [v.employment_type, v.work_format].map(cleanVal).filter(isMeaningful).join(' / ');
     if (fmt) infoRows.push({ label: 'ФОРМАТ', value: fmt, type: 'default' });
     if (isMeaningful(v.salary_display_text)) infoRows.push({ label: 'ОПЛАТА', value: cleanVal(v.salary_display_text), type: 'salary' });
     if (isMeaningful(v.industry)) infoRows.push({ label: 'СФЕРА', value: cleanVal(v.industry), type: 'industry' });
-
     if (infoRows.length > 0) {
       infoRows.forEach(r => {
         const row = document.createElement('div');
@@ -336,10 +324,8 @@
     } else {
       elements.infoWindow.remove();
     }
-
     const originalDetailsHtml = String(v.text_highlighted || '').replace(/\[\s*Изображение\s*\]\s*/gi, '');
     const bestImageUrl = pickImageUrl(v, originalDetailsHtml);
-
     if (bestImageUrl) {
         const imgBtn = document.createElement('a');
         imgBtn.className = 'image-link-button';
@@ -349,15 +335,12 @@
         imgBtn.textContent = 'Изображение';
         elements.attachments.appendChild(imgBtn);
     }
-    
     if (originalDetailsHtml) {
         elements.fullText.innerHTML = originalDetailsHtml;
     }
-
     if (!bestImageUrl && !originalDetailsHtml) {
         elements.details.remove();
     }
-
     if (Array.isArray(v.skills) && v.skills.length > 0) {
         v.skills.slice(0, 3).forEach(s => {
             const tag = document.createElement('span');
@@ -368,140 +351,102 @@
     } else {
       elements.skills.remove();
     }
-    
     if(v.channel) {
       elements.channel.textContent = v.channel;
     } else {
       elements.channel.remove();
       elements.metaSeparator.remove();
     }
-
     elements.timestamp.textContent = formatTimestamp(v.timestamp);
-
     const searchChunks = [
       v.category, v.reason, v.industry, v.company_name,
       Array.isArray(v.skills) ? v.skills.join(' ') : '',
       stripTags(originalDetailsHtml)
     ].filter(Boolean);
     card.dataset.searchText = searchChunks.join(' ').toLowerCase();
-
     return card;
   }
-
   
-  // ИЗМЕНЕНИЕ: Новая, надежная реализация Pull-to-Refresh
   function setupPullToRefresh(options = {}) {
-    const {
-        onRefresh,
-        refreshEventName,
-        container = window,
-        contentElement
-        container, // Теперь это обязательный элемент, на который вешаются слушатели
-        mainElement // Элемент, который содержит и шапку, и контент
-    } = options;
+    const { onRefresh, refreshEventName } = options;
+    if (typeof onRefresh !== 'function' || !refreshEventName) return;
 
-    if (typeof onRefresh !== 'function' || !refreshEventName || !contentElement) return;
-    if (!container || !mainElement) return;
+    const wrapper = document.querySelector('.main-wrapper');
+    const ptrBar = wrapper?.querySelector('.ptr-bar');
+    const ptrText = ptrBar?.querySelector('.ptr-text');
 
-    const { THRESHOLD } = CFG.PTR_CONFIG || { THRESHOLD: 80 };
-    let startY = 0,
-        pulling = false,
-        ready = false,
-        locked = false;
-    const { THRESHOLD, BAR_HEIGHT } = CFG.PTR_CONFIG || { THRESHOLD: 60, BAR_HEIGHT: 50 };
+    if (!wrapper || !ptrBar || !ptrText) return;
+
+    const { THRESHOLD, BAR_HEIGHT } = CFG.PTR_CONFIG || { THRESHOLD: 70, BAR_HEIGHT: 50 };
     let startY = 0, pulling = false, locked = false;
 
-    // Создаем плашку для обновления
-    let bar = document.querySelector('.ptr-bar');
-    if (!bar) {
-        bar = document.createElement('div');
-        bar.className = 'ptr-bar';
-        bar.innerHTML = '<span class="ptr-text">Потяните для обновления</span>';
-        // Вставляем её после шапки, а не в body
-        mainElement.prepend(bar);
-    }
-    const barText = bar.querySelector('.ptr-text');
+    const resetState = () => {
+        locked = false;
+        wrapper.style.transition = 'transform 0.3s';
+        wrapper.style.transform = 'translateY(0px)';
+        ptrText.innerHTML = 'Потяните для обновления';
+    };
 
     const onLoaded = () => {
         document.removeEventListener(refreshEventName, onLoaded);
-        locked = false;
-        contentElement.classList.remove('is-refreshing');
-        bar.style.transition = 'transform .2s, opacity .2s';
-        bar.style.transform = `translateY(-${BAR_HEIGHT}px)`;
-        bar.style.opacity = '0';
-        container.style.transform = 'translateY(0px)';
+        resetState();
     };
 
-    container.addEventListener('touchstart', (e) => {
-        if (locked || window.scrollY > 0 || e.touches.length !== 1) {
-        if (locked || container.scrollTop > 0) {
+    document.body.addEventListener('touchstart', (e) => {
+        if (locked || window.scrollY > 0) {
             pulling = false;
             return;
         }
-        bar.style.transition = 'none';
+        wrapper.style.transition = 'none';
         startY = e.touches[0].clientY;
         pulling = true;
-        ready = false;
     }, { passive: true });
 
-    container.addEventListener('touchmove', (e) => {
+    document.body.addEventListener('touchmove', (e) => {
         if (!pulling || locked) return;
         const dist = e.touches[0].clientY - startY;
-        if (dist > 0 && window.scrollY === 0) {
-            if (dist > THRESHOLD && !ready) {
-                ready = true;
-                if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-            }
-            if (dist <= THRESHOLD && ready) {
-                ready = false;
 
-        if (dist > 0 && container.scrollTop === 0) {
-            e.preventDefault(); // Забираем скролл себе
-            const pullDist = Math.min(dist / 2.5, BAR_HEIGHT * 1.5);
-            container.style.transform = `translateY(${pullDist}px)`;
-            bar.style.transform = `translateY(${pullDist - BAR_HEIGHT}px)`;
-            bar.style.opacity = `${Math.min(pullDist / BAR_HEIGHT, 1)}`;
+        if (dist > 0 && window.scrollY === 0) {
+            e.preventDefault();
+            const pullDist = Math.pow(dist, 0.85);
+            wrapper.style.transform = `translateY(${pullDist}px)`;
             
             if (pullDist > THRESHOLD) {
-                barText.textContent = 'Отпустите для обновления';
+                ptrText.textContent = 'Отпустите для обновления';
             } else {
-                barText.textContent = 'Потяните для обновления';
+                ptrText.textContent = 'Потяните для обновления';
             }
-        } else {
-            pulling = false;
         }
-    }, { passive: true });
     }, { passive: false });
 
-    container.addEventListener('touchend', () => {
-        if (ready && !locked) {
-        container.style.transition = 'transform .2s';
-        if (pulling && !locked && (e.touches[0].clientY - startY) / 2.5 > THRESHOLD) {
+    document.body.addEventListener('touchend', (e) => {
+        if (!pulling || locked) {
+            pulling = false;
+            return;
+        };
+        
+        const finalDist = e.changedTouches[0].clientY - startY;
+        
+        if (Math.pow(finalDist, 0.85) > THRESHOLD) {
             locked = true;
-            contentElement.classList.add('is-refreshing');
-            document.addEventListener(refreshEventName, onLoaded);
-            container.style.transform = `translateY(${BAR_HEIGHT}px)`;
-            bar.style.transform = `translateY(0px)`;
-            bar.style.opacity = '1';
-            barText.innerHTML = '<div class="retro-spinner-inline"></div> Обновление...';
+            wrapper.style.transition = 'transform 0.3s';
+            wrapper.style.transform = `translateY(${BAR_HEIGHT}px)`;
+            ptrText.innerHTML = '<div class="retro-spinner-inline"></div> Обновление...';
             
-            if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
-
+            if (tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
+                tg.HapticFeedback.impactOccurred('medium');
+            }
+            
             document.addEventListener(refreshEventName, onLoaded);
             onRefresh();
-
-            setTimeout(() => {
-                if (locked) onLoaded();
-            }, 8000);
+            
             setTimeout(() => { if (locked) onLoaded(); }, 8000);
         } else {
-            onLoaded(); // Возвращаем все в исходное состояние
+            resetState();
         }
         pulling = false;
-        ready = false;
     }, { passive: true });
   }
-
 
   window.utils = {
     tg, 

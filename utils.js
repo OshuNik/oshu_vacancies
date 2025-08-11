@@ -1,10 +1,11 @@
 // utils.js — общие утилиты
-// ИСПРАВЛЕНО: Корректная обработка tg:// ссылок в браузере
+// ИЗМЕНЕНИЕ: Добавлены общие функции showCustomConfirm и createSupabaseHeaders
 
 (function () {
   'use strict';
 
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
+  const CFG = window.APP_CONFIG || {};
 
   // --- ОБЩИЕ UI-УТИЛИТЫ ---
   function uiToast(message = '') {
@@ -30,7 +31,45 @@
     if (tg && typeof tg.showAlert === 'function') tg.showAlert(String(msg));
     else uiToast(String(msg));
   };
+  
+  function showCustomConfirm(message) {
+    return new Promise(resolve => {
+        const confirmOverlay = document.querySelector('#custom-confirm-overlay');
+        if (!confirmOverlay) return resolve(window.confirm(message));
+        
+        const confirmText = confirmOverlay.querySelector('#custom-confirm-text');
+        const confirmOkBtn = confirmOverlay.querySelector('#confirm-btn-ok');
+        const confirmCancelBtn = confirmOverlay.querySelector('#confirm-btn-cancel');
 
+        if (!confirmText || !confirmOkBtn || !confirmCancelBtn) {
+            return resolve(window.confirm(message));
+        }
+
+        confirmText.textContent = message;
+        confirmOverlay.classList.remove('hidden');
+        const close = (result) => {
+            confirmOverlay.classList.add('hidden');
+            confirmOkBtn.onclick = null;
+            confirmCancelBtn.onclick = null;
+            resolve(result);
+        };
+        confirmOkBtn.onclick = () => close(true);
+        confirmCancelBtn.onclick = () => close(false);
+    });
+  }
+  
+  function createSupabaseHeaders(options = {}) {
+    const { prefer } = options;
+    const headers = {
+      'apikey': CFG.SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${CFG.SUPABASE_ANON_KEY}`,
+      'Content-Type': 'application/json',
+    };
+    if (prefer) {
+      headers['Prefer'] = prefer;
+    }
+    return headers;
+  }
 
   const escapeHtml = (s = '') =>
     String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -55,7 +94,6 @@
     return escapeHtml(text).replace(rx, '<mark class="highlight">$1</mark>');
   };
 
-  // ---- URL helpers ----
   function normalizeUrl(raw = '') {
     let s = String(raw).trim();
     if (!s) return '';
@@ -69,14 +107,12 @@
     return isHttpUrl(norm) ? norm : '';
   };
   
-  // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
   function openLink(url) {
     const safeUrl = String(url || '');
     if (/^tg:\/\//.test(safeUrl)) {
         if (tg && typeof tg.openTelegramLink === 'function') {
             tg.openTelegramLink(safeUrl);
         } else {
-            // В обычном браузере используем location.href для tg://
             window.location.href = safeUrl;
         }
         return;
@@ -90,7 +126,6 @@
     }
   }
 
-  // ---- time ----
   function formatSmartTime(isoString) {
     if (!isoString) return '';
     const d = new Date(isoString);
@@ -111,7 +146,6 @@
   }
   const formatTimestamp = (s) => formatSmartTime(s);
 
-  // ---- image markers ----
   const containsImageMarker = (text = '') =>
     /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
   const cleanImageMarkers = (text = '') => String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
@@ -125,7 +159,6 @@
     return '';
   }
 
-  // ---- fetch with retry ----
   async function fetchWithRetry(url, options = {}, retryCfg = { retries: 0, backoffMs: 300 }) {
     let attempt = 0;
     let lastErr = null;
@@ -142,11 +175,11 @@
     throw lastErr || new Error('Network error');
   }
 
-  // ---- empty/error ----
   function renderEmptyState(container, message) {
     const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif';
     container.innerHTML = `<div class="empty-state"><img src="${catGifUrl}" class="empty-state-gif" alt=""><p class="empty-state-text">${escapeHtml(message)}</p></div>`;
   }
+
   function renderError(container, message, onRetry) {
     container.innerHTML = `
       <div class="empty-state">
@@ -157,7 +190,6 @@
     btn?.addEventListener('click', () => onRetry?.());
   }
 
-  // ---- Load More button per container ----
   function ensureLoadMore(container, onClick) {
     let wrap = container.querySelector('.load-more-wrap');
     let btn = container.querySelector('.load-more-btn');
@@ -174,21 +206,21 @@
     btn.onclick = onClick;
     return { wrap, btn };
   }
+  
   function updateLoadMore(container, visible) {
     let wrap = container.querySelector('.load-more-wrap');
     if (!wrap) return;
     wrap.style.display = visible ? '' : 'none';
   }
 
-  // ---- ОБЩАЯ ФУНКЦИЯ ДЛЯ КАРТОЧЕК ----
   function createVacancyCard(v, options = {}) {
     const { pageType = 'main', searchQuery = '' } = options;
     const card = document.createElement('div');
     card.className = 'vacancy-card';
     card.id = `card-${v.id}`;
 
-    if (v.category === 'ТОЧНО ТВОЁ') card.classList.add('category-main');
-    else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
+    if (v.category === CFG.CATEGORIES.MAIN) card.classList.add('category-main');
+    else if (v.category === CFG.CATEGORIES.MAYBE) card.classList.add('category-maybe');
     else card.classList.add('category-other');
 
     const allowHttpOrTg = (url) => {
@@ -281,7 +313,6 @@
     return card;
   }
 
-  // ---- ОБЩАЯ ФУНКЦИЯ ДЛЯ PULL-TO-REFRESH ----
   function setupPullToRefresh(options = {}) {
     const { onRefresh, refreshEventName, container = window } = options;
     if (typeof onRefresh !== 'function' || !refreshEventName) return;
@@ -358,7 +389,6 @@
     }, { passive: true });
   }
 
-
   window.utils = {
     tg, escapeHtml, stripTags, debounce, highlightText, safeAlert, uiToast,
     formatTimestamp, sanitizeUrl, openLink,
@@ -366,6 +396,8 @@
     fetchWithRetry, renderEmptyState, renderError,
     ensureLoadMore, updateLoadMore,
     createVacancyCard,
-    setupPullToRefresh
+    setupPullToRefresh,
+    showCustomConfirm,
+    createSupabaseHeaders
   };
 })();

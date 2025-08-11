@@ -21,15 +21,24 @@ body {
     background-color: var(--background-color);
     color: var(--text-color);
     margin: 0;
-    /* ИЗМЕНЕНИЕ: Добавляем отступ снизу, равный высоте панели вкладок + небольшой запас */
     padding: 15px 15px 95px 15px;
 }
 
-/* --- Класс для бесшовной загрузки --- */
+/* --- Классы для анимаций --- */
 .vacancy-list.loading-seamless {
     opacity: 0.5;
     pointer-events: none;
     transition: opacity 0.2s ease-in-out;
+}
+
+/* ИЗМЕНЕНИЕ: Новый класс и анимация для pull-to-refresh */
+.is-refreshing {
+    animation: pulse-animation 1.2s infinite ease-in-out;
+}
+@keyframes pulse-animation {
+    0% { opacity: 1; }
+    50% { opacity: 0.6; }
+    100% { opacity: 1; }
 }
 
 /* --- Шапка и основной контент --- */

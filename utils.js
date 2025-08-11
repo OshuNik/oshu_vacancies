@@ -369,11 +369,10 @@
 
     if (!container || !mainElement) return;
 
-    // Уменьшаем порог для большей чувствительности
-    const { THRESHOLD, BAR_HEIGHT } = { THRESHOLD: 60, BAR_HEIGHT: 50 };
+    const { THRESHOLD, BAR_HEIGHT } = CFG.PTR_CONFIG || { THRESHOLD: 60, BAR_HEIGHT: 50 };
     let startY = 0, pulling = false, locked = false;
 
-    let bar = document.querySelector('.ptr-bar');
+    let bar = mainElement.querySelector('.ptr-bar');
     if (!bar) {
         bar = document.createElement('div');
         bar.className = 'ptr-bar';
@@ -389,13 +388,12 @@
     }
     barText.textContent = 'Потяните для обновления';
 
-    const resetState = (e) => {
-        if(locked && e) return; // Не сбрасываем, если мы в процессе загрузки
+    const resetState = () => {
         locked = false;
-        container.style.transition = 'transform 0.2s';
-        container.style.transform = 'translateY(0px)';
+        mainElement.style.transition = 'transform 0.2s';
+        mainElement.style.transform = 'translateY(0px)';
         bar.style.transition = 'transform 0.2s, opacity 0.2s';
-        bar.style.transform = `translateY(-100%)`;
+        bar.style.transform = `translateY(0)`;
         bar.style.opacity = '0';
         barText.textContent = 'Потяните для обновления';
     };
@@ -410,7 +408,7 @@
             pulling = false;
             return;
         }
-        container.style.transition = 'none';
+        mainElement.style.transition = 'none';
         bar.style.transition = 'none';
         startY = e.touches[0].clientY;
         pulling = true;
@@ -423,9 +421,8 @@
         if (dist > 0 && container.scrollTop === 0) {
             e.preventDefault();
             const pullDist = Math.pow(dist, 0.85);
-            container.style.transform = `translateY(${pullDist}px)`;
-            bar.style.transform = `translateY(${pullDist - BAR_HEIGHT}px)`;
-            bar.style.opacity = `${Math.min(pullDist / BAR_HEIGHT, 1)}`;
+            mainElement.style.transform = `translateY(${pullDist}px)`;
+            bar.style.opacity = `${Math.min(pullDist / THRESHOLD, 1)}`;
             
             if (pullDist > THRESHOLD) {
                 barText.textContent = 'Отпустите для обновления';
@@ -445,10 +442,9 @@
         
         if (Math.pow(finalDist, 0.85) > THRESHOLD) {
             locked = true;
-            container.style.transition = 'transform 0.2s';
-            container.style.transform = `translateY(${BAR_HEIGHT}px)`;
-            bar.style.transform = `translateY(0)`;
-            barText.innerHTML = '<div class="retro-spinner-inline"></div>';
+            mainElement.style.transition = 'transform 0.2s';
+            mainElement.style.transform = `translateY(${BAR_HEIGHT}px)`;
+            barText.innerHTML = '<div class="retro-spinner-inline"></div> Обновление...';
             
             if (tg && tg.HapticFeedback) tg.HapticFeedback.impactOccurred('medium');
             
@@ -457,11 +453,12 @@
             
             setTimeout(() => { if (locked) onLoaded(); }, 8000);
         } else {
-            resetState(true);
+            resetState();
         }
         pulling = false;
     }, { passive: true });
   }
+
 
   window.utils = {
     tg, 

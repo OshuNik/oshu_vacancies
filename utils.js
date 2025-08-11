@@ -7,7 +7,7 @@
   const CFG = window.APP_CONFIG || {};
 
   function uiToast(message = '', options = {}) {
-    const { onUndo } = options;
+    const { onUndo, onTimeout, timeout = 3000 } = options;
     const toastContainer = document.getElementById('toast-container');
     if (!toastContainer) {
         console.error('Toast container not found');
@@ -26,8 +26,8 @@
     const removeToast = () => {
         toast.classList.remove('show');
         setTimeout(() => {
-            if (toast.parentElement === toastContainer) {
-                toastContainer.removeChild(toast);
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
             }
         }, 300);
     };
@@ -52,17 +52,10 @@
 
     actionTimeout = setTimeout(() => {
         removeToast();
-        if (options.onTimeout) {
-            options.onTimeout();
+        if (onTimeout) {
+            onTimeout();
         }
-    }, options.timeout || 3000);
-
-    return {
-        clear: () => {
-            clearTimeout(actionTimeout);
-            removeToast();
-        }
-    };
+    }, timeout);
   }
 
   const safeAlert = (msg) => {

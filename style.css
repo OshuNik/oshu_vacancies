@@ -313,7 +313,12 @@ mark.highlight {
 
 /* --- Other UI Elements --- */
 .vacancy-list, .settings-tab-content { display: none; }
-.vacancy-list.active { display: block; }
+
+/* ИЗМЕНЕНИЕ: Добавляем !important, чтобы перебить любые другие стили, скрывающие блок */
+.vacancy-list.active, .settings-tab-content.active {
+    display: block !important;
+}
+
 .empty-list { 
     text-align: center; 
     color: var(--hint-color); 
@@ -419,7 +424,6 @@ mark.highlight {
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
-
 
 /* --- Settings Page --- */
 .settings-tabs { display: flex; gap: 5px; margin-bottom: 20px; }
@@ -567,6 +571,8 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
 .channel-item-delete svg { width: 24px; height: 24px; stroke: var(--accent-red); }
 
 .header-icon-btn {
+    position: static;
+    transform: none;
     background-color: var(--card-color);
     border: var(--border-width) solid var(--border-color);
     border-radius: 12px;
@@ -580,18 +586,21 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
     box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
     transition: all 0.1s ease-out;
 }
+.header-actions-right {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+#logout-button {
+    border-color: var(--accent-red) !important;
+    color: var(--accent-red);
+}
 .header-icon-btn svg { width: 24px; height: 24px; stroke: var(--accent-blue); stroke-width: 2.5; }
 .header-icon-btn:active {
     transform: translate(var(--shadow-offset), var(--shadow-offset));
     box-shadow: 0px 0px 0px var(--border-color);
 }
 .header-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.header-settings .header-icon-btn {
-    position: absolute;
-    right: 0;
-    top: 50%;
-    transform: translateY(-50%);
-}
 
 /* --- Card Header Colors --- */
 .vacancy-card.category-main .card-header h3 { background-color: var(--accent-green); }

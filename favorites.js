@@ -1,5 +1,5 @@
 // favorites.js — вкладка «Избранное»
-// ИСПРАВЛЕНО: Поиск работает через сервер, добавлены уведомления
+// ИСПРАВЛЕНО: Используется новый ретро-спиннер
 
 (function () {
   'use strict';
@@ -51,7 +51,8 @@
 
   // --- API: загрузка избранного с поиском ---
   async function loadFavorites(query = '') {
-    container.innerHTML = '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="progress-bar-outline" style="max-width:300px;"><div class="progress-bar" style="animation: loading-anim 1.5s ease-in-out infinite;"></div></div></div>';
+    // ИСПОЛЬЗУЕМ НОВЫЙ СПИННЕР
+    container.innerHTML = '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="retro-spinner"></div></div>';
 
     try {
       const p = new URLSearchParams();

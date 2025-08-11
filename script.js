@@ -2,7 +2,7 @@
 
 (function () {
   'use strict';
-
+  
   const CFG = window.APP_CONFIG || {};
   const UTIL = window.utils || {};
 
@@ -41,11 +41,13 @@
     maybe: document.getElementById('vacancies-list-maybe'),
     other: document.getElementById('vacancies-list-other'),
   };
+  
   const counts = {
     main:  document.getElementById('count-main'),
     maybe: document.getElementById('count-maybe'),
     other: document.getElementById('count-other'),
   };
+
   const tabButtons      = document.querySelectorAll('.tab-button');
   const vacancyLists    = document.querySelectorAll('.vacancy-list');
   const searchInput     = document.getElementById('search-input');
@@ -97,7 +99,7 @@
     currentController = new AbortController();
     return currentController;
   }
-
+  
   function keyFromTargetId(targetId){
     if (targetId.endsWith('-main'))  return 'main';
     if (targetId.endsWith('-maybe')) return 'maybe';
@@ -145,7 +147,7 @@
         p.set('select', 'id');
         p.set('status', `eq.${STATUSES.NEW}`);
         p.set('limit', '1');
-
+        
         if (key === 'main') p.set('category', `eq.${CATEGORIES.MAIN}`);
         else if (key === 'maybe') p.set('category', `eq.${CATEGORIES.MAYBE}`);
         else p.set('category', `not.in.("${CATEGORIES.MAIN}","${CATEGORIES.MAYBE}")`);
@@ -155,7 +157,7 @@
           const orExpr = '(' + SEARCH_FIELDS.map(f => `${f}.ilike.*${q}*`).join(',') + ')';
           p.set('or', orExpr);
         }
-
+        
         const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
         const resp = await fetchWithRetry(url, {
           headers: createSupabaseHeaders({ prefer: 'count=exact' })
@@ -187,15 +189,15 @@
   async function updateStatus(id, newStatus){
     if (!id) return;
     const isFavorite = newStatus === STATUSES.FAVORITE;
-
+    
     if (isFavorite) {
         const ok = await showCustomConfirm('Добавить в избранное?');
         if (!ok) return;
     }
-
+    
     const cardEl = document.querySelector(`#card-${CSS.escape(id)}`);
     if (!cardEl) return;
-
+    
     cardEl.style.transition = 'opacity .3s, transform .3s, max-height .3s, margin .3s, padding .3s, border-width .3s';
     cardEl.style.opacity = '0';
     cardEl.style.transform = 'scale(0.95)';
@@ -205,10 +207,10 @@
     cardEl.style.marginTop = '0';
     cardEl.style.marginBottom = '0';
     cardEl.style.borderWidth = '0';
-
+    
     const parent = cardEl.parentElement;
     const nextSibling = cardEl.nextElementSibling;
-
+    
     const onUndo = () => {
         parent.insertBefore(cardEl, nextSibling);
         requestAnimationFrame(() => {
@@ -222,7 +224,7 @@
             cardEl.style.borderWidth = '';
         });
     };
-
+    
     uiToast(isFavorite ? 'Добавлено в избранное' : 'Вакансия удалена', {
       timeout: 5000,
       onUndo: onUndo,
@@ -236,7 +238,7 @@
               body: JSON.stringify({ status: newStatus }),
             }, RETRY_OPTIONS);
             if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
-
+            
             const k = state.activeKey;
             if (state[k].total > 0) state[k].total -= 1;
             counts[k].textContent = `(${state[k].total})`;
@@ -275,7 +277,7 @@
       if (Number.isFinite(total)){ st.total = total; counts[key].textContent = `(${total})`; }
 
       const items = await resp.json();
-
+      
       if (st.offset === 0) {
           clearContainer(container);
       }
@@ -314,7 +316,7 @@
       document.dispatchEvent(new CustomEvent(`feed:loaded`));
     }
   }
-
+  
   async function refetchFromZeroSmooth(key) {
     const st = state[key];
     const container = containers[key];
@@ -327,10 +329,10 @@
       const st = state[key];
       const container = containers[key];
       if (!container || st.busy) return;
-
+      
       st.busy = true;
       st.offset = 0;
-
+      
       container.classList.add('loading-seamless');
 
       const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, 0, state.query);
@@ -344,10 +346,10 @@
           if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
           const total = parseTotal(resp);
-          if (Number.isFinite(total)) { st.total = total; counts[key].textContent = `(${total})`; }
+          if (Number.isFinite(total)) { counts[key].textContent = `(${total})`; }
 
           const items = await resp.json();
-
+          
           const frag = document.createDocumentFragment();
           if (items.length === 0) {
               const message = state.query ? 'По вашему запросу ничего не найдено' : '-- Пусто в этой категории --';
@@ -356,7 +358,7 @@
               frag.appendChild(emptyEl.firstElementChild);
           } else {
               items.forEach(it => frag.appendChild(createVacancyCard(it, { pageType: 'main', searchQuery: state.query })));
-
+              
               st.offset = items.length;
               const hasMore = st.offset < total;
               const { wrap } = ensureLoadMore(document.createElement('div'), () => fetchNext(key));
@@ -393,7 +395,7 @@
       }
     });
   }, 300);
-
+  
   searchInput?.addEventListener('input', () => {
       searchInputWrapper?.classList.toggle('has-text', searchInput.value.length > 0);
       onSearch();
@@ -415,7 +417,7 @@
     const target=document.getElementById(targetId);
     if(target){ target.classList.add('active'); target.style.display=''; }
   }
-
+  
   async function activateTabByTarget(targetId){
     const key = keyFromTargetId(targetId);
     state.activeKey = key;
@@ -483,7 +485,7 @@
         bulkDeleteCategory(key);
       }, holdMs);
     };
-
+    
     const cancel = (e) => {
       btn.classList.remove('pressing');
       clearTimeout(pressTimer);
@@ -515,21 +517,16 @@
       b.classList.toggle('active', active);
       b.setAttribute('aria-selected', active ? 'true' : 'false');
     });
-
     
-    // ИЗМЕНЕНИЕ: Обновляем вызов функции
     setupPullToRefresh({
         onRefresh: () => refetchFromZeroSmooth(state.activeKey),
-        refreshEventName: 'feed:loaded',
-        contentElement: vacanciesContent 
-        container: vacanciesContent,
-        mainElement: document.querySelector('body')
+        refreshEventName: 'feed:loaded'
     });
-
+    
     showLoader();
     await fetchCountsAll('');
     await fetchNext('main', true);
-
+    
     setTimeout(() => {
         ['maybe', 'other'].forEach(k => {
             if (!state[k].loadedOnce) {
@@ -540,7 +537,7 @@
 
     updateSearchStats();
   }
-
+  
   function handlePageVisibility() {
       if (document.visibilityState === 'visible') {
           if (localStorage.getItem('needs-refresh-main') === 'true') {

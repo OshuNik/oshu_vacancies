@@ -181,9 +181,9 @@
         
         const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
         
-        // Добавляем таймаут для счетчиков на медленных соединениях
+        // Увеличиваем таймаут для мобильных устройств
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 секунд для счетчиков
+        const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 секунд для мобильных
         
         try {
           const resp = await fetchWithRetry(url, {
@@ -196,30 +196,18 @@
           clearTimeout(timeoutId);
         }
     };
+    
     try {
-      const results = await Promise.allSettled([
-        fetchCount('main', query),
-        fetchCount('maybe', query),
-        fetchCount('other', query),
-      ]);
+      // Загружаем счетчики последовательно для лучшей производительности на мобильных
+      const mainCount = await fetchCount('main').catch(() => 0);
+      const maybeCount = await fetchCount('maybe').catch(() => 0);
+      const otherCount = await fetchCount('other').catch(() => 0);
       
-      // Валидация и безопасное присвоение счетчиков
-      const [mainResult, maybeResult, otherResult] = results;
-      const cMain = mainResult.status === 'fulfilled' && Number.isFinite(mainResult.value) ? mainResult.value : 0;
-      const cMaybe = maybeResult.status === 'fulfilled' && Number.isFinite(maybeResult.value) ? maybeResult.value : 0;
-      const cOther = otherResult.status === 'fulfilled' && Number.isFinite(otherResult.value) ? otherResult.value : 0;
+      // Безопасно обновляем счетчики
+      state.main.total = mainCount;  counts.main.textContent = `(${mainCount})`;
+      state.maybe.total = maybeCount; counts.maybe.textContent = `(${maybeCount})`;
+      state.other.total = otherCount; counts.other.textContent = `(${otherCount})`;
       
-      state.main.total  = cMain;  counts.main.textContent  = `(${cMain})`;
-      state.maybe.total = cMaybe; counts.maybe.textContent = `(${cMaybe})`;
-      state.other.total = cOther; counts.other.textContent = `(${cOther})`;
-      
-      // Логируем частичные ошибки если есть
-      results.forEach((result, index) => {
-        if (result.status === 'rejected') {
-          const categoryName = ['main', 'maybe', 'other'][index];
-          console.warn(`Ошибка загрузки счетчика ${categoryName}:`, result.reason);
-        }
-      });
     } catch(e) { 
       console.warn('Ошибка загрузки счетчиков:', e);
       // Fallback: устанавливаем нули и продолжаем работу
@@ -322,53 +310,76 @@
     const controller = abortCurrent();
 
     try {
-      const resp = await fetchWithRetry(url, {
-        headers: createSupabaseHeaders({ prefer: 'count=exact' }),
-        signal: controller.signal
-      }, RETRY_OPTIONS);
-      if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
-
-      const total = parseTotal(resp);
-      if (Number.isFinite(total)){ st.total = total; counts[key].textContent = `(${total})`; }
-
-      const data = await resp.json();
+      // Увеличиваем таймаут для мобильных устройств
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 секунд для мобильных
       
-      // Валидация данных API
-      if (!Array.isArray(data)) {
-        throw new Error('API вернул некорректный формат данных (ожидался массив)');
-      }
-      
-      const items = data.filter(item => item && typeof item === 'object' && item.id);
-      
-      if (st.offset === 0) {
-          clearContainer(container);
-      }
+      try {
+        const resp = await fetchWithRetry(url, {
+          headers: createSupabaseHeaders({ prefer: 'count=exact' }),
+          signal: controller.signal
+        }, RETRY_OPTIONS);
+        
+        clearTimeout(timeoutId);
+        
+        if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
-      if (items.length === 0) {
-        if (st.offset === 0) {
-            const message = state.query ? 'По вашему запросу ничего не найдено' : '-- Пусто в этой категории --';
-            renderEmptyState(container, message);
+        const total = parseTotal(resp);
+        if (Number.isFinite(total)){ st.total = total; counts[key].textContent = `(${total})`; }
+
+        const data = await resp.json();
+        
+        // Валидация данных API
+        if (!Array.isArray(data)) {
+          throw new Error('API вернул некорректный формат данных (ожидался массив)');
         }
-      } else {
-        const frag = document.createDocumentFragment();
-        for (const it of items) frag.appendChild(createVacancyCard(it, { pageType: 'main', searchQuery: state.query }));
-        container.appendChild(frag);
-        pinLoadMoreToBottom(container);
+        
+        const items = data.filter(item => item && typeof item === 'object' && item.id);
+        
+        if (st.offset === 0) {
+            clearContainer(container);
+        }
 
-        const { btn } = ensureLoadMore(container, () => fetchNext(key));
-        st.offset += items.length;
-        const hasMore = st.offset < st.total;
-        updateLoadMore(container, hasMore);
-        if (btn) btn.disabled = !hasMore;
+        if (items.length === 0) {
+          if (st.offset === 0) {
+              const message = state.query ? 'По вашему запросу ничего не найдено' : '-- Пусто в этой категории --';
+              renderEmptyState(container, message);
+          }
+        } else {
+          const frag = document.createDocumentFragment();
+          for (const it of items) frag.appendChild(createVacancyCard(it, { pageType: 'main', searchQuery: state.query }));
+          container.appendChild(frag);
+          pinLoadMoreToBottom(container);
+
+          const { btn } = ensureLoadMore(container, () => fetchNext(key));
+          st.offset += items.length;
+          const hasMore = st.offset < st.total;
+          updateLoadMore(container, hasMore);
+          if (btn) btn.disabled = !hasMore;
+        }
+        st.loadedOnce = true;
+        st.loadedForQuery = state.query;
+        updateSearchStats();
+        
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        throw fetchError;
       }
-      st.loadedOnce = true;
-      st.loadedForQuery = state.query;
-      updateSearchStats();
+      
     } catch(e) {
-      if (e.name === 'AbortError') return;
+      if (e.name === 'AbortError') {
+        console.warn('Запрос отменен по таймауту');
+        if (st.offset === 0) {
+          renderError(container, 'Превышено время ожидания. Проверьте соединение.', () => refetchFromZeroSmooth(key));
+        }
+        return;
+      }
+      
       console.error('Load error:', e);
       if (st.offset === 0) {
-        renderError(container, e.message, () => refetchFromZeroSmooth(key));
+        const errorMessage = e.message.includes('Failed to fetch') || e.message.includes('NetworkError') 
+          ? 'Ошибка сети. Проверьте соединение.' 
+          : e.message;
+        renderError(container, errorMessage, () => refetchFromZeroSmooth(key));
       }
     } finally {
       st.busy = false;
@@ -399,12 +410,18 @@
 
       const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, 0, state.query);
       const controller = abortCurrent();
+      
+      // Добавляем таймаут для поиска на мобильных устройствах
+      const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 секунд для мобильных
 
       try {
           const resp = await fetchWithRetry(url, {
               headers: createSupabaseHeaders({ prefer: 'count=exact' }),
               signal: controller.signal
           }, RETRY_OPTIONS);
+          
+          clearTimeout(timeoutId);
+
           if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
           const total = parseTotal(resp);
@@ -433,8 +450,15 @@
           st.loadedForQuery = state.query;
           updateSearchStats();
       } catch (e) {
-          if (e.name !== 'AbortError') {
-              renderError(container, e.message, () => seamlessSearch(key));
+          clearTimeout(timeoutId);
+          if (e.name === 'AbortError') {
+              console.warn('Поиск отменен по таймауту');
+              renderError(container, 'Превышено время ожидания поиска. Проверьте соединение.', () => seamlessSearch(key));
+          } else if (e.name !== 'AbortError') {
+              const errorMessage = e.message.includes('Failed to fetch') || e.message.includes('NetworkError') 
+                ? 'Ошибка сети при поиске. Проверьте соединение.' 
+                : e.message;
+              renderError(container, errorMessage, () => seamlessSearch(key));
           }
       } finally {
           st.busy = false;
@@ -573,11 +597,11 @@
     // Показываем лоадер в самом начале
     showLoader();
     
-    // Таймаут для лоадера (на случай медленного соединения)
+    // Увеличиваем таймаут для лоадера на мобильных устройствах
     const loaderTimeout = setTimeout(() => {
       console.warn('Лоадер висит слишком долго, принудительно скрываем');
       hideLoader();
-    }, 15000); // 15 секунд
+    }, 25000); // 25 секунд для мобильных устройств
     
     // Проверяем критические элементы
     if (!containers.main || !containers.maybe || !containers.other) {
@@ -602,44 +626,44 @@
         refreshEventName: 'feed:loaded'
     });
     
-    // Загружаем основную категорию и счетчики параллельно
-    // но с приоритетом на основную категорию
+    // Приоритетная загрузка только основной категории для быстрого отображения
     try {
-      const [mainResult] = await Promise.allSettled([
-        fetchNext('main', true),
-        fetchCountsAll('')
-      ]);
+      await fetchNext('main', true);
       
-      // Если основная загрузка не удалась, показываем ошибку
-      if (mainResult.status === 'rejected') {
-        clearTimeout(loaderTimeout);
-        throw mainResult.reason;
-      }
-      
-      // Скрываем лоадер после успешной загрузки основной категории
+      // Скрываем лоадер после загрузки основной категории
       clearTimeout(loaderTimeout);
       hideLoader();
       
     } catch (error) {
       console.error('Ошибка загрузки основной категории:', error);
+      clearTimeout(loaderTimeout);
       hideLoader();
       renderError(containers.main, error.message, () => refetchFromZeroSmooth('main'));
       return;
     }
     
-    // Фоновая загрузка остальных категорий
+    // Отложенная загрузка счетчиков и остальных категорий
     setTimeout(async () => {
-        const backgroundLoads = ['maybe', 'other']
-            .filter(k => !state[k].loadedOnce)
-            .map(k => fetchNext(k, false).catch(error => {
-                console.warn(`Фоновая загрузка ${k} неуспешна:`, error);
-                return null;
-            }));
-            
-        if (backgroundLoads.length > 0) {
-            await Promise.allSettled(backgroundLoads);
-        }
-    }, 500);
+      try {
+        // Загружаем счетчики отдельно с увеличенным таймаутом
+        await fetchCountsAll('');
+      } catch (error) {
+        console.warn('Ошибка загрузки счетчиков:', error);
+        // Не блокируем работу приложения
+      }
+      
+      // Фоновая загрузка остальных категорий
+      const backgroundLoads = ['maybe', 'other']
+          .filter(k => !state[k].loadedOnce)
+          .map(k => fetchNext(k, false).catch(error => {
+              console.warn(`Фоновая загрузка ${k} неуспешна:`, error);
+              return null;
+          }));
+          
+      if (backgroundLoads.length > 0) {
+          await Promise.allSettled(backgroundLoads);
+      }
+    }, 1000); // Увеличиваем задержку до 1 секунды
 
     updateSearchStats();
   }

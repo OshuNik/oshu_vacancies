@@ -221,12 +221,29 @@
   }
 
   vacanciesContent?.addEventListener('click', (e) => {
+    console.log('🖱️ Click event:', e.target, e.target.dataset);
+    
     const btn = e.target.closest('[data-action]');
-    if (!btn) return;
+    if (!btn) {
+      console.log('⚠️ Кнопка не найдена');
+      return;
+    }
+    
     const action = btn.dataset.action;
-    if (action === 'apply')    openLink(btn.dataset.url);
-    if (action === 'favorite') updateStatus(btn.dataset.id, STATUSES.FAVORITE);
-    if (action === 'delete')   updateStatus(btn.dataset.id, STATUSES.DELETED);
+    console.log('🎯 Действие:', action, 'ID:', btn.dataset.id);
+    
+    if (action === 'apply') {
+      console.log('🔗 Открываем ссылку:', btn.dataset.url);
+      openLink(btn.dataset.url);
+    }
+    if (action === 'favorite') {
+      console.log('⭐ Добавляем в избранное:', btn.dataset.id);
+      updateStatus(btn.dataset.id, STATUSES.FAVORITE);
+    }
+    if (action === 'delete') {
+      console.log('🗑️ Удаляем вакансию:', btn.dataset.id);
+      updateStatus(btn.dataset.id, STATUSES.DELETED);
+    }
   });
 
   async function updateStatus(id, newStatus){
@@ -297,36 +314,55 @@
   }
 
   async function fetchNext(key, isInitialLoad = false) {
+    console.log(`📥 fetchNext: ${key}, isInitialLoad: ${isInitialLoad}`);
+    
     const st = state[key];
     const container = containers[key];
-    if (!container || st.busy) return;
+    
+    console.log(`🔍 Проверяем состояние для ${key}:`, st);
+    console.log(`🔍 Контейнер для ${key}:`, container);
+    
+    if (!container || st.busy) {
+      console.warn(`⚠️ fetchNext ${key} пропущен:`, { container: !!container, busy: st?.busy });
+      return;
+    }
+    
     st.busy = true;
+    console.log(`🚀 Начинаем загрузку ${key}...`);
 
     if (st.offset === 0 && !isInitialLoad) {
         container.innerHTML = '<div class="empty-list"><div class="retro-spinner-inline"></div> Загрузка...</div>';
     }
 
     const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, st.offset, state.query);
+    console.log(`🌐 URL для ${key}:`, url);
+    
     const controller = abortCurrent();
 
     try {
       // Увеличиваем таймаут для мобильных устройств
       const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 секунд для мобильных
+      console.log(`⏰ Установлен таймаут 20с для ${key}`);
       
       try {
+        console.log(`📡 Отправляем запрос для ${key}...`);
         const resp = await fetchWithRetry(url, {
           headers: createSupabaseHeaders({ prefer: 'count=exact' }),
           signal: controller.signal
         }, RETRY_OPTIONS);
         
         clearTimeout(timeoutId);
+        console.log(`✅ Ответ получен для ${key}:`, resp.status, resp.statusText);
         
         if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
         const total = parseTotal(resp);
+        console.log(`📊 Общее количество для ${key}:`, total);
+        
         if (Number.isFinite(total)){ st.total = total; counts[key].textContent = `(${total})`; }
 
         const data = await resp.json();
+        console.log(`📦 Данные получены для ${key}:`, data?.length, 'элементов');
         
         // Валидация данных API
         if (!Array.isArray(data)) {
@@ -334,6 +370,7 @@
         }
         
         const items = data.filter(item => item && typeof item === 'object' && item.id);
+        console.log(`✅ Валидных элементов для ${key}:`, items.length);
         
         if (st.offset === 0) {
             clearContainer(container);
@@ -345,6 +382,7 @@
               renderEmptyState(container, message);
           }
         } else {
+          console.log(`🎨 Создаем карточки для ${key}...`);
           const frag = document.createDocumentFragment();
           for (const it of items) frag.appendChild(createVacancyCard(it, { pageType: 'main', searchQuery: state.query }));
           container.appendChild(frag);
@@ -355,6 +393,7 @@
           const hasMore = st.offset < st.total;
           updateLoadMore(container, hasMore);
           if (btn) btn.disabled = !hasMore;
+          console.log(`✅ Карточки добавлены для ${key}, offset: ${st.offset}, hasMore: ${hasMore}`);
         }
         st.loadedOnce = true;
         st.loadedForQuery = state.query;
@@ -362,19 +401,20 @@
         
       } catch (fetchError) {
         clearTimeout(timeoutId);
+        console.error(`❌ Ошибка fetch для ${key}:`, fetchError);
         throw fetchError;
       }
       
     } catch(e) {
       if (e.name === 'AbortError') {
-        console.warn('Запрос отменен по таймауту');
+        console.warn(`⏰ Запрос ${key} отменен по таймауту`);
         if (st.offset === 0) {
           renderError(container, 'Превышено время ожидания. Проверьте соединение.', () => refetchFromZeroSmooth(key));
         }
         return;
       }
       
-      console.error('Load error:', e);
+      console.error(`❌ Load error для ${key}:`, e);
       if (st.offset === 0) {
         const errorMessage = e.message.includes('Failed to fetch') || e.message.includes('NetworkError') 
           ? 'Ошибка сети. Проверьте соединение.' 
@@ -387,6 +427,7 @@
           hideLoader();
       }
       document.dispatchEvent(new CustomEvent(`feed:loaded`));
+      console.log(`🏁 fetchNext ${key} завершен`);
     }
   }
   
@@ -557,32 +598,40 @@
   }
 
   tabButtons.forEach(btn=>{
+    console.log('🔘 Настраиваем вкладку:', btn.dataset.target);
+    
     let pressTimer = null;
     let isHeld = false;
     const holdMs = 700;
 
     const start = (e) => {
+      console.log('👆 Начало нажатия на вкладку:', btn.dataset.target);
       isHeld = false;
       btn.classList.add('pressing');
       pressTimer = setTimeout(() => {
         isHeld = true;
         btn.classList.remove('pressing');
         const key = keyFromTargetId(btn.dataset.target || '');
+        console.log('⏰ Долгое нажатие на вкладку:', key);
         bulkDeleteCategory(key);
       }, holdMs);
     };
     
     const cancel = (e) => {
+      console.log('❌ Отмена нажатия на вкладку:', btn.dataset.target);
       btn.classList.remove('pressing');
       clearTimeout(pressTimer);
     };
 
     const clickHandler = (e) => {
+        console.log('🖱️ Клик по вкладке:', btn.dataset.target, 'isHeld:', isHeld);
         if (isHeld) {
             e.preventDefault();
             e.stopPropagation();
+            console.log('🚫 Долгое нажатие - предотвращаем обычный клик');
         } else {
             const targetId = btn.dataset.target;
+            console.log('✅ Обычный клик - переключаем на вкладку:', targetId);
             if(targetId) activateTabByTarget(targetId);
         }
     };
@@ -591,25 +640,98 @@
     btn.addEventListener('pointerup', cancel);
     btn.addEventListener('pointerleave', cancel);
     btn.addEventListener('click', clickHandler);
+    
+    console.log('✅ Вкладка настроена:', btn.dataset.target);
   });
 
+  // Fallback обработчики для мобильных устройств
+  function setupMobileFallbacks() {
+    console.log('📱 Настраиваем fallback для мобильных устройств...');
+    
+    // Проверяем, является ли устройство мобильным
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    console.log('📱 Мобильное устройство:', isMobile);
+    
+    if (isMobile) {
+      // Добавляем touchstart обработчики как fallback
+      console.log('👆 Добавляем touchstart обработчики...');
+      
+      // Обработчики для кнопок действий
+      document.addEventListener('touchstart', (e) => {
+        const btn = e.target.closest('[data-action]');
+        if (!btn) return;
+        
+        console.log('👆 Touchstart на кнопке:', btn.dataset.action);
+        
+        // Предотвращаем двойное срабатывание
+        e.preventDefault();
+        
+        const action = btn.dataset.action;
+        if (action === 'apply') {
+          openLink(btn.dataset.url);
+        } else if (action === 'favorite') {
+          updateStatus(btn.dataset.id, STATUSES.FAVORITE);
+        } else if (action === 'delete') {
+          updateStatus(btn.dataset.id, STATUSES.DELETED);
+        }
+      }, { passive: false });
+      
+      // Обработчики для вкладок
+      document.addEventListener('touchstart', (e) => {
+        const tab = e.target.closest('.tab-button');
+        if (!tab) return;
+        
+        console.log('👆 Touchstart на вкладке:', tab.dataset.target);
+        
+        // Предотвращаем двойное срабатывание
+        e.preventDefault();
+        
+        const targetId = tab.dataset.target;
+        if (targetId) {
+          activateTabByTarget(targetId);
+        }
+      }, { passive: false });
+      
+      // Обработчики для поиска
+      const searchInput = document.getElementById('search-input');
+      if (searchInput) {
+        searchInput.addEventListener('touchstart', (e) => {
+          console.log('👆 Touchstart на поле поиска');
+          searchInput.focus();
+        });
+      }
+      
+      console.log('✅ Fallback обработчики настроены');
+    }
+  }
+
+  // Улучшенная функция инициализации
   async function init() {
+    console.log('🚀 Инициализация приложения...');
+    
     // Показываем лоадер в самом начале
     showLoader();
     
     // Увеличиваем таймаут для лоадера на мобильных устройствах
     const loaderTimeout = setTimeout(() => {
-      console.warn('Лоадер висит слишком долго, принудительно скрываем');
+      console.warn('⚠️ Лоадер висит слишком долго, принудительно скрываем');
       hideLoader();
     }, 25000); // 25 секунд для мобильных устройств
     
     // Проверяем критические элементы
+    console.log('🔍 Проверяем критические элементы...');
+    console.log('containers.main:', containers.main);
+    console.log('containers.maybe:', containers.maybe);
+    console.log('containers.other:', containers.other);
+    
     if (!containers.main || !containers.maybe || !containers.other) {
-      console.error('Критическая ошибка: не найдены контейнеры для вакансий');
+      console.error('❌ Критическая ошибка: не найдены контейнеры для вакансий');
       hideLoader();
       safeAlert('Приложение не может запуститься. Перезагрузите страницу.');
       return;
     }
+
+    console.log('✅ Критические элементы найдены');
 
     Object.keys(containers).forEach(k => {
       containers[k].style.display = (k === state.activeKey) ? '' : 'none';
@@ -621,21 +743,27 @@
       b.setAttribute('aria-selected', active ? 'true' : 'false');
     });
     
+    console.log('🔄 Настраиваем Pull-to-Refresh...');
     setupPullToRefresh({
         onRefresh: () => refetchFromZeroSmooth(state.activeKey),
         refreshEventName: 'feed:loaded'
     });
     
+    // Настраиваем fallback для мобильных устройств
+    setupMobileFallbacks();
+    
     // Приоритетная загрузка только основной категории для быстрого отображения
+    console.log('📥 Загружаем основную категорию...');
     try {
       await fetchNext('main', true);
+      console.log('✅ Основная категория загружена успешно');
       
       // Скрываем лоадер после загрузки основной категории
       clearTimeout(loaderTimeout);
       hideLoader();
       
     } catch (error) {
-      console.error('Ошибка загрузки основной категории:', error);
+      console.error('❌ Ошибка загрузки основной категории:', error);
       clearTimeout(loaderTimeout);
       hideLoader();
       renderError(containers.main, error.message, () => refetchFromZeroSmooth('main'));
@@ -643,29 +771,35 @@
     }
     
     // Отложенная загрузка счетчиков и остальных категорий
+    console.log('⏰ Планируем отложенную загрузку...');
     setTimeout(async () => {
       try {
+        console.log('📊 Загружаем счетчики...');
         // Загружаем счетчики отдельно с увеличенным таймаутом
         await fetchCountsAll('');
+        console.log('✅ Счетчики загружены');
       } catch (error) {
-        console.warn('Ошибка загрузки счетчиков:', error);
+        console.warn('⚠️ Ошибка загрузки счетчиков:', error);
         // Не блокируем работу приложения
       }
       
       // Фоновая загрузка остальных категорий
+      console.log('🔄 Загружаем остальные категории...');
       const backgroundLoads = ['maybe', 'other']
           .filter(k => !state[k].loadedOnce)
           .map(k => fetchNext(k, false).catch(error => {
-              console.warn(`Фоновая загрузка ${k} неуспешна:`, error);
+              console.warn(`⚠️ Фоновая загрузка ${k} неуспешна:`, error);
               return null;
           }));
           
       if (backgroundLoads.length > 0) {
           await Promise.allSettled(backgroundLoads);
+          console.log('✅ Фоновая загрузка завершена');
       }
     }, 1000); // Увеличиваем задержку до 1 секунды
 
     updateSearchStats();
+    console.log('🎉 Инициализация завершена');
   }
   
   function handlePageVisibility() {
@@ -688,7 +822,126 @@
   }
   document.addEventListener('visibilitychange', handlePageVisibility);
 
-  document.readyState === 'loading'
-    ? document.addEventListener('DOMContentLoaded', init)
-    : init();
+  // Улучшенная инициализация с проверкой готовности DOM
+  function waitForDOM() {
+    return new Promise((resolve) => {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', resolve);
+      } else {
+        resolve();
+      }
+    });
+  }
+
+  // Проверка критических элементов
+  function checkCriticalElements() {
+    const critical = {
+      containers: {
+        main: document.getElementById('vacancies-list-main'),
+        maybe: document.getElementById('vacancies-list-maybe'),
+        other: document.getElementById('vacancies-list-other'),
+      },
+      counts: {
+        main: document.getElementById('count-main'),
+        maybe: document.getElementById('count-main'),
+        other: document.getElementById('count-other'),
+      },
+      other: {
+        searchInput: document.getElementById('search-input'),
+        loader: document.getElementById('loader'),
+        tabButtons: document.querySelectorAll('.tab-button'),
+        vacancyLists: document.querySelectorAll('.vacancy-list'),
+      }
+    };
+
+    console.log('🔍 Проверяем критические элементы:', critical);
+    
+    // Проверяем контейнеры
+    const missingContainers = Object.entries(critical.containers)
+      .filter(([key, el]) => !el)
+      .map(([key]) => key);
+    
+    if (missingContainers.length > 0) {
+      console.error('❌ Отсутствуют контейнеры:', missingContainers);
+      return false;
+    }
+
+    // Проверяем счетчики
+    const missingCounts = Object.entries(critical.counts)
+      .filter(([key, el]) => !el)
+      .map(([key]) => key);
+    
+    if (missingCounts.length > 0) {
+      console.error('❌ Отсутствуют счетчики:', missingCounts);
+      return false;
+    }
+
+    // Проверяем остальные элементы
+    const missingOther = Object.entries(critical.other)
+      .filter(([key, el]) => !el || (Array.isArray(el) && el.length === 0))
+      .map(([key]) => key);
+    
+    if (missingOther.length > 0) {
+      console.error('❌ Отсутствуют элементы:', missingOther);
+      return false;
+    }
+
+    console.log('✅ Все критические элементы найдены');
+    return true;
+  }
+
+  // Основная функция инициализации
+  async function mainInit() {
+    try {
+      console.log('🚀 Начинаем инициализацию приложения...');
+      
+      // Ждем готовности DOM
+      await waitForDOM();
+      console.log('✅ DOM готов');
+      
+      // Проверяем критические элементы
+      if (!checkCriticalElements()) {
+        throw new Error('Критические элементы не найдены');
+      }
+      
+      // Инициализируем приложение
+      await init();
+      
+    } catch (error) {
+      console.error('❌ Критическая ошибка инициализации:', error);
+      
+      // Показываем пользователю ошибку
+      const errorDiv = document.createElement('div');
+      errorDiv.style.cssText = `
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: #ff4444;
+        color: white;
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        z-index: 10000;
+        max-width: 80%;
+      `;
+      errorDiv.innerHTML = `
+        <h3>Ошибка загрузки приложения</h3>
+        <p>${error.message}</p>
+        <button onclick="location.reload()" style="
+          background: white;
+          color: #ff4444;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 4px;
+          margin-top: 10px;
+          cursor: pointer;
+        ">Перезагрузить</button>
+      `;
+      document.body.appendChild(errorDiv);
+    }
+  }
+
+  // Запускаем инициализацию
+  mainInit();
 })();

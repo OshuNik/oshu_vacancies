@@ -79,7 +79,7 @@
   let searchStatsEl=null;
   function ensureSearchUI(){
     const searchContainer = document.getElementById('search-container');
-    if(!searchContainer || searchStatsEl) return;
+    if(!searchContainer || searchStatsEl || !searchInputWrapper) return;
     searchStatsEl=document.createElement('div');
     searchStatsEl.className='search-stats';
     searchInputWrapper.insertAdjacentElement('afterend', searchStatsEl);

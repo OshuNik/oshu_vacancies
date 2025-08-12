@@ -48,7 +48,7 @@
   let favStatsEl = null;
   function ensureFavSearchUI() {
     const parent = document.getElementById('search-container-fav') || searchInputFav?.parentElement;
-    if (!parent || favStatsEl) return;
+    if (!parent || favStatsEl || !searchInputWrapperFav) return;
     favStatsEl = document.createElement('div');
     favStatsEl.className = 'search-stats';
     searchInputWrapperFav.insertAdjacentElement('afterend', favStatsEl);

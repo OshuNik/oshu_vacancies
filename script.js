@@ -899,6 +899,15 @@
         searchInput.parentNode.replaceChild(newSearchInput, searchInput);
         // Обновляем ссылку
         searchInput = newSearchInput;
+        
+        // Обновляем searchInputWrapper
+        searchInputWrapper = newSearchInput.parentElement;
+        
+        // Добавляем обработчики событий для нового элемента
+        newSearchInput.addEventListener('input', () => {
+          searchInputWrapper?.classList.toggle('has-text', newSearchInput.value.length > 0);
+          onSearch();
+        });
       }
       
       if (searchClearBtn) {
@@ -906,6 +915,16 @@
         searchClearBtn.parentNode.replaceChild(newSearchClearBtn, searchClearBtn);
         // Обновляем ссылку
         searchClearBtn = newSearchClearBtn;
+        
+        // Добавляем обработчики событий для нового элемента
+        newSearchClearBtn.addEventListener('click', () => {
+          if (searchInput) {
+            searchInput.value = '';
+            searchInputWrapper?.classList.remove('has-text');
+            onSearch();
+            searchInput.focus();
+          }
+        });
       }
       
       console.log('✅ Обработчики событий настроены для мобильных устройств');

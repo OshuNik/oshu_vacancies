@@ -25,37 +25,66 @@ body {
     overflow-x: hidden;
 }
 
+/* === Pull-to-Refresh (Новая Версия) === */
+
 .main-wrapper {
     position: relative;
     z-index: 1;
     background-color: var(--background-color);
     padding-bottom: 80px;
+    transition: transform 0.3s ease-out; /* Плавный возврат в исходное положение */
+}
+.main-wrapper.ptr-pulling {
+    transition: none; /* Отключаем анимацию во время свайпа */
 }
 
 .ptr-bar {
     position: absolute;
-    top: -50px;
+    top: -60px; /* Смещаем над экраном на свою высоту */
     left: 0;
     right: 0;
-    height: 50px;
-    background-color: var(--card-color);
-    color: var(--text-color);
-    font-family: inherit;
-    font-weight: 700;
+    height: 60px;
     display: flex;
     align-items: center;
     justify-content: center;
-    border: var(--border-width) solid var(--border-color);
-    border-top: none;
-    border-radius: 0 0 12px 12px;
-    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+    color: var(--text-color);
+    font-family: 'Roboto Mono', monospace;
+    font-weight: 700;
+    font-size: 14px;
+    /* Плашка изначально невидима и появляется плавно */
+    opacity: 0;
+    transition: opacity 0.2s ease-out;
 }
-.ptr-bar .retro-spinner-inline {
+.ptr-bar.ptr-visible {
+    opacity: 1;
+}
+
+.ptr-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 12px;
+    stroke: var(--text-color);
+    stroke-width: 2.5;
+    transition: transform 0.2s ease-out;
+}
+.ptr-bar.ptr-ready .ptr-icon {
+    transform: rotate(180deg); /* Переворачиваем стрелку */
+}
+
+.ptr-spinner {
     display: none;
+    width: 22px;
+    height: 22px;
+    margin-right: 12px;
 }
-.is-refreshing .retro-spinner-inline {
-    display: inline-block;
+.ptr-bar.ptr-refreshing .ptr-icon {
+    display: none; /* Прячем стрелку */
 }
+.ptr-bar.ptr-refreshing .ptr-spinner {
+    display: inline-block; /* Показываем спиннер */
+}
+
+/* === Конец секции Pull-to-Refresh === */
 
 .vacancy-list.loading-seamless {
     opacity: 0.5;
@@ -63,7 +92,6 @@ body {
     transition: opacity 0.2s ease-in-out;
 }
 
-/* --- Шапка и основной контент --- */
 .header {
     padding-bottom: 25px;
     text-align: center;
@@ -113,7 +141,6 @@ body {
     color: var(--accent-red);
 }
 
-/* --- Search Bar --- */
 .search-container {
     padding: 0 0 15px 0;
 }
@@ -176,7 +203,6 @@ input[type="search"]::-webkit-search-cancel-button { display: none; }
     color: var(--hint-color);
 }
 
-/* --- Vacancy Card --- */
 .vacancy-card {
     background-color: var(--card-color);
     border: var(--border-width) solid var(--border-color);
@@ -283,7 +309,6 @@ mark.highlight {
   to   { transform: scale(1); }
 }
 
-/* --- Bottom Tabs --- */
 .category-tabs {
     position: fixed;
     bottom: 0;
@@ -352,7 +377,6 @@ mark.highlight {
 .tab-button.maybe.active { background-color: var(--accent-yellow); }
 .tab-button.other.active { background-color: var(--accent-red); }
 
-/* --- Other UI Elements --- */
 .vacancy-list, .settings-tab-content { display: none; }
 .vacancy-list.active, .settings-tab-content.active {
     display: block !important;
@@ -367,7 +391,6 @@ mark.highlight {
     gap: 10px;
 }
 
-/* --- LOADER (ПРОГРЕСС-БАР) --- */
 .loader-container {
     padding: 50px 20px;
     text-align: center;
@@ -414,7 +437,6 @@ mark.highlight {
     100% { width: 100%; }
 }
 
-/* --- ИНЛАЙН-СПИННЕР ДЛЯ ЗАГРУЗКИ КОНТЕНТА --- */
 .retro-spinner-inline {
     width: 20px;
     height: 20px;
@@ -436,7 +458,6 @@ mark.highlight {
     to { transform: rotate(360deg); }
 }
 
-/* --- Settings Page --- */
 .settings-tabs { display: flex; gap: 5px; margin-bottom: 20px; }
 .settings-tab-button {
     flex-grow: 1;
@@ -604,12 +625,10 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
 }
 .header-icon-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* --- Card Header Colors --- */
 .vacancy-card.category-main .card-header h3 { background-color: var(--accent-green); }
 .vacancy-card.category-maybe .card-header h3 { background-color: var(--accent-yellow); }
 .vacancy-card.category-other .card-header h3 { background-color: var(--accent-red); }
 
-/* --- Custom Confirm Dialog --- */
 .custom-confirm-overlay {
     position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -670,7 +689,6 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
     box-shadow: calc(var(--shadow-offset)/2) calc(var(--shadow-offset)/2) 0px var(--accent-red);
 }
 
-/* --- Empty state --- */
 .empty-state { padding-top: 80px; text-align: center; }
 .empty-state-text {
     font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
@@ -680,7 +698,6 @@ input:checked + .toggle-slider:before { transform: translateX(20px); }
 }
 .empty-state-gif { width: 200px; height: auto; margin-bottom: 15px; }
 
-/* --- Card Details --- */
 .card-summary {
     font-size: 16px;
     font-weight: 700;
@@ -851,7 +868,6 @@ details[open] .vacancy-text {
 }
 .load-more-btn:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* === Toast notifications === */
 .toast-container{
   position: fixed;
   left: 0; right: 0;
@@ -896,11 +912,4 @@ details[open] .vacancy-text {
     padding: 4px;
     margin-left: auto;
     flex-shrink: 0;
-}
-
-/* === ИСПРАВЛЕНИЕ ДЛЯ PULL-TO-REFRESH === */
-#main-header {
-    position: relative;
-    z-index: 2;
-    background-color: var(--background-color);
 }

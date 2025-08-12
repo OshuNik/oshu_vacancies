@@ -446,7 +446,7 @@
     
     const ptrText = ptrBar.querySelector('.ptr-text');
     const THRESHOLD = CFG.PTR_CONFIG?.THRESHOLD || 60; // Уменьшаем порог для легкой активации
-    const BAR_HEIGHT = CFG.PTR_CONFIG?.BAR_HEIGHT || 60;
+    const BAR_HEIGHT = CFG.PTR_CONFIG?.BAR_HEIGHT || 75; // Увеличиваем высоту плашки
 
     let startY = 0;
     let pullDistance = 0;

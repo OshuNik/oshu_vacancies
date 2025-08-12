@@ -49,6 +49,7 @@ body {
     z-index: 1;
     background-color: var(--background-color);
     padding-bottom: 80px;
+    padding-top: 20px; /* Добавляем небольшой отступ сверху для плашки */
     transition: transform 0.3s ease-out;
 }
 .main-wrapper.ptr-pulling {
@@ -58,17 +59,17 @@ body {
 .ptr-bar {
     box-sizing: border-box;
     position: absolute;
-    top: -60px;
+    top: -80px; /* Увеличиваем отступ сверху */
     left: 15px;
     right: 15px;
-    height: 55px;
+    height: 75px; /* Увеличиваем высоту плашки */
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 12px;
     
     /* Ретро-стиль, как у других компонентов */
-    background-color: var(--card-color);
+    background-color: var(--background-color); /* Меняем на основной цвет фона */
     border: var(--border-width) solid var(--border-color);
     border-top: none;
     border-radius: 0 0 12px 12px;

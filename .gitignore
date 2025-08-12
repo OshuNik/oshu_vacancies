@@ -15,6 +15,7 @@ Thumbs.db
 # IDE файлы
 .vscode/
 .idea/
+.cursor/
 *.swp
 *.swo
 

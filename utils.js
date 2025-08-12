@@ -463,22 +463,24 @@
       state = newState;
 
       switch(state) {
-        case 'waiting':
-          wrapper.classList.remove('ptr-pulling');
-          ptrBar.classList.remove('ptr-visible', 'ptr-ready', 'ptr-refreshing');
-          wrapper.style.transform = 'translateY(0px)';
-          break;
+                 case 'waiting':
+           wrapper.classList.remove('ptr-pulling');
+           ptrBar.classList.remove('ptr-visible', 'ptr-ready', 'ptr-refreshing');
+           wrapper.style.transition = 'transform 0.3s ease-out';
+           wrapper.style.transform = 'translateY(0px)';
+           break;
 
         case 'pulling':
           wrapper.classList.add('ptr-pulling');
           ptrBar.classList.add('ptr-visible');
           break;
 
-        case 'refreshing':
-          wrapper.classList.remove('ptr-pulling');
-          ptrBar.classList.add('ptr-refreshing');
-          wrapper.style.transform = `translateY(${BAR_HEIGHT}px)`;
-          ptrText.textContent = 'Обновление...';
+                 case 'refreshing':
+           wrapper.classList.remove('ptr-pulling');
+           ptrBar.classList.add('ptr-refreshing');
+           wrapper.style.transition = 'transform 0.3s ease-out';
+           wrapper.style.transform = `translateY(${BAR_HEIGHT}px)`;
+           ptrText.textContent = 'Обновление...';
           
           // Безопасный вызов HapticFeedback с проверкой версии
           if (tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
@@ -548,22 +550,23 @@
        if (pullDistance > 0) {
          e.preventDefault();
          
-         // В Mini App делаем сопротивление максимально легким
-         const resistance = isMiniApp ? 0.3 : 0.7;
+         // В Mini App делаем сопротивление более плавным, но все еще легким
+         const resistance = isMiniApp ? 0.6 : 0.7;
          const dragDistance = Math.pow(pullDistance, resistance);
          wrapper.style.transform = `translateY(${dragDistance}px)`;
+         wrapper.style.transition = 'transform 0.1s ease-out';
          
-         // В Mini App делаем активацию максимально легкой
-         if (isMiniApp) {
-           // Показываем "готово" уже при минимальном движении
-           if (dragDistance > 5) {
-             ptrBar.classList.add('ptr-ready');
-             ptrText.textContent = 'Отпустите для обновления';
+                    // В Mini App делаем активацию более плавной
+           if (isMiniApp) {
+             // Показываем "готово" при движении больше 15px для плавности
+             if (dragDistance > 15) {
+               ptrBar.classList.add('ptr-ready');
+               ptrText.textContent = 'Отпустите для обновления';
+             } else {
+               ptrBar.classList.remove('ptr-ready');
+               ptrText.textContent = 'Потяните для обновления';
+             }
            } else {
-             ptrBar.classList.remove('ptr-ready');
-             ptrText.textContent = 'Потяните для обновления';
-           }
-         } else {
            // В браузере обычная логика
            if (dragDistance > THRESHOLD) {
              ptrBar.classList.add('ptr-ready');
@@ -579,8 +582,8 @@
          const handleTouchEnd = () => {
        if (state === 'pulling') {
          if (isMiniApp) {
-           // В Mini App обновление срабатывает при любом движении больше 5px
-           if (pullDistance > 5) {
+           // В Mini App обновление срабатывает при движении больше 10px для плавности
+           if (pullDistance > 10) {
              setState('refreshing');
            } else {
              setState('waiting');

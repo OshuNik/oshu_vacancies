@@ -1,4 +1,4 @@
-// utils.js — общие утилиты
+// utils.js — общие утилиты (с новой функцией Pull-to-Refresh)
 
 (function () {
   'use strict';
@@ -367,86 +367,126 @@
     return card;
   }
   
+  /**
+   * НОВАЯ ВЕРСИЯ PULL-TO-REFRESH
+   */
   function setupPullToRefresh(options = {}) {
     const { onRefresh, refreshEventName } = options;
-    if (typeof onRefresh !== 'function' || !refreshEventName) return;
+    if (typeof onRefresh !== 'function' || !refreshEventName) {
+      return;
+    }
 
     const wrapper = document.querySelector('.main-wrapper');
     const ptrBar = wrapper?.querySelector('.ptr-bar');
-    const ptrText = ptrBar?.querySelector('.ptr-text');
+    if (!wrapper || !ptrBar) {
+      return;
+    }
 
-    if (!wrapper || !ptrBar || !ptrText) return;
+    // Динамически создаем контент для плашки
+    ptrBar.innerHTML = `
+      <div class="ptr-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"></line>
+          <polyline points="19 12 12 19 5 12"></polyline>
+        </svg>
+      </div>
+      <div class="ptr-spinner retro-spinner-inline"></div>
+      <span class="ptr-text">Потяните для обновления</span>
+    `;
+    
+    const ptrText = ptrBar.querySelector('.ptr-text');
+    const THRESHOLD = CFG.PTR_CONFIG?.THRESHOLD || 80;
+    const BAR_HEIGHT = CFG.PTR_CONFIG?.BAR_HEIGHT || 60;
 
-    const { THRESHOLD, BAR_HEIGHT } = CFG.PTR_CONFIG || { THRESHOLD: 70, BAR_HEIGHT: 50 };
-    let startY = 0, pulling = false, locked = false;
+    let startY = 0;
+    let pullDistance = 0;
+    let state = 'waiting'; // 'waiting', 'pulling', 'refreshing'
 
-    const resetState = () => {
-        locked = false;
-        wrapper.style.transition = 'transform 0.3s';
-        wrapper.style.transform = 'translateY(0px)';
-        ptrText.innerHTML = 'Потяните для обновления';
+    const setState = (newState) => {
+      if (state === newState) return;
+      state = newState;
+
+      switch(state) {
+        case 'waiting':
+          wrapper.classList.remove('ptr-pulling');
+          ptrBar.classList.remove('ptr-visible', 'ptr-ready', 'ptr-refreshing');
+          wrapper.style.transform = 'translateY(0px)';
+          break;
+
+        case 'pulling':
+          wrapper.classList.add('ptr-pulling');
+          ptrBar.classList.add('ptr-visible');
+          break;
+
+        case 'refreshing':
+          wrapper.classList.remove('ptr-pulling');
+          ptrBar.classList.add('ptr-refreshing');
+          wrapper.style.transform = `translateY(${BAR_HEIGHT}px)`;
+          ptrText.textContent = 'Обновление...';
+          
+          if (tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
+            tg.HapticFeedback.impactOccurred('medium');
+          }
+
+          onRefresh();
+          
+          const safetyTimeout = setTimeout(() => {
+            if (state === 'refreshing') setState('waiting');
+          }, 8000);
+
+          const onLoaded = () => {
+            clearTimeout(safetyTimeout);
+            document.removeEventListener(refreshEventName, onLoaded);
+            setState('waiting');
+          };
+          document.addEventListener(refreshEventName, onLoaded);
+          break;
+      }
     };
 
-    const onLoaded = () => {
-        document.removeEventListener(refreshEventName, onLoaded);
-        resetState();
+    const handleTouchStart = (e) => {
+      if (state !== 'waiting' || window.scrollY > 0) return;
+      startY = e.touches[0].clientY;
+      setState('pulling');
     };
 
-    document.body.addEventListener('touchstart', (e) => {
-        if (locked || window.scrollY > 0) {
-            pulling = false;
-            return;
-        }
-        wrapper.style.transition = 'none';
-        startY = e.touches[0].clientY;
-        pulling = true;
-    }, { passive: true });
-
-    document.body.addEventListener('touchmove', (e) => {
-        if (!pulling || locked) return;
-        const dist = e.touches[0].clientY - startY;
-
-        if (dist > 0 && window.scrollY === 0) {
-            e.preventDefault();
-            const pullDist = Math.pow(dist, 0.85);
-            wrapper.style.transform = `translateY(${pullDist}px)`;
-            
-            if (pullDist > THRESHOLD) {
-                ptrText.textContent = 'Отпустите для обновления';
-            } else {
-                ptrText.textContent = 'Потяните для обновления';
-            }
-        }
-    }, { passive: false });
-
-    document.body.addEventListener('touchend', (e) => {
-        if (!pulling || locked) {
-            pulling = false;
-            return;
-        };
+    const handleTouchMove = (e) => {
+      if (state !== 'pulling') return;
+      
+      pullDistance = e.touches[0].clientY - startY;
+      
+      if (pullDistance > 0) {
+        e.preventDefault();
         
-        const finalDist = e.changedTouches[0].clientY - startY;
+        const dragDistance = Math.pow(pullDistance, 0.85);
+        wrapper.style.transform = `translateY(${dragDistance}px)`;
         
-        if (Math.pow(finalDist, 0.85) > THRESHOLD) {
-            locked = true;
-            wrapper.style.transition = 'transform 0.3s';
-            wrapper.style.transform = `translateY(${BAR_HEIGHT}px)`;
-            ptrText.innerHTML = '<div class="retro-spinner-inline"></div> Обновление...';
-            
-            if (tg && tg.HapticFeedback && typeof tg.HapticFeedback.impactOccurred === 'function') {
-                tg.HapticFeedback.impactOccurred('medium');
-            }
-            
-            document.addEventListener(refreshEventName, onLoaded);
-            onRefresh();
-            
-            setTimeout(() => { if (locked) onLoaded(); }, 8000);
+        if (dragDistance > THRESHOLD) {
+          ptrBar.classList.add('ptr-ready');
+          ptrText.textContent = 'Отпустите для обновления';
         } else {
-            resetState();
+          ptrBar.classList.remove('ptr-ready');
+          ptrText.textContent = 'Потяните для обновления';
         }
-        pulling = false;
-    }, { passive: true });
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (state !== 'pulling') return;
+
+      if (Math.pow(pullDistance, 0.85) > THRESHOLD) {
+        setState('refreshing');
+      } else {
+        setState('waiting');
+      }
+      pullDistance = 0;
+    };
+
+    document.body.addEventListener('touchstart', handleTouchStart, { passive: true });
+    document.body.addEventListener('touchmove', handleTouchMove, { passive: false });
+    document.body.addEventListener('touchend', handleTouchEnd);
   }
+
 
   window.utils = {
     tg, 
@@ -468,7 +508,7 @@
     ensureLoadMore, 
     updateLoadMore,
     createVacancyCard,
-    setupPullToRefresh,
+    setupPullToRefresh, // <-- Новая функция
     showCustomConfirm,
     createSupabaseHeaders,
     parseTotal

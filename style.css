@@ -429,6 +429,14 @@ mark.highlight {
     justify-content: center;
     background-color: var(--background-color);
     z-index: 100;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.loader-container.loading {
+    opacity: 1;
+    visibility: visible;
 }
 .retro-progress-bar-outline {
     width: 80%;

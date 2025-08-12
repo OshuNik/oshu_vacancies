@@ -70,10 +70,17 @@
   let currentController = null;
 
   function showLoader() {
-    if (loader) loader.classList.remove('hidden');
+    if (loader) {
+      loader.classList.remove('hidden');
+      // Добавляем класс для анимации появления
+      loader.classList.add('loading');
+    }
   }
   function hideLoader() {
-    if (loader) loader.classList.add('hidden');
+    if (loader) {
+      loader.classList.remove('loading');
+      loader.classList.add('hidden');
+    }
   }
 
   let searchStatsEl=null;
@@ -173,11 +180,21 @@
         }
         
         const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
-        const resp = await fetchWithRetry(url, {
-          headers: createSupabaseHeaders({ prefer: 'count=exact' })
-        }, RETRY_OPTIONS);
-        if(!resp.ok) throw new Error('count failed');
-        return parseTotal(resp);
+        
+        // Добавляем таймаут для счетчиков на медленных соединениях
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 секунд для счетчиков
+        
+        try {
+          const resp = await fetchWithRetry(url, {
+            headers: createSupabaseHeaders({ prefer: 'count=exact' }),
+            signal: controller.signal
+          }, RETRY_OPTIONS);
+          if(!resp.ok) throw new Error('count failed');
+          return parseTotal(resp);
+        } finally {
+          clearTimeout(timeoutId);
+        }
     };
     try {
       const results = await Promise.allSettled([
@@ -204,11 +221,14 @@
         }
       });
     } catch(e) { 
-      console.warn('Критическая ошибка загрузки счетчиков:', e);
-      // Fallback: устанавливаем нули
+      console.warn('Ошибка загрузки счетчиков:', e);
+      // Fallback: устанавливаем нули и продолжаем работу
       state.main.total = 0; counts.main.textContent = '(0)';
       state.maybe.total = 0; counts.maybe.textContent = '(0)';
       state.other.total = 0; counts.other.textContent = '(0)';
+      
+      // Не блокируем основную загрузку из-за ошибки счетчиков
+      // Пользователь все равно увидит вакансии
     }
   }
 
@@ -553,6 +573,12 @@
     // Показываем лоадер в самом начале
     showLoader();
     
+    // Таймаут для лоадера (на случай медленного соединения)
+    const loaderTimeout = setTimeout(() => {
+      console.warn('Лоадер висит слишком долго, принудительно скрываем');
+      hideLoader();
+    }, 15000); // 15 секунд
+    
     // Проверяем критические элементы
     if (!containers.main || !containers.maybe || !containers.other) {
       console.error('Критическая ошибка: не найдены контейнеры для вакансий');
@@ -576,11 +602,32 @@
         refreshEventName: 'feed:loaded'
     });
     
-    await fetchCountsAll('');
-    await fetchNext('main', true);
+    // Загружаем основную категорию и счетчики параллельно
+    // но с приоритетом на основную категорию
+    try {
+      const [mainResult] = await Promise.allSettled([
+        fetchNext('main', true),
+        fetchCountsAll('')
+      ]);
+      
+      // Если основная загрузка не удалась, показываем ошибку
+      if (mainResult.status === 'rejected') {
+        clearTimeout(loaderTimeout);
+        throw mainResult.reason;
+      }
+      
+      // Скрываем лоадер после успешной загрузки основной категории
+      clearTimeout(loaderTimeout);
+      hideLoader();
+      
+    } catch (error) {
+      console.error('Ошибка загрузки основной категории:', error);
+      hideLoader();
+      renderError(containers.main, error.message, () => refetchFromZeroSmooth('main'));
+      return;
+    }
     
-    // Используем Promise.allSettled для безопасной параллельной загрузки
-    // без race conditions с основной загрузкой
+    // Фоновая загрузка остальных категорий
     setTimeout(async () => {
         const backgroundLoads = ['maybe', 'other']
             .filter(k => !state[k].loadedOnce)

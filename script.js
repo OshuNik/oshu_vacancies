@@ -881,8 +881,8 @@
       document.addEventListener('touchstart', (e) => {
         const target = e.target;
         
-        // Добавляем визуальную обратную связь для touch (НО НЕ ДЛЯ ВКЛАДОК!)
-        if (target.closest('[data-action], .load-more-btn, #search-clear-btn')) {
+        // Добавляем визуальную обратную связь для touch (НО НЕ ДЛЯ ВКЛАДОК И КНОПКИ ОЧИСТКИ!)
+        if (target.closest('[data-action], .load-more-btn')) {
           target.style.opacity = '0.7';
           target.style.transform = 'scale(0.98)';
           
@@ -890,6 +890,16 @@
           setTimeout(() => {
             target.style.opacity = '';
             target.style.transform = '';
+          }, 150);
+        }
+        
+        // Отдельная обработка для кнопки очистки - только opacity, без transform
+        if (target.closest('#search-clear-btn')) {
+          target.style.opacity = '0.7';
+          
+          // Убираем эффект через 150ms
+          setTimeout(() => {
+            target.style.opacity = '';
           }, 150);
         }
       });

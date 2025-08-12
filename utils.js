@@ -420,11 +420,15 @@
   /**
    * НОВАЯ ВЕРСИЯ PULL-TO-REFRESH
    */
-  function setupPullToRefresh(options = {}) {
-    const { onRefresh, refreshEventName } = options;
-    if (typeof onRefresh !== 'function' || !refreshEventName) {
-      return;
-    }
+     function setupPullToRefresh(options = {}) {
+     const { onRefresh, refreshEventName } = options;
+     if (typeof onRefresh !== 'function' || !refreshEventName) {
+       return;
+     }
+     
+     // Определяем, находимся ли мы в Mini App
+     const isMiniApp = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+     console.log('🚀 PTR: Mini App detected:', isMiniApp);
 
     const wrapper = document.querySelector('.main-wrapper');
     const ptrBar = wrapper?.querySelector('.ptr-bar');
@@ -445,8 +449,10 @@
     `;
     
     const ptrText = ptrBar.querySelector('.ptr-text');
-    const THRESHOLD = CFG.PTR_CONFIG?.THRESHOLD || 60; // Уменьшаем порог для легкой активации
-    const BAR_HEIGHT = CFG.PTR_CONFIG?.BAR_HEIGHT || 75; // Увеличиваем высоту плашки
+              // Настраиваем параметры в зависимости от окружения
+     const THRESHOLD = isMiniApp ? 30 : (CFG.PTR_CONFIG?.THRESHOLD || 60);
+     const BAR_HEIGHT = CFG.PTR_CONFIG?.BAR_HEIGHT || 75;
+     console.log('🚀 PTR: Threshold:', THRESHOLD, 'BAR_HEIGHT:', BAR_HEIGHT);
 
     let startY = 0;
     let pullDistance = 0;
@@ -503,53 +509,56 @@
       }
     };
 
-    const handleTouchStart = (e) => {
-      if (state !== 'waiting' || window.scrollY > 0) return;
-      
-      const touchY = e.touches[0].clientY;
-      
-      // Уменьшаем зону безопасности для более легкой активации
-      if (touchY < 30) return; // Игнорируем касания в верхних 30px
-      
-      // Убираем проверку левого верхнего угла для более широкой зоны активации
-      
-      startY = touchY;
-      // НЕ устанавливаем состояние pulling сразу - ждем реального движения
-    };
+         const handleTouchStart = (e) => {
+       if (state !== 'waiting' || window.scrollY > 0) return;
+       
+       const touchY = e.touches[0].clientY;
+       
+       // Настраиваем зону безопасности в зависимости от окружения
+       const safeZone = isMiniApp ? 10 : 30;
+       if (touchY < safeZone) return;
+       
+       startY = touchY;
+       
+       // В Mini App активируем PTR сразу, в браузере - при движении
+       if (isMiniApp) {
+         setState('pulling');
+       }
+     };
 
-    const handleTouchMove = (e) => {
-      // Если состояние waiting и есть startY, проверяем движение
-      if (state === 'waiting' && startY !== 0) {
-        const currentY = e.touches[0].clientY;
-        const moveDistance = currentY - startY;
-        
-        // Уменьшаем порог активации для более легкого срабатывания
-        if (moveDistance > 20) {
-          setState('pulling');
-        }
-        return;
-      }
-      
-      if (state !== 'pulling') return;
-      
-      pullDistance = e.touches[0].clientY - startY;
-      
-      if (pullDistance > 0) {
-        e.preventDefault();
-        
-        // Более легкое сопротивление для лучшего перехвата свайпа
-        const dragDistance = Math.pow(pullDistance, 0.7);
-        wrapper.style.transform = `translateY(${dragDistance}px)`;
-        
-        if (dragDistance > THRESHOLD) {
-          ptrBar.classList.add('ptr-ready');
-          ptrText.textContent = 'Отпустите для обновления';
-        } else {
-          ptrBar.classList.remove('ptr-ready');
-          ptrText.textContent = 'Потяните для обновления';
-        }
-      }
-    };
+         const handleTouchMove = (e) => {
+       // В браузере активируем PTR при движении, в Mini App он уже активен
+       if (state === 'waiting' && startY !== 0 && !isMiniApp) {
+         const currentY = e.touches[0].clientY;
+         const moveDistance = currentY - startY;
+         
+         if (moveDistance > 15) {
+           setState('pulling');
+         }
+         return;
+       }
+       
+       if (state !== 'pulling') return;
+       
+       pullDistance = e.touches[0].clientY - startY;
+       
+       if (pullDistance > 0) {
+         e.preventDefault();
+         
+         // Настраиваем сопротивление в зависимости от окружения
+         const resistance = isMiniApp ? 0.4 : 0.7;
+         const dragDistance = Math.pow(pullDistance, resistance);
+         wrapper.style.transform = `translateY(${dragDistance}px)`;
+         
+         if (dragDistance > THRESHOLD) {
+           ptrBar.classList.add('ptr-ready');
+           ptrText.textContent = 'Отпустите для обновления';
+         } else {
+           ptrBar.classList.remove('ptr-ready');
+           ptrText.textContent = 'Потяните для обновления';
+         }
+       }
+     };
 
     const handleTouchEnd = () => {
       if (state === 'pulling') {

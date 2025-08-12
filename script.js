@@ -897,14 +897,14 @@
         const newSearchInput = searchInput.cloneNode(true);
         searchInput.parentNode.replaceChild(newSearchInput, searchInput);
         // Обновляем ссылку
-        Object.defineProperty(this, 'searchInput', { value: newSearchInput });
+        searchInput = newSearchInput;
       }
       
       if (searchClearBtn) {
         const newSearchClearBtn = searchClearBtn.cloneNode(true);
         searchClearBtn.parentNode.replaceChild(newSearchClearBtn, searchClearBtn);
         // Обновляем ссылку
-        Object.defineProperty(this, 'searchClearBtn', { value: newSearchClearBtn });
+        searchClearBtn = newSearchClearBtn;
       }
       
       console.log('✅ Обработчики событий настроены для мобильных устройств');

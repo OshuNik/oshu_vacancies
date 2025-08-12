@@ -881,8 +881,8 @@
       document.addEventListener('touchstart', (e) => {
         const target = e.target;
         
-        // Добавляем визуальную обратную связь для touch
-        if (target.closest('[data-action], .tab-button, .load-more-btn, #search-clear-btn')) {
+        // Добавляем визуальную обратную связь для touch (НО НЕ ДЛЯ ВКЛАДОК!)
+        if (target.closest('[data-action], .load-more-btn, #search-clear-btn')) {
           target.style.opacity = '0.7';
           target.style.transform = 'scale(0.98)';
           

@@ -68,6 +68,9 @@ body {
 .header {
     padding-bottom: 25px;
     text-align: center;
+    position: relative; /* <--- ДОБАВИТЬ */
+    z-index: 2; /* <--- ДОБАВИТЬ */
+    background-color: var(--background-color); /* <--- ДОБАВИТЬ */
 }
 .header h1 {
     font-family: 'Press Start 2P', 'Courier New', Courier, monospace;

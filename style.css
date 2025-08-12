@@ -80,10 +80,12 @@ body {
     font-size: 14px;
     
     opacity: 0;
-    transition: opacity 0.2s ease-out;
+    visibility: hidden; /* Добавляем полное скрытие */
+    transition: opacity 0.2s ease-out, visibility 0.2s ease-out;
 }
 .ptr-bar.ptr-visible {
     opacity: 1;
+    visibility: visible;
 }
 
 .ptr-icon {

@@ -505,11 +505,28 @@
 
     const handleTouchStart = (e) => {
       if (state !== 'waiting' || window.scrollY > 0) return;
-      startY = e.touches[0].clientY;
-      setState('pulling');
+      
+      // Проверяем, что касание происходит в верхней части экрана
+      const touchY = e.touches[0].clientY;
+      if (touchY > 100) return; // Не реагируем на касания ниже 100px от верха
+      
+      startY = touchY;
+      // НЕ устанавливаем состояние pulling сразу - ждем реального движения
     };
 
     const handleTouchMove = (e) => {
+      // Если состояние waiting и есть startY, проверяем движение
+      if (state === 'waiting' && startY !== 0) {
+        const currentY = e.touches[0].clientY;
+        const moveDistance = currentY - startY;
+        
+        // Если движение вниз больше 10px, активируем pulling
+        if (moveDistance > 10) {
+          setState('pulling');
+        }
+        return;
+      }
+      
       if (state !== 'pulling') return;
       
       pullDistance = e.touches[0].clientY - startY;
@@ -531,14 +548,17 @@
     };
 
     const handleTouchEnd = () => {
-      if (state !== 'pulling') return;
-
-      if (Math.pow(pullDistance, 0.85) > THRESHOLD) {
-        setState('refreshing');
-      } else {
-        setState('waiting');
+      if (state === 'pulling') {
+        if (Math.pow(pullDistance, 0.85) > THRESHOLD) {
+          setState('refreshing');
+        } else {
+          setState('waiting');
+        }
+        pullDistance = 0;
       }
-      pullDistance = 0;
+      
+      // Сбрасываем startY в любом случае
+      startY = 0;
     };
 
     // Добавляем listeners с возможностью очистки

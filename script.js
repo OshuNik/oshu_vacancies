@@ -602,25 +602,58 @@
     
     let pressTimer = null;
     let isHeld = false;
-    const holdMs = 700;
+    const holdMs = 1200; // Увеличиваем время для предотвращения случайных срабатываний
 
     const start = (e) => {
       console.log('👆 Начало нажатия на вкладку:', btn.dataset.target);
       isHeld = false;
       btn.classList.add('pressing');
+      
+      // Добавляем проверку на движение пальца
+      let hasMoved = false;
+      const startX = e.clientX || e.touches?.[0]?.clientX || 0;
+      const startY = e.clientY || e.touches?.[0]?.clientY || 0;
+      
+      const checkMovement = (e) => {
+        const currentX = e.clientX || e.touches?.[0]?.clientX || 0;
+        const currentY = e.clientY || e.touches?.[0]?.clientY || 0;
+        const distance = Math.sqrt((currentX - startX) ** 2 + (currentY - startY) ** 2);
+        
+        if (distance > 10) { // Если палец сдвинулся больше чем на 10px
+          hasMoved = true;
+          cancel(e);
+        }
+      };
+      
+      // Добавляем слушатели для отслеживания движения
+      document.addEventListener('pointermove', checkMovement, { passive: true });
+      document.addEventListener('touchmove', checkMovement, { passive: true });
+      
       pressTimer = setTimeout(() => {
-        isHeld = true;
-        btn.classList.remove('pressing');
-        const key = keyFromTargetId(btn.dataset.target || '');
-        console.log('⏰ Долгое нажатие на вкладку:', key);
-        bulkDeleteCategory(key);
+        if (!hasMoved) {
+          isHeld = true;
+          btn.classList.remove('pressing');
+          const key = keyFromTargetId(btn.dataset.target || '');
+          console.log('⏰ Долгое нажатие на вкладку:', key);
+          bulkDeleteCategory(key);
+        }
       }, holdMs);
+      
+      // Сохраняем ссылку на функцию для очистки
+      btn._checkMovement = checkMovement;
     };
     
     const cancel = (e) => {
       console.log('❌ Отмена нажатия на вкладку:', btn.dataset.target);
       btn.classList.remove('pressing');
       clearTimeout(pressTimer);
+      
+      // Очищаем слушатели движения
+      if (btn._checkMovement) {
+        document.removeEventListener('pointermove', btn._checkMovement);
+        document.removeEventListener('touchmove', btn._checkMovement);
+        delete btn._checkMovement;
+      }
     };
 
     const clickHandler = (e) => {
@@ -708,21 +741,29 @@
         }
       }, { passive: false });
       
-      // Обработчики для вкладок
+      // Обработчики для вкладок - используем более мягкий подход
       document.addEventListener('touchstart', (e) => {
         const tab = e.target.closest('.tab-button');
         if (!tab) return;
         
         console.log('👆 Touchstart на вкладке:', tab.dataset.target);
         
-        // Предотвращаем двойное срабатывание
-        e.preventDefault();
+        // НЕ предотвращаем по умолчанию - это может конфликтовать с PTR
+        // Вместо этого используем touchend для активации
+      }, { passive: true });
+      
+      // Активируем вкладку только при touchend
+      document.addEventListener('touchend', (e) => {
+        const tab = e.target.closest('.tab-button');
+        if (!tab) return;
+        
+        console.log('👆 Touchend на вкладке:', tab.dataset.target);
         
         const targetId = tab.dataset.target;
         if (targetId) {
           activateTabByTarget(targetId);
         }
-      }, { passive: false });
+      });
       
       // Обработчики для поиска
       if (searchInput) {

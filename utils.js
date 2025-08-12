@@ -506,16 +506,17 @@
     const handleTouchStart = (e) => {
       if (state !== 'waiting' || window.scrollY > 0) return;
       
-      // Теперь PTR работает по всему экрану, но только когда страница в самом верху
       const touchY = e.touches[0].clientY;
       
-      // Дополнительная защита: не реагируем на касания слишком близко к верхнему краю
-      // где Telegram может интерпретировать жест как закрытие Mini App
-      if (touchY < 20) return; // Игнорируем касания в верхних 20px
+      // Увеличиваем зону безопасности для предотвращения конфликта с жестом закрытия
+      if (touchY < 50) return; // Игнорируем касания в верхних 50px
+      
+      // Дополнительная проверка: не реагируем на касания в левом верхнем углу
+      const touchX = e.touches[0].clientX;
+      if (touchX < 50 && touchY < 100) return; // Левый верхний угол
       
       startY = touchY;
       // НЕ устанавливаем состояние pulling сразу - ждем реального движения
-      // Это предотвращает конфликт с жестом закрытия Telegram Mini App
     };
 
     const handleTouchMove = (e) => {
@@ -524,9 +525,8 @@
         const currentY = e.touches[0].clientY;
         const moveDistance = currentY - startY;
         
-        // Если движение вниз больше 25px, активируем pulling
-        // Увеличенный порог предотвращает конфликт с жестами Telegram Mini App
-        if (moveDistance > 25) {
+        // Увеличиваем порог активации для предотвращения случайных срабатываний
+        if (moveDistance > 35) {
           setState('pulling');
         }
         return;
@@ -539,7 +539,8 @@
       if (pullDistance > 0) {
         e.preventDefault();
         
-        const dragDistance = Math.pow(pullDistance, 0.85);
+        // Более плавное сопротивление для лучшего UX
+        const dragDistance = Math.pow(pullDistance, 0.8);
         wrapper.style.transform = `translateY(${dragDistance}px)`;
         
         if (dragDistance > THRESHOLD) {

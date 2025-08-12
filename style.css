@@ -115,11 +115,12 @@ body {
 }
 /* === Конец секции Pull-to-Refresh === */
 
-.vacancy-list.loading-seamless {
+/* Убираем полупрозрачность при загрузке - это вызывало баг */
+/* .vacancy-list.loading-seamless {
     opacity: 0.5;
     pointer-events: none;
     transition: opacity 0.2s ease-in-out;
-}
+} */
 
 .header {
     padding-bottom: 25px;

@@ -858,6 +858,112 @@
     }
   }
 
+  // Проверка доступности элементов перед добавлением обработчиков
+  function ensureElementAccessibility() {
+    console.log('🔒 Проверяем доступность элементов...');
+    
+    const elements = {
+      searchInput: document.getElementById('search-input'),
+      searchClearBtn: document.getElementById('search-clear-btn'),
+      searchInputWrapper: document.getElementById('search-input')?.parentElement,
+      vacanciesContent: document.getElementById('vacancies-content')
+    };
+    
+    const missing = Object.entries(elements)
+      .filter(([key, el]) => !el)
+      .map(([key]) => key);
+    
+    if (missing.length > 0) {
+      console.warn('⚠️ Отсутствуют элементы:', missing);
+      return false;
+    }
+    
+    console.log('✅ Все элементы доступны');
+    return true;
+  }
+
+  // Улучшенная обработка событий для мобильных устройств
+  function setupMobileEventHandlers() {
+    console.log('📱 Настраиваем обработчики событий для мобильных устройств...');
+    
+    const isMobile = isMobileDevice();
+    
+    if (isMobile) {
+      // Убираем стандартные обработчики событий, которые могут конфликтовать
+      console.log('📱 Убираем стандартные обработчики для предотвращения конфликтов...');
+      
+      // Очищаем существующие обработчики
+      if (searchInput) {
+        const newSearchInput = searchInput.cloneNode(true);
+        searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+        // Обновляем ссылку
+        Object.defineProperty(this, 'searchInput', { value: newSearchInput });
+      }
+      
+      if (searchClearBtn) {
+        const newSearchClearBtn = searchClearBtn.cloneNode(true);
+        searchClearBtn.parentNode.replaceChild(newSearchClearBtn, searchClearBtn);
+        // Обновляем ссылку
+        Object.defineProperty(this, 'searchClearBtn', { value: newSearchClearBtn });
+      }
+      
+      console.log('✅ Обработчики событий настроены для мобильных устройств');
+    } else {
+      console.log('💻 Стандартные обработчики событий оставлены для десктопа');
+    }
+  }
+
+  // Диагностика производительности для мобильных устройств
+  function setupMobilePerformanceMonitoring() {
+    console.log('📊 Настраиваем мониторинг производительности для мобильных устройств...');
+    
+    const isMobile = isMobileDevice();
+    
+    if (isMobile) {
+      // Мониторинг FPS
+      let frameCount = 0;
+      let lastTime = performance.now();
+      
+      function countFrames() {
+        frameCount++;
+        const currentTime = performance.now();
+        
+        if (currentTime - lastTime >= 1000) {
+          const fps = Math.round((frameCount * 1000) / (currentTime - lastTime));
+          console.log(`📊 FPS: ${fps}`);
+          
+          if (fps < 30) {
+            console.warn('⚠️ Низкая производительность: FPS < 30');
+          }
+          
+          frameCount = 0;
+          lastTime = currentTime;
+        }
+        
+        requestAnimationFrame(countFrames);
+      }
+      
+      // Мониторинг памяти (если доступен)
+      if ('memory' in performance) {
+        setInterval(() => {
+          const memory = performance.memory;
+          console.log(`📊 Память: ${Math.round(memory.usedJSHeapSize / 1024 / 1024)}MB / ${Math.round(memory.jsHeapSizeLimit / 1024 / 1024)}MB`);
+          
+          if (memory.usedJSHeapSize > memory.jsHeapSizeLimit * 0.8) {
+            console.warn('⚠️ Высокое потребление памяти');
+          }
+        }, 5000);
+      }
+      
+      // Запускаем мониторинг FPS
+      requestAnimationFrame(countFrames);
+      
+      console.log('✅ Мониторинг производительности запущен');
+    } else {
+      console.log('💻 Мониторинг производительности не нужен для десктопа');
+    }
+  }
+
   // Улучшенная функция инициализации
   async function init() {
     console.log('🚀 Инициализация приложения...');
@@ -905,6 +1011,12 @@
     // Настраиваем fallback для мобильных устройств
     setupMobileFallbacks();
     setupEventDelegation(); // Добавляем вызов новой функции
+    
+    // Проверяем доступность элементов и настраиваем обработчики
+    if (ensureElementAccessibility()) {
+      setupMobileEventHandlers();
+      setupMobilePerformanceMonitoring(); // Добавляем вызов новой функции
+    }
     
     // Приоритетная загрузка только основной категории для быстрого отображения
     console.log('📥 Загружаем основную категорию...');
@@ -997,7 +1109,7 @@
       },
       counts: {
         main: document.getElementById('count-main'),
-        maybe: document.getElementById('count-main'),
+        maybe: document.getElementById('count-maybe'),
         other: document.getElementById('count-other'),
       },
       other: {

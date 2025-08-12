@@ -510,12 +510,29 @@
       const touchY = e.touches[0].clientY;
       if (touchY > 100) return; // Не реагируем на касания ниже 100px от верха
       
+      // Дополнительная защита: не реагируем на касания слишком близко к верхнему краю
+      // где Telegram может интерпретировать жест как закрытие Mini App
+      if (touchY < 20) return; // Игнорируем касания в верхних 20px
+      
       startY = touchY;
-      // Устанавливаем состояние pulling при касании в верхней части
-      setState('pulling');
+      // НЕ устанавливаем состояние pulling сразу - ждем реального движения
+      // Это предотвращает конфликт с жестом закрытия Telegram Mini App
     };
 
     const handleTouchMove = (e) => {
+      // Если состояние waiting и есть startY, проверяем движение
+      if (state === 'waiting' && startY !== 0) {
+        const currentY = e.touches[0].clientY;
+        const moveDistance = currentY - startY;
+        
+        // Если движение вниз больше 25px, активируем pulling
+        // Увеличенный порог предотвращает конфликт с жестами Telegram Mini App
+        if (moveDistance > 25) {
+          setState('pulling');
+        }
+        return;
+      }
+      
       if (state !== 'pulling') return;
       
       pullDistance = e.touches[0].clientY - startY;

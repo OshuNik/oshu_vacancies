@@ -1,12 +1,13 @@
-// utils.js — общие утилиты
-// ИСПРАВЛЕНО: Корректная обработка tg:// ссылок в браузере
+// utils.js — общие утилиты (полная версия с бэкомпатом)
+// включает: ui/alerts, escape/highlight, url utils, карточки, PTR, fetchWithRetry,
+// И ШИМ createSupabaseHeaders для совместимости со старым script.js
 
 (function () {
   'use strict';
 
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
 
-  // --- ОБЩИЕ UI-УТИЛИТЫ ---
+  // --- UI: тосты / алерты ---
   function uiToast(message = '') {
     let cont = document.getElementById('toast-container');
     if (!cont) {
@@ -31,7 +32,7 @@
     else uiToast(String(msg));
   };
 
-  // ---- ESCAPE / STRIP ----
+  // --- ESCAPE / STRIP ---
   function escapeHtml(s = '') {
     return String(s)
       .replaceAll('&', '&amp;')
@@ -46,22 +47,23 @@
     return (div.textContent || div.innerText || '').trim();
   }
 
-  // ---- ДЕБАУНС ----
+  // --- ДЕБАУНС ---
   function debounce(fn, wait = 300) {
     let t = null;
     return function (...args) {
       clearTimeout(t);
       t = setTimeout(() => fn.apply(this, args), wait);
     };
-  };
+  }
 
+  // --- ПОДСВЕТКА ---
   const highlightText = (text = '', q = '') => {
     if (!q) return escapeHtml(text);
     const rx = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
     return escapeHtml(text).replace(rx, '<mark class="highlight">$1</mark>');
   };
 
-  // ---- URL helpers ----
+  // --- URL helpers ---
   function normalizeUrl(raw = '') {
     let s = String(raw).trim();
     if (!s) return '';
@@ -74,19 +76,16 @@
     const norm = normalizeUrl(raw);
     return isHttpUrl(norm) ? norm : '';
   };
-  
-  // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
+
   function openLink(url) {
     const safeUrl = String(url || '');
-    if (/^tg:\/\//.test(safeUrl)) {
-        if (tg && typeof tg.openTelegramLink === 'function') {
-            tg.openTelegramLink(safeUrl);
-        } else {
-            // Фоллбек: попробуем открыть в браузере telgram-ссылку
-            window.location.href = safeUrl;
-        }
-        return;
+    // tg:// схема
+    if (/^tg:\/\//i.test(safeUrl)) {
+      if (tg && typeof tg.openTelegramLink === 'function') tg.openTelegramLink(safeUrl);
+      else window.location.href = safeUrl;
+      return;
     }
+    // @username
     if (/^@[\w\d_]{3,}$/i.test(safeUrl)) {
       const u = `https://t.me/${safeUrl.replace(/^@/, '')}`;
       window.open(u, '_blank', 'noopener');
@@ -96,7 +95,7 @@
     if (httpUrl) window.open(httpUrl, '_blank', 'noopener');
   }
 
-  // ---- EMPTY / ERROR STATE ----
+  // --- EMPTY / ERROR ---
   function renderEmptyState({ title = 'Пусто', description = '' } = {}) {
     const wrap = document.createElement('div');
     wrap.className = 'empty-state';
@@ -118,7 +117,7 @@
     return wrap;
   }
 
-  // ---- LOAD MORE helpers ----
+  // --- LOAD MORE ---
   function ensureLoadMore(container) {
     let btn = container.querySelector('.load-more');
     if (!btn) {
@@ -138,7 +137,7 @@
     btn.textContent = loading ? 'Загружаю…' : 'Загрузить ещё';
   }
 
-  // ---- формат времени ----
+  // --- ВРЕМЯ ---
   function formatSmartTime(iso) {
     const d = new Date(iso || Date.now());
     const now = new Date();
@@ -157,7 +156,7 @@
   }
   const formatTimestamp = (s) => formatSmartTime(s);
 
-  // ---- image markers ----
+  // --- IMAGE helpers ---
   const containsImageMarker = (text = '') =>
     /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
   const cleanImageMarkers = (text = '') => String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
@@ -171,7 +170,7 @@
     return '';
   }
 
-  // ---- fetch with retry ----
+  // --- fetch with retry ---
   async function fetchWithRetry(url, options = {}, retryCfg = { retries: 0, backoffMs: 300 }) {
     let attempt = 0;
     let lastErr = null;
@@ -190,7 +189,7 @@
     throw lastErr || new Error('Network error');
   }
 
-  // ---- CARD RENDER ----
+  // --- карточка вакансии ---
   function createVacancyCard(v, { pageType = 'main', searchQuery = '' } = {}) {
     const card = document.createElement('article');
     card.className = 'vacancy-card';
@@ -199,12 +198,12 @@
     else card.classList.add('category-other');
 
     const allowHttpOrTg = (url) => {
-        if (!url) return '';
-        try {
-            const u = new URL(url, window.location.href);
-            if (/^https?:$/.test(u.protocol) || /^tg:$/.test(u.protocol)) return u.href;
-            return '';
-        } catch { return ''; }
+      if (!url) return '';
+      try {
+        const u = new URL(url, window.location.href);
+        if (/^https?:$/.test(u.protocol) || /^tg:$/.test(u.protocol)) return u.href;
+        return '';
+      } catch { return ''; }
     };
     const applyUrl = allowHttpOrTg(String(v.apply_url || ''));
     const applyBtnHtml = applyUrl ? `
@@ -249,9 +248,7 @@
         ${skills.slice(0, 6).map(s => `<span class="skill">${escapeHtml(String(s))}</span>`).join('')}
       </div>` : '';
 
-    const detailsHTML = `
-      <div class="vacancy-text" data-original="1"></div>
-    `;
+    const detailsHTML = `<div class="vacancy-text" data-original="1"></div>`;
 
     const footerMetaHtml = `
       <div class="footer-meta">
@@ -290,14 +287,14 @@
     return card;
   }
 
-  // ---- ОБЩАЯ ФУНКЦИЯ ДЛЯ PULL-TO-REFRESH ----
+  // --- Pull-To-Refresh (фикс «мигания» при клике) ---
   function setupPullToRefresh(options = {}) {
     const { onRefresh, refreshEventName, container = window } = options;
     if (typeof onRefresh !== 'function' || !refreshEventName) return;
 
-    const threshold = 78;            // сколько тянуть, чтобы сработал refresh
-    const activatePx = 16;           // минимальный вертикальный сдвиг, чтобы вообще показать плашку
-    const slopeRatio = 1.3;          // вертикаль должна быть сильнее горизонтали (dy > dx * ratio)
+    const threshold = 78;  // сколько тянуть, чтобы сработал refresh
+    const activatePx = 16; // минимум чтобы вообще показать плашку
+    const slopeRatio = 1.3; // жест должен быть вертикальнее, чем горизонтальнее
 
     let startY = 0, startX = 0;
     let pulling = false, ready = false, locked = false, activated = false;
@@ -338,14 +335,13 @@
       const dy = t.clientY - startY;
       const dx = Math.abs(t.clientX - startX);
 
-      // пока нет явного вертикального жеста — ничего не делаем
       if (!activated) {
         if (dy <= activatePx || dy <= dx * slopeRatio) return;
-        activated = true; // теперь можно показывать плашку и блокировать прокрутку
+        activated = true; // только теперь блокируем скролл и показываем бар
       }
 
       if (dy > 0) {
-        e.preventDefault();           // блокируем скролл только ПОСЛЕ активации
+        e.preventDefault();
         setBar(dy);
         if (dy > threshold && !ready) {
           ready = true;
@@ -385,7 +381,34 @@
     }, { passive: true });
   }
 
+  // --- BACK-COMPAT: createSupabaseHeaders (чтобы старый script.js не падал) ---
+  function createSupabaseHeaders(arg) {
+    // поддержка вызовов:
+    //   createSupabaseHeaders(true)
+    //   createSupabaseHeaders({ preferCount: true, json: true, anonKey: '...' })
+    let preferCount = false;
+    let json = true;
+    let anonKey = (window.APP_CONFIG && window.APP_CONFIG.SUPABASE_ANON_KEY) || '';
 
+    if (typeof arg === 'boolean') {
+      preferCount = arg;
+    } else if (arg && typeof arg === 'object') {
+      if ('preferCount' in arg) preferCount = !!arg.preferCount;
+      if ('json' in arg)        json = !!arg.json;
+      if (arg.anonKey)          anonKey = String(arg.anonKey);
+    }
+
+    const h = {};
+    if (anonKey) {
+      h['apikey'] = anonKey;
+      h['Authorization'] = `Bearer ${anonKey}`;
+    }
+    if (json)        h['Content-Type'] = 'application/json';
+    if (preferCount) h['Prefer'] = 'count=exact';
+    return h;
+  }
+
+  // --- EXPORT ---
   window.utils = {
     tg, escapeHtml, stripTags, debounce, highlightText, safeAlert, uiToast,
     formatTimestamp, sanitizeUrl, openLink,
@@ -393,6 +416,7 @@
     fetchWithRetry, renderEmptyState, renderError,
     ensureLoadMore, updateLoadMore,
     createVacancyCard,
-    setupPullToRefresh
+    setupPullToRefresh,
+    createSupabaseHeaders // бэкомпат
   };
 })();

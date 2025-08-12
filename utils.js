@@ -445,7 +445,7 @@
     `;
     
     const ptrText = ptrBar.querySelector('.ptr-text');
-    const THRESHOLD = CFG.PTR_CONFIG?.THRESHOLD || 80;
+    const THRESHOLD = CFG.PTR_CONFIG?.THRESHOLD || 60; // Уменьшаем порог для легкой активации
     const BAR_HEIGHT = CFG.PTR_CONFIG?.BAR_HEIGHT || 60;
 
     let startY = 0;
@@ -508,12 +508,10 @@
       
       const touchY = e.touches[0].clientY;
       
-      // Увеличиваем зону безопасности для предотвращения конфликта с жестом закрытия
-      if (touchY < 50) return; // Игнорируем касания в верхних 50px
+      // Уменьшаем зону безопасности для более легкой активации
+      if (touchY < 30) return; // Игнорируем касания в верхних 30px
       
-      // Дополнительная проверка: не реагируем на касания в левом верхнем углу
-      const touchX = e.touches[0].clientX;
-      if (touchX < 50 && touchY < 100) return; // Левый верхний угол
+      // Убираем проверку левого верхнего угла для более широкой зоны активации
       
       startY = touchY;
       // НЕ устанавливаем состояние pulling сразу - ждем реального движения
@@ -525,8 +523,8 @@
         const currentY = e.touches[0].clientY;
         const moveDistance = currentY - startY;
         
-        // Увеличиваем порог активации для предотвращения случайных срабатываний
-        if (moveDistance > 35) {
+        // Уменьшаем порог активации для более легкого срабатывания
+        if (moveDistance > 20) {
           setState('pulling');
         }
         return;
@@ -539,8 +537,8 @@
       if (pullDistance > 0) {
         e.preventDefault();
         
-        // Более плавное сопротивление для лучшего UX
-        const dragDistance = Math.pow(pullDistance, 0.8);
+        // Более легкое сопротивление для лучшего перехвата свайпа
+        const dragDistance = Math.pow(pullDistance, 0.7);
         wrapper.style.transform = `translateY(${dragDistance}px)`;
         
         if (dragDistance > THRESHOLD) {
@@ -568,15 +566,16 @@
     };
 
     // Добавляем listeners с возможностью очистки
-    document.body.addEventListener('touchstart', handleTouchStart, { passive: true });
-    document.body.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.body.addEventListener('touchend', handleTouchEnd);
+    // Используем capture: true для более агрессивного перехвата событий
+    document.body.addEventListener('touchstart', handleTouchStart, { passive: true, capture: true });
+    document.body.addEventListener('touchmove', handleTouchMove, { passive: false, capture: true });
+    document.body.addEventListener('touchend', handleTouchEnd, { capture: true });
     
     // Сохраняем cleanup функцию для возможности удаления listeners
     wrapper.ptrCleanup = () => {
-      document.body.removeEventListener('touchstart', handleTouchStart);
-      document.body.removeEventListener('touchmove', handleTouchMove);
-      document.body.removeEventListener('touchend', handleTouchEnd);
+      document.body.removeEventListener('touchstart', handleTouchStart, { capture: true });
+      document.body.removeEventListener('touchmove', handleTouchMove, { capture: true });
+      document.body.removeEventListener('touchend', handleTouchEnd, { capture: true });
     };
   }
 

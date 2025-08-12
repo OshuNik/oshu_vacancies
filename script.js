@@ -447,7 +447,8 @@
       st.busy = true;
       st.offset = 0;
       
-      container.classList.add('loading-seamless');
+      // Убираем полупрозрачность - это вызывало баг
+      // container.classList.add('loading-seamless');
 
       const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, 0, state.query);
       const controller = abortCurrent();
@@ -503,7 +504,8 @@
           }
       } finally {
           st.busy = false;
-          container.classList.remove('loading-seamless');
+          // Убираем полупрозрачность - это вызывало баг
+          // container.classList.remove('loading-seamless');
       }
   }
 

@@ -390,7 +390,7 @@ mark.highlight {
     background-color: rgba(0, 0, 0, 0.1);
     transform: scaleX(0);
     transform-origin: left;
-    transition: transform 0.7s ease-out;
+    transition: transform 1.2s ease-out; /* Синхронизируем с holdMs */
 }
 .tab-button.pressing::after {
     transform: scaleX(1);

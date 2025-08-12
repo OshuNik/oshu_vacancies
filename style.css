@@ -378,9 +378,10 @@ mark.highlight {
     user-select: none;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;
-    overflow: hidden;
+    /* overflow: hidden; - больше не нужно без псевдоэлемента */
 }
-.tab-button::after {
+/* Убираем анимацию полупрозрачности - она мешает UX */
+/* .tab-button::after {
     content: '';
     position: absolute;
     bottom: 0;
@@ -390,11 +391,11 @@ mark.highlight {
     background-color: rgba(0, 0, 0, 0.1);
     transform: scaleX(0);
     transform-origin: left;
-    transition: transform 1.2s ease-out; /* Синхронизируем с holdMs */
+    transition: transform 1.2s ease-out;
 }
 .tab-button.pressing::after {
     transform: scaleX(1);
-}
+} */
 
 .tab-label { font-size: 13px; }
 .tab-count { font-size: 11px; margin-top: 4px; opacity: 0.8; }

@@ -106,6 +106,13 @@ body {
 .ptr-bar.ptr-refreshing .ptr-spinner {
     display: inline-block;
 }
+
+.ptr-text {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-color);
+    text-align: center;
+}
 /* === Конец секции Pull-to-Refresh === */
 
 .vacancy-list.loading-seamless {

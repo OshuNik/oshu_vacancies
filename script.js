@@ -58,7 +58,7 @@
   const vacanciesContent= document.getElementById('vacancies-content');
   const loader          = document.getElementById('loader');
   let searchClearBtn    = document.getElementById('search-clear-btn');
-  const searchInputWrapper = searchInput?.parentElement;
+  let searchInputWrapper = searchInput?.parentElement;
 
   const state = {
     query: '',

@@ -725,7 +725,6 @@
       }, { passive: false });
       
       // Обработчики для поиска
-      const searchInput = document.getElementById('search-input');
       if (searchInput) {
         searchInput.addEventListener('touchstart', (e) => {
           console.log('👆 Touchstart на поле поиска');
@@ -892,9 +891,7 @@
       // Убираем стандартные обработчики событий, которые могут конфликтовать
       console.log('📱 Убираем стандартные обработчики для предотвращения конфликтов...');
       
-      // Получаем элементы
-      const searchInput = document.getElementById('search-input');
-      const searchClearBtn = document.getElementById('search-clear-btn');
+      // Получаем элементы (используем глобальные переменные)
       
       // Очищаем существующие обработчики
       if (searchInput) {

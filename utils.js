@@ -449,8 +449,8 @@
     `;
     
     const ptrText = ptrBar.querySelector('.ptr-text');
-              // Настраиваем параметры в зависимости от окружения
-     const THRESHOLD = isMiniApp ? 30 : (CFG.PTR_CONFIG?.THRESHOLD || 60);
+              // В Mini App делаем PTR максимально простым
+     const THRESHOLD = isMiniApp ? 15 : (CFG.PTR_CONFIG?.THRESHOLD || 60);
      const BAR_HEIGHT = CFG.PTR_CONFIG?.BAR_HEIGHT || 75;
      console.log('🚀 PTR: Threshold:', THRESHOLD, 'BAR_HEIGHT:', BAR_HEIGHT);
 
@@ -514,20 +514,22 @@
        
        const touchY = e.touches[0].clientY;
        
-       // Настраиваем зону безопасности в зависимости от окружения
-       const safeZone = isMiniApp ? 10 : 30;
+       // В Mini App делаем зону безопасности минимальной
+       const safeZone = isMiniApp ? 5 : 30;
        if (touchY < safeZone) return;
        
        startY = touchY;
        
-       // В Mini App активируем PTR сразу, в браузере - при движении
+       // В Mini App активируем PTR мгновенно
        if (isMiniApp) {
          setState('pulling');
+         // Сразу показываем плашку
+         ptrBar.classList.add('ptr-visible');
        }
      };
 
          const handleTouchMove = (e) => {
-       // В браузере активируем PTR при движении, в Mini App он уже активен
+       // В браузере активируем PTR при движении
        if (state === 'waiting' && startY !== 0 && !isMiniApp) {
          const currentY = e.touches[0].clientY;
          const moveDistance = currentY - startY;
@@ -538,6 +540,7 @@
          return;
        }
        
+       // В Mini App PTR уже активен, просто обрабатываем движение
        if (state !== 'pulling') return;
        
        pullDistance = e.touches[0].clientY - startY;
@@ -545,34 +548,57 @@
        if (pullDistance > 0) {
          e.preventDefault();
          
-         // Настраиваем сопротивление в зависимости от окружения
-         const resistance = isMiniApp ? 0.4 : 0.7;
+         // В Mini App делаем сопротивление максимально легким
+         const resistance = isMiniApp ? 0.3 : 0.7;
          const dragDistance = Math.pow(pullDistance, resistance);
          wrapper.style.transform = `translateY(${dragDistance}px)`;
          
-         if (dragDistance > THRESHOLD) {
-           ptrBar.classList.add('ptr-ready');
-           ptrText.textContent = 'Отпустите для обновления';
+         // В Mini App делаем активацию максимально легкой
+         if (isMiniApp) {
+           // Показываем "готово" уже при минимальном движении
+           if (dragDistance > 5) {
+             ptrBar.classList.add('ptr-ready');
+             ptrText.textContent = 'Отпустите для обновления';
+           } else {
+             ptrBar.classList.remove('ptr-ready');
+             ptrText.textContent = 'Потяните для обновления';
+           }
          } else {
-           ptrBar.classList.remove('ptr-ready');
-           ptrText.textContent = 'Потяните для обновления';
+           // В браузере обычная логика
+           if (dragDistance > THRESHOLD) {
+             ptrBar.classList.add('ptr-ready');
+             ptrText.textContent = 'Отпустите для обновления';
+           } else {
+             ptrBar.classList.remove('ptr-ready');
+             ptrText.textContent = 'Потяните для обновления';
+           }
          }
        }
      };
 
-    const handleTouchEnd = () => {
-      if (state === 'pulling') {
-        if (Math.pow(pullDistance, 0.85) > THRESHOLD) {
-          setState('refreshing');
-        } else {
-          setState('waiting');
-        }
-        pullDistance = 0;
-      }
-      
-      // Сбрасываем startY в любом случае
-      startY = 0;
-    };
+         const handleTouchEnd = () => {
+       if (state === 'pulling') {
+         if (isMiniApp) {
+           // В Mini App обновление срабатывает при любом движении больше 5px
+           if (pullDistance > 5) {
+             setState('refreshing');
+           } else {
+             setState('waiting');
+           }
+         } else {
+           // В браузере обычная логика
+           if (Math.pow(pullDistance, 0.85) > THRESHOLD) {
+             setState('refreshing');
+           } else {
+             setState('waiting');
+           }
+         }
+         pullDistance = 0;
+       }
+       
+       // Сбрасываем startY в любом случае
+       startY = 0;
+     };
 
     // Добавляем listeners с возможностью очистки
     // Используем capture: true для более агрессивного перехвата событий

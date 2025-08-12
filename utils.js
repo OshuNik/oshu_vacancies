@@ -474,8 +474,17 @@
           wrapper.style.transform = `translateY(${BAR_HEIGHT}px)`;
           ptrText.textContent = 'Обновление...';
           
+          // Безопасный вызов HapticFeedback с проверкой версии
           if (tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
-            tg.HapticFeedback.impactOccurred('medium');
+            try {
+              // Проверяем что версия поддерживает HapticFeedback (6.1+)
+              if (tg.version && parseFloat(tg.version) >= 6.1) {
+                tg.HapticFeedback.impactOccurred('medium');
+              }
+            } catch (error) {
+              // Игнорируем ошибки HapticFeedback для совместимости
+              console.debug('HapticFeedback не поддерживается в этой версии:', error.message);
+            }
           }
 
           onRefresh();

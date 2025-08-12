@@ -49,12 +49,7 @@
     other: document.getElementById('count-other'),
   };
 
-  // Проверяем критические элементы на существование
-  if (!containers.main || !containers.maybe || !containers.other) {
-    console.error('Критическая ошибка: не найдены контейнеры для вакансий');
-    safeAlert('Ошибка инициализации интерфейса');
-    return;
-  }
+  // Контейнеры будут проверены в соответствующих функциях
 
   const tabButtons      = document.querySelectorAll('.tab-button');
   const vacancyLists    = document.querySelectorAll('.vacancy-list');
@@ -521,6 +516,17 @@
   });
 
   async function init() {
+    // Показываем лоадер в самом начале
+    showLoader();
+    
+    // Проверяем критические элементы
+    if (!containers.main || !containers.maybe || !containers.other) {
+      console.error('Критическая ошибка: не найдены контейнеры для вакансий');
+      hideLoader();
+      safeAlert('Ошибка инициализации интерфейса');
+      return;
+    }
+
     Object.keys(containers).forEach(k => {
       containers[k].style.display = (k === state.activeKey) ? '' : 'none';
     });
@@ -536,7 +542,6 @@
         refreshEventName: 'feed:loaded'
     });
     
-    showLoader();
     await fetchCountsAll('');
     await fetchNext('main', true);
     

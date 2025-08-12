@@ -103,7 +103,13 @@
   }
 
   function abortCurrent(){
-    if(currentController){ try{ currentController.abort(); }catch{} }
+    if(currentController && !currentController.signal.aborted){ 
+      try{ 
+        currentController.abort(); 
+      } catch(error) {
+        console.warn('Ошибка отмены запроса:', error);
+      }
+    }
     currentController = new AbortController();
     return currentController;
   }
@@ -174,15 +180,36 @@
         return parseTotal(resp);
     };
     try {
-      const [cMain, cMaybe, cOther] = await Promise.all([
+      const results = await Promise.allSettled([
         fetchCount('main', query),
         fetchCount('maybe', query),
         fetchCount('other', query),
       ]);
+      
+      // Валидация и безопасное присвоение счетчиков
+      const [mainResult, maybeResult, otherResult] = results;
+      const cMain = mainResult.status === 'fulfilled' && Number.isFinite(mainResult.value) ? mainResult.value : 0;
+      const cMaybe = maybeResult.status === 'fulfilled' && Number.isFinite(maybeResult.value) ? maybeResult.value : 0;
+      const cOther = otherResult.status === 'fulfilled' && Number.isFinite(otherResult.value) ? otherResult.value : 0;
+      
       state.main.total  = cMain;  counts.main.textContent  = `(${cMain})`;
       state.maybe.total = cMaybe; counts.maybe.textContent = `(${cMaybe})`;
       state.other.total = cOther; counts.other.textContent = `(${cOther})`;
-    } catch(e) { console.warn('counts err', e); }
+      
+      // Логируем частичные ошибки если есть
+      results.forEach((result, index) => {
+        if (result.status === 'rejected') {
+          const categoryName = ['main', 'maybe', 'other'][index];
+          console.warn(`Ошибка загрузки счетчика ${categoryName}:`, result.reason);
+        }
+      });
+    } catch(e) { 
+      console.warn('Критическая ошибка загрузки счетчиков:', e);
+      // Fallback: устанавливаем нули
+      state.main.total = 0; counts.main.textContent = '(0)';
+      state.maybe.total = 0; counts.maybe.textContent = '(0)';
+      state.other.total = 0; counts.other.textContent = '(0)';
+    }
   }
 
   vacanciesContent?.addEventListener('click', (e) => {
@@ -284,7 +311,14 @@
       const total = parseTotal(resp);
       if (Number.isFinite(total)){ st.total = total; counts[key].textContent = `(${total})`; }
 
-      const items = await resp.json();
+      const data = await resp.json();
+      
+      // Валидация данных API
+      if (!Array.isArray(data)) {
+        throw new Error('API вернул некорректный формат данных (ожидался массив)');
+      }
+      
+      const items = data.filter(item => item && typeof item === 'object' && item.id);
       
       if (st.offset === 0) {
           clearContainer(container);
@@ -474,7 +508,7 @@
 
     } catch(e) {
         console.error(e);
-        safeAlert('Ошибка: не получилось очистить категорию.');
+        safeAlert('Не удалось удалить вакансии из этой категории. Попробуйте позже.');
     }
   }
 
@@ -523,7 +557,7 @@
     if (!containers.main || !containers.maybe || !containers.other) {
       console.error('Критическая ошибка: не найдены контейнеры для вакансий');
       hideLoader();
-      safeAlert('Ошибка инициализации интерфейса');
+      safeAlert('Приложение не может запуститься. Перезагрузите страницу.');
       return;
     }
 
@@ -545,12 +579,19 @@
     await fetchCountsAll('');
     await fetchNext('main', true);
     
-    setTimeout(() => {
-        ['maybe', 'other'].forEach(k => {
-            if (!state[k].loadedOnce) {
-                fetchNext(k, false);
-            }
-        });
+    // Используем Promise.allSettled для безопасной параллельной загрузки
+    // без race conditions с основной загрузкой
+    setTimeout(async () => {
+        const backgroundLoads = ['maybe', 'other']
+            .filter(k => !state[k].loadedOnce)
+            .map(k => fetchNext(k, false).catch(error => {
+                console.warn(`Фоновая загрузка ${k} неуспешна:`, error);
+                return null;
+            }));
+            
+        if (backgroundLoads.length > 0) {
+            await Promise.allSettled(backgroundLoads);
+        }
     }, 500);
 
     updateSearchStats();
@@ -558,8 +599,16 @@
   
   function handlePageVisibility() {
       if (document.visibilityState === 'visible') {
-          if (localStorage.getItem('needs-refresh-main') === 'true') {
-              localStorage.removeItem('needs-refresh-main');
+          try {
+              if (localStorage.getItem('needs-refresh-main') === 'true') {
+                  localStorage.removeItem('needs-refresh-main');
+                  uiToast('Обновление ленты...');
+                  fetchCountsAll(state.query);
+                  refetchFromZeroSmooth(state.activeKey);
+              }
+          } catch (error) {
+              console.warn('localStorage недоступен:', error);
+              // Fallback: просто обновляем без проверки флага
               uiToast('Обновление ленты...');
               fetchCountsAll(state.query);
               refetchFromZeroSmooth(state.activeKey);

@@ -39,7 +39,7 @@
   // Проверяем критические элементы
   if (!container) {
     console.error('Критическая ошибка: не найден контейнер favorites-list');
-    safeAlert('Ошибка инициализации страницы избранного');
+    safeAlert('Не удается отобразить избранные вакансии. Перезагрузите страницу.');
     return;
   }
   
@@ -169,7 +169,12 @@
 
               if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
               
-              localStorage.setItem('needs-refresh-main', 'true');
+              try {
+                  localStorage.setItem('needs-refresh-main', 'true');
+              } catch (storageError) {
+                  console.warn('localStorage недоступен:', storageError);
+                  // Продолжаем работу без localStorage
+              }
               allFavorites = allFavorites.filter(v => v.id !== vacancyId);
               renderFilteredFavorites();
             } catch (e) {

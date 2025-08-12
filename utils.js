@@ -258,11 +258,17 @@
     const btn = document.createElement('button');
     btn.className = 'load-more-btn';
     btn.textContent = 'Повторить';
-    btn.addEventListener('click', () => {
+    const retryHandler = () => {
       if (typeof onRetry === 'function') {
         onRetry();
       }
-    });
+    };
+    btn.addEventListener('click', retryHandler);
+    
+    // Сохраняем cleanup функцию
+    container.retryCleanup = () => {
+      btn.removeEventListener('click', retryHandler);
+    };
     
     wrapDiv.appendChild(btn);
     emptyDiv.appendChild(p);
@@ -526,9 +532,17 @@
       pullDistance = 0;
     };
 
+    // Добавляем listeners с возможностью очистки
     document.body.addEventListener('touchstart', handleTouchStart, { passive: true });
     document.body.addEventListener('touchmove', handleTouchMove, { passive: false });
     document.body.addEventListener('touchend', handleTouchEnd);
+    
+    // Сохраняем cleanup функцию для возможности удаления listeners
+    wrapper.ptrCleanup = () => {
+      document.body.removeEventListener('touchstart', handleTouchStart);
+      document.body.removeEventListener('touchmove', handleTouchMove);
+      document.body.removeEventListener('touchend', handleTouchEnd);
+    };
   }
 
 

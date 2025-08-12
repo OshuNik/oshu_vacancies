@@ -34,49 +34,6 @@
 /* === УТИЛИТАРНЫЕ КЛАССЫ === */
 .hidden { display: none !important; }
 
-/* Общие стили для кнопок */
-.btn-base {
-    font-family: var(--font-mono);
-    font-weight: 700;
-    background-color: var(--card-color);
-    color: var(--text-color);
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 8px;
-    cursor: pointer;
-    box-shadow: var(--box-shadow);
-    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
-}
-
-.btn-base:active {
-    transform: translate(calc(var(--shadow-offset)/2), calc(var(--shadow-offset)/2));
-    box-shadow: var(--box-shadow-pressed);
-}
-
-.btn-base:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-}
-
-/* Общие стили для карточек */
-.card-base {
-    background-color: var(--card-color);
-    border: var(--border-width) solid var(--border-color);
-    border-radius: 8px;
-    box-shadow: var(--box-shadow);
-}
-
-/* Стили для центрирования */
-.flex-center {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-/* Анимации */
-.smooth-transition {
-    transition: all var(--transition-slow);
-}
-
 body {
     font-family: var(--font-mono);
     background-color: var(--background-color);
@@ -410,9 +367,6 @@ mark.highlight {
     position: relative;
     top: 10px;
     box-shadow: none;
-    -webkit-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
     user-select: none;
     -webkit-touch-callout: none;
     -webkit-tap-highlight-color: transparent;

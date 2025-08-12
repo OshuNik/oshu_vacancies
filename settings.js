@@ -1,24 +1,20 @@
-// Отладочная версия settings.js
+// settings.js — страница настроек
 (function() {
   'use strict';
-  console.log('[DEBUG] settings.js: Скрипт запущен.');
 
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
   if (tg && tg.expand) tg.expand();
-  console.log('[DEBUG] settings.js: Telegram WebApp инициализирован.');
 
   const CFG = window.APP_CONFIG;
   const UTIL = window.utils;
 
   if (!CFG || !UTIL) {
     alert("Критическая ошибка: Не найден config.js или utils.js!");
-    console.error('[DEBUG] settings.js: CRITICAL_ERROR - CFG или UTIL не найдены.', { CFG, UTIL });
+    console.error('settings.js: CFG или UTIL не найдены');
     return;
   }
-  console.log('[DEBUG] settings.js: CFG и UTIL успешно загружены.');
 
   const { uiToast, safeAlert, showCustomConfirm, createSupabaseHeaders } = UTIL;
-  console.log('[DEBUG] settings.js: Функции из UTIL успешно извлечены.');
 
   const settingsTabButtons = document.querySelectorAll('.settings-tab-button');
   const settingsTabContents = document.querySelectorAll('.settings-tab-content');
@@ -30,8 +26,6 @@
   const channelInput = document.getElementById('channel-input');
   const channelsListContainer = document.getElementById('channels-list');
   const deleteAllBtn = document.getElementById('delete-all-btn');
-  console.log('[DEBUG] settings.js: Все DOM-элементы найдены.');
-
   settingsTabButtons.forEach(button => {
     button.addEventListener('click', () => {
       settingsTabButtons.forEach(btn => btn.classList.remove('active'));
@@ -41,30 +35,25 @@
       if (targetContent) targetContent.classList.add('active');
     });
   });
-  console.log('[DEBUG] settings.js: Обработчики для табов установлены.');
 
   async function loadKeywords() {
-    console.log('[DEBUG] loadKeywords: Функция вызвана.');
     if (!keywordsDisplay) {
-        console.error('[DEBUG] loadKeywords: CRITICAL - элемент keywordsDisplay не найден.');
+        console.error('loadKeywords: элемент keywordsDisplay не найден');
         return;
     }
     saveBtn.disabled = true;
     keywordsDisplay.textContent = 'Загрузка...';
     try {
-      console.log('[DEBUG] loadKeywords: Отправка запроса на получение ключевых слов...');
       const response = await fetch(`${CFG.SUPABASE_URL}/rest/v1/settings?select=keywords`, {
         headers: createSupabaseHeaders()
       });
-      console.log('[DEBUG] loadKeywords: Получен ответ от сервера.', response.status);
       if (!response.ok) throw new Error('Network response was not ok');
       const data = await response.json();
       const keywords = data.length > 0 ? data[0].keywords : '';
       keywordsInput.value = keywords;
       keywordsDisplay.textContent = keywords || '-- не заданы --';
-      console.log('[DEBUG] loadKeywords: Ключевые слова успешно загружены и отображены.');
     } catch (error) {
-      console.error('[DEBUG] loadKeywords: Произошла ошибка.', error);
+      console.error('loadKeywords: произошла ошибка', error);
       keywordsDisplay.textContent = 'Ошибка загрузки';
     } finally {
       saveBtn.disabled = false;
@@ -72,7 +61,6 @@
   }
 
   async function saveKeywords() {
-    console.log('[DEBUG] saveKeywords: Функция вызвана.');
     if (!keywordsInput) return;
     const kws = keywordsInput.value.trim();
     saveBtn.disabled = true;
@@ -85,8 +73,8 @@
       keywordsDisplay.textContent = kws || '-- не заданы --';
       uiToast('Ключевые слова сохранены');
     } catch (error) {
-      console.error('[DEBUG] saveKeywords: Произошла ошибка.', error);
-      safeAlert('Ошибка сохранения');
+      console.error('saveKeywords: произошла ошибка', error);
+      safeAlert('Не удалось сохранить настройки. Проверьте подключение к интернету.');
     } finally {
       saveBtn.disabled = false;
     }
@@ -119,7 +107,8 @@
     const deleteButton = document.createElement('button');
     deleteButton.className = 'channel-item-delete';
     deleteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
-    deleteButton.addEventListener('click', async () => {
+    // Создаем обработчики как отдельные функции для возможности cleanup
+    const deleteHandler = async () => {
       const dbId = channelItem.dataset.dbId;
       if (!dbId) return;
       const ok = await showCustomConfirm('Удалить этот канал?');
@@ -138,8 +127,9 @@
         safeAlert('Не удалось удалить канал');
         channelItem.style.opacity = '1';
       }
-    });
-    toggleInput.addEventListener('change', async (event) => {
+    };
+    
+    const toggleHandler = async (event) => {
       const dbId = channelItem.dataset.dbId;
       const is_enabled = event.target.checked;
       if (!dbId) return;
@@ -156,7 +146,16 @@
         safeAlert('Не удалось обновить статус');
         event.target.checked = !is_enabled;
       }
-    });
+    };
+    
+    deleteButton.addEventListener('click', deleteHandler);
+    toggleInput.addEventListener('change', toggleHandler);
+    
+    // Сохраняем cleanup функцию на элементе
+    channelItem.cleanup = () => {
+      deleteButton.removeEventListener('click', deleteHandler);
+      toggleInput.removeEventListener('change', toggleHandler);
+    };
     infoDiv.append(titleSpan, idLink);
     toggleLabel.append(toggleInput, toggleSlider);
     toggleContainer.append(toggleLabel);
@@ -195,18 +194,15 @@
   }
 
   async function loadChannels() {
-    console.log('[DEBUG] loadChannels: Функция вызвана.');
     if (!channelsListContainer) {
-        console.error('[DEBUG] loadChannels: CRITICAL - элемент channelsListContainer не найден.');
+        console.error('loadChannels: элемент channelsListContainer не найден');
         return;
     }
     channelsListContainer.innerHTML = '<p class="empty-list">Загрузка каналов...</p>';
     try {
-      console.log('[DEBUG] loadChannels: Отправка запроса на получение каналов...');
       const response = await fetch(`${CFG.SUPABASE_URL}/rest/v1/channels?select=*`, {
         headers: createSupabaseHeaders()
       });
-      console.log('[DEBUG] loadChannels: Получен ответ от сервера.', response.status);
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
       channelsListContainer.innerHTML = '';
@@ -215,9 +211,8 @@
       } else {
           channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
       }
-      console.log('[DEBUG] loadChannels: Каналы успешно загружены и отображены.');
     } catch (error) {
-      console.error('[DEBUG] loadChannels: Произошла ошибка.', error);
+      console.error('loadChannels: произошла ошибка', error);
       channelsListContainer.innerHTML = '<p class="empty-list">Не удалось загрузить каналы.</p>';
     }
   }
@@ -249,7 +244,7 @@
       uiToast('Стандартные каналы добавлены.');
     } catch (error) {
       console.error('Ошибка загрузки стандартных каналов:', error);
-      safeAlert('Ошибка загрузки стандартных каналов');
+      safeAlert('Не удалось добавить стандартные каналы. Проверьте подключение к интернету.');
     } finally {
       loadDefaultsBtn.disabled = false;
     }
@@ -275,8 +270,7 @@
     }
   });
 
-  console.log('[DEBUG] settings.js: Функции определены. Вызываю начальную загрузку...');
+  // Инициализация приложения
   loadKeywords();
   loadChannels();
-  console.log('[DEBUG] settings.js: Начальная загрузка вызвана. Скрипт завершил выполнение.');
 })();

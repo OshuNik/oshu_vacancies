@@ -442,30 +442,29 @@ mark.highlight {
     visibility: hidden;
 }
 
-/* Улучшенный лоадер для мобильных устройств */
-.retro-progress-bar-outline {
+/* Простой лоадер с полосой загрузки */
+.loader-bar {
     width: 80%;
     max-width: 300px;
-    height: 8px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
     overflow: hidden;
     margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.retro-progress-bar-fill {
+.loader-progress {
     height: 100%;
-    background: linear-gradient(90deg, #4CAF50, #8BC34A, #4CAF50);
-    border-radius: 4px;
-    animation: loading-bar 2s ease-in-out infinite;
-    width: 100%;
+    background: #4CAF50;
+    border-radius: 2px;
+    width: 0%;
+    animation: loading-progress 2s ease-in-out infinite;
 }
 
-@keyframes loading-bar {
-    0% { transform: translateX(-100%); }
-    50% { transform: translateX(0%); }
-    100% { transform: translateX(100%); }
+@keyframes loading-progress {
+    0% { width: 0%; }
+    50% { width: 70%; }
+    100% { width: 100%; }
 }
 
 .loader-text {
@@ -483,9 +482,9 @@ mark.highlight {
         background: rgba(0, 0, 0, 0.9);
     }
     
-    .retro-progress-bar-outline {
+    .loader-bar {
         width: 90%;
-        height: 10px;
+        height: 6px;
         margin-bottom: 25px;
     }
     
@@ -493,17 +492,6 @@ mark.highlight {
         font-size: 18px;
         margin-top: 15px;
     }
-    
-    /* Улучшенная анимация для мобильных */
-    .retro-progress-bar-fill {
-        animation: loading-bar-mobile 1.5s ease-in-out infinite;
-    }
-}
-
-@keyframes loading-bar-mobile {
-    0% { transform: translateX(-100%); opacity: 0.7; }
-    50% { transform: translateX(0%); opacity: 1; }
-    100% { transform: translateX(100%); opacity: 0.7; }
 }
 
 .retro-spinner-inline {

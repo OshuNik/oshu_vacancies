@@ -53,11 +53,11 @@
 
   const tabButtons      = document.querySelectorAll('.tab-button');
   const vacancyLists    = document.querySelectorAll('.vacancy-list');
-  const searchInput     = document.getElementById('search-input');
+  let searchInput       = document.getElementById('search-input');
   const mainHeader      = document.getElementById('main-header');
   const vacanciesContent= document.getElementById('vacancies-content');
   const loader          = document.getElementById('loader');
-  const searchClearBtn  = document.getElementById('search-clear-btn');
+  let searchClearBtn    = document.getElementById('search-clear-btn');
   const searchInputWrapper = searchInput?.parentElement;
 
   const state = {

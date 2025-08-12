@@ -453,25 +453,51 @@ mark.highlight {
 .retro-progress-bar-outline {
     width: 80%;
     max-width: 300px;
-    height: 8px;
-    background: rgba(255, 255, 255, 0.2);
-    border-radius: 4px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.3);
+    border: 2px solid rgba(255, 255, 255, 0.5);
+    border-radius: 8px;
     overflow: hidden;
     margin-bottom: 20px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5), inset 0 2px 4px rgba(0, 0, 0, 0.2);
 }
 
 .retro-progress-bar-fill {
     height: 100%;
-    background: linear-gradient(90deg, #4CAF50, #8BC34A, #4CAF50);
-    border-radius: 4px;
-    animation: loading-bar 2s ease-in-out infinite;
+    background: linear-gradient(90deg, 
+        #FF6B6B, #4ECDC4, #45B7D1, #96CEB4, #FFEAA7, #DDA0DD, #98D8C8, #FF6B6B);
+    background-size: 200% 100%;
+    border-radius: 6px;
+    animation: loading-bar 3s ease-in-out infinite, rainbow-shift 4s linear infinite;
     width: 100%;
+    position: relative;
+}
+
+.retro-progress-bar-fill::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(90deg, 
+        transparent 0%, rgba(255, 255, 255, 0.4) 50%, transparent 100%);
+    animation: shimmer 2s ease-in-out infinite;
 }
 
 @keyframes loading-bar {
     0% { transform: translateX(-100%); }
     50% { transform: translateX(0%); }
+    100% { transform: translateX(100%); }
+}
+
+@keyframes rainbow-shift {
+    0% { background-position: 0% 50%; }
+    100% { background-position: 200% 50%; }
+}
+
+@keyframes shimmer {
+    0% { transform: translateX(-100%); }
     100% { transform: translateX(100%); }
 }
 
@@ -492,8 +518,13 @@ mark.highlight {
     
     .retro-progress-bar-outline {
         width: 90%;
-        height: 10px;
+        height: 16px;
         margin-bottom: 25px;
+    }
+    
+    .retro-progress-bar-fill {
+        height: 100%;
+        border-radius: 8px;
     }
     
     .loader-text {

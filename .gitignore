@@ -1,0 +1,28 @@
+# Файлы конфигурации с секретными ключами
+config.js
+.env
+.env.local
+.env.production
+
+# Логи
+*.log
+npm-debug.log*
+
+# Временные файлы
+.DS_Store
+Thumbs.db
+
+# IDE файлы
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Зависимости (если будут добавлены)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Файлы сборки (если будут добавлены)
+dist/
+build/

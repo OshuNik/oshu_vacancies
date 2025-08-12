@@ -644,12 +644,44 @@
     console.log('✅ Вкладка настроена:', btn.dataset.target);
   });
 
+  // Улучшенное определение мобильных устройств
+  function isMobileDevice() {
+    // Проверяем различные признаки мобильного устройства
+    const userAgent = navigator.userAgent;
+    const platform = navigator.platform;
+    
+    // Основные мобильные платформы
+    const mobilePlatforms = /Android|webOS|iPhone|iPod|BlackBerry|IEMobile|Opera Mini/i;
+    
+    // Проверяем размер экрана
+    const isSmallScreen = window.innerWidth <= 768;
+    
+    // Проверяем touch поддержку
+    const hasTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+    
+    // Проверяем, что это НЕ iPad (iPad может работать как десктоп)
+    const isIPad = /iPad/.test(userAgent) || (platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    
+    // Определяем как мобильное, если это не iPad и есть признаки мобильного
+    const isMobile = mobilePlatforms.test(userAgent) && !isIPad && (isSmallScreen || hasTouch);
+    
+    console.log('📱 Определение устройства:', {
+      userAgent: userAgent.substring(0, 100) + '...',
+      platform,
+      isSmallScreen,
+      hasTouch,
+      isIPad,
+      isMobile
+    });
+    
+    return isMobile;
+  }
+
   // Fallback обработчики для мобильных устройств
   function setupMobileFallbacks() {
     console.log('📱 Настраиваем fallback для мобильных устройств...');
     
-    // Проверяем, является ли устройство мобильным
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isMobile = isMobileDevice();
     console.log('📱 Мобильное устройство:', isMobile);
     
     if (isMobile) {
@@ -701,7 +733,128 @@
         });
       }
       
+      // Дополнительные обработчики для мобильных устройств
+      console.log('📱 Добавляем дополнительные мобильные обработчики...');
+      
+      // Обработчик для всех кликабельных элементов
+      document.addEventListener('touchend', (e) => {
+        const target = e.target;
+        
+        // Проверяем, есть ли у элемента data-action
+        if (target.hasAttribute('data-action')) {
+          console.log('👆 Touchend на элементе с data-action:', target.dataset.action);
+          // Не вызываем действие здесь, оно уже обработано в touchstart
+        }
+        
+        // Проверяем, есть ли у элемента класс tab-button
+        if (target.classList.contains('tab-button')) {
+          console.log('👆 Touchend на вкладке:', target.dataset.target);
+          // Не вызываем действие здесь, оно уже обработано в touchstart
+        }
+      });
+      
+      // Обработчик для предотвращения zoom на двойное касание
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', (e) => {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) {
+          e.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, false);
+      
       console.log('✅ Fallback обработчики настроены');
+    } else {
+      console.log('💻 Десктопное устройство - fallback не нужен');
+    }
+  }
+
+  // Делегирование событий для мобильных устройств
+  function setupEventDelegation() {
+    console.log('🎯 Настраиваем делегирование событий...');
+    
+    const isMobile = isMobileDevice();
+    
+    if (isMobile) {
+      console.log('📱 Настраиваем делегирование для мобильных устройств...');
+      
+      // Используем делегирование для всех кликабельных элементов
+      document.addEventListener('click', (e) => {
+        // Обработка кнопок действий
+        const actionBtn = e.target.closest('[data-action]');
+        if (actionBtn) {
+          console.log('🎯 Делегированный клик на кнопке:', actionBtn.dataset.action);
+          
+          const action = actionBtn.dataset.action;
+          if (action === 'apply') {
+            openLink(actionBtn.dataset.url);
+          } else if (action === 'favorite') {
+            updateStatus(actionBtn.dataset.id, STATUSES.FAVORITE);
+          } else if (action === 'delete') {
+            updateStatus(actionBtn.dataset.id, STATUSES.DELETED);
+          }
+          return;
+        }
+        
+        // Обработка вкладок
+        const tabBtn = e.target.closest('.tab-button');
+        if (tabBtn) {
+          console.log('🎯 Делегированный клик на вкладке:', tabBtn.dataset.target);
+          
+          const targetId = tabBtn.dataset.target;
+          if (targetId) {
+            activateTabByTarget(targetId);
+          }
+          return;
+        }
+        
+        // Обработка кнопки "Загрузить ещё"
+        const loadMoreBtn = e.target.closest('.load-more-btn');
+        if (loadMoreBtn) {
+          console.log('🎯 Делегированный клик на кнопке "Загрузить ещё"');
+          
+          const container = loadMoreBtn.closest('.vacancy-list');
+          if (container) {
+            const key = container.id.replace('vacancies-list-', '');
+            fetchNext(key, false);
+          }
+          return;
+        }
+        
+        // Обработка кнопки очистки поиска
+        if (e.target.id === 'search-clear-btn') {
+          console.log('🎯 Делегированный клик на кнопке очистки поиска');
+          
+          if (searchInput) {
+            searchInput.value = '';
+            searchInputWrapper?.classList.remove('has-text');
+            onSearch();
+            searchInput.focus();
+          }
+          return;
+        }
+      });
+      
+      // Дополнительная обработка для touch событий
+      document.addEventListener('touchstart', (e) => {
+        const target = e.target;
+        
+        // Добавляем визуальную обратную связь для touch
+        if (target.closest('[data-action], .tab-button, .load-more-btn, #search-clear-btn')) {
+          target.style.opacity = '0.7';
+          target.style.transform = 'scale(0.98)';
+          
+          // Убираем эффект через 150ms
+          setTimeout(() => {
+            target.style.opacity = '';
+            target.style.transform = '';
+          }, 150);
+        }
+      });
+      
+      console.log('✅ Делегирование событий настроено');
+    } else {
+      console.log('💻 Делегирование не нужно для десктопа');
     }
   }
 
@@ -751,6 +904,7 @@
     
     // Настраиваем fallback для мобильных устройств
     setupMobileFallbacks();
+    setupEventDelegation(); // Добавляем вызов новой функции
     
     // Приоритетная загрузка только основной категории для быстрого отображения
     console.log('📥 Загружаем основную категорию...');

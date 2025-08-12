@@ -892,6 +892,10 @@
       // Убираем стандартные обработчики событий, которые могут конфликтовать
       console.log('📱 Убираем стандартные обработчики для предотвращения конфликтов...');
       
+      // Получаем элементы
+      const searchInput = document.getElementById('search-input');
+      const searchClearBtn = document.getElementById('search-clear-btn');
+      
       // Очищаем существующие обработчики
       if (searchInput) {
         const newSearchInput = searchInput.cloneNode(true);

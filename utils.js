@@ -1,111 +1,57 @@
-// utils.js — общие утилиты (с новой функцией Pull-to-Refresh)
+// utils.js — общие утилиты
+// ИСПРАВЛЕНО: Корректная обработка tg:// ссылок в браузере
 
 (function () {
   'use strict';
 
   const tg = (window.Telegram && window.Telegram.WebApp) ? window.Telegram.WebApp : null;
-  const CFG = window.APP_CONFIG || {};
 
-  function uiToast(message = '', options = {}) {
-    const { onUndo, onTimeout, timeout = 3000 } = options;
-    const toastContainer = document.getElementById('toast-container');
-    if (!toastContainer) {
-        console.error('Toast container not found');
-        return;
+  // --- ОБЩИЕ UI-УТИЛИТЫ ---
+  function uiToast(message = '') {
+    let cont = document.getElementById('toast-container');
+    if (!cont) {
+      cont = document.createElement('div');
+      cont.id = 'toast-container';
+      cont.className = 'toast-container';
+      document.body.appendChild(cont);
     }
     const toast = document.createElement('div');
     toast.className = 'toast';
-    const textEl = document.createElement('span');
-    textEl.textContent = message;
-    toast.appendChild(textEl);
-    let actionTimeout;
-    const removeToast = () => {
-        toast.classList.remove('show');
-        setTimeout(() => {
-            if (toast.parentElement) {
-                toast.parentElement.removeChild(toast);
-            }
-        }, 300);
-    };
-    if (typeof onUndo === 'function') {
-      const undoBtn = document.createElement('button');
-      undoBtn.className = 'toast-undo-btn';
-      undoBtn.textContent = 'Отменить';
-      undoBtn.onclick = (e) => {
-        e.stopPropagation();
-        clearTimeout(actionTimeout);
-        onUndo();
-        removeToast();
-      };
-      toast.appendChild(undoBtn);
-    }
-    toastContainer.appendChild(toast);
-    requestAnimationFrame(() => {
-      toast.classList.add('show');
-    });
-    actionTimeout = setTimeout(() => {
-        removeToast();
-        if (onTimeout) {
-            onTimeout();
-        }
-    }, timeout);
+    toast.textContent = String(message);
+    cont.appendChild(toast);
+    requestAnimationFrame(() => toast.classList.add('show'));
+    setTimeout(() => {
+      toast.classList.remove('show');
+      setTimeout(() => toast.remove(), 200);
+    }, 2200);
   }
 
   const safeAlert = (msg) => {
     if (tg && typeof tg.showAlert === 'function') tg.showAlert(String(msg));
     else uiToast(String(msg));
   };
-  
-  function showCustomConfirm(message) {
-    return new Promise(resolve => {
-        const confirmOverlay = document.querySelector('#custom-confirm-overlay');
-        if (!confirmOverlay) return resolve(window.confirm(message));
-        const confirmText = confirmOverlay.querySelector('#custom-confirm-text');
-        const confirmOkBtn = confirmOverlay.querySelector('#confirm-btn-ok');
-        const confirmCancelBtn = confirmOverlay.querySelector('#confirm-btn-cancel');
-        if (!confirmText || !confirmOkBtn || !confirmCancelBtn) {
-            return resolve(window.confirm(message));
-        }
-        confirmText.textContent = message;
-        confirmOverlay.classList.remove('hidden');
-        const close = (result) => {
-            confirmOverlay.classList.add('hidden');
-            confirmOkBtn.onclick = null;
-            confirmCancelBtn.onclick = null;
-            resolve(result);
-        };
-        confirmOkBtn.onclick = () => close(true);
-        confirmCancelBtn.onclick = () => close(false);
-    });
+
+  // ---- ESCAPE / STRIP ----
+  function escapeHtml(s = '') {
+    return String(s)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
   }
-  
-  function createSupabaseHeaders(options = {}) {
-    const { prefer } = options;
-    const headers = {
-      'apikey': CFG.SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${CFG.SUPABASE_ANON_KEY}`,
-      'Content-Type': 'application/json',
-    };
-    if (prefer) {
-      headers['Prefer'] = prefer;
-    }
-    return headers;
+  function stripTags(html = '') {
+    const div = document.createElement('div');
+    div.innerHTML = String(html);
+    return (div.textContent || div.innerText || '').trim();
   }
 
-  const escapeHtml = (s = '') =>
-    String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-
-  const stripTags = (html = '') => {
-    const tmp = document.createElement('div');
-    tmp.innerHTML = html;
-    return tmp.textContent || tmp.innerText || '';
-  };
-
-  const debounce = (fn, delay = 250) => {
-    let t;
-    return (...args) => {
+  // ---- ДЕБАУНС ----
+  function debounce(fn, wait = 300) {
+    let t = null;
+    return function (...args) {
       clearTimeout(t);
-      t = setTimeout(() => fn(...args), delay);
+      t = setTimeout(() => fn.apply(this, args), wait);
     };
   };
 
@@ -115,57 +61,91 @@
     return escapeHtml(text).replace(rx, '<mark class="highlight">$1</mark>');
   };
 
-  function sanitizeLink(raw = '') {
+  // ---- URL helpers ----
+  function normalizeUrl(raw = '') {
     let s = String(raw).trim();
     if (!s) return '';
-    if (/^(t\.me|telegram\.me)\//i.test(s)) {
-        s = 'https://' + s;
-    }
-    if (!/^[a-z]+:\/\//i.test(s) && s.includes('.')) {
-        s = 'https://' + s;
-    }
-    try {
-        const url = new URL(s);
-        if (['https:', 'http:', 'tg:'].includes(url.protocol)) {
-            return url.href;
-        }
-    } catch (e) {}
-    return '';
+    if (/^(t\.me|telegram\.me)\//i.test(s)) s = 'https://' + s;
+    if (/^([a-z0-9-]+)\.[a-z]{2,}/i.test(s) && !/^https?:\/\//i.test(s)) s = 'https://' + s;
+    try { return new URL(s, window.location.origin).href; } catch { return ''; }
   }
+  const isHttpUrl = (u = '') => /^https?:\/\//i.test(u);
+  const sanitizeUrl = (raw = '') => {
+    const norm = normalizeUrl(raw);
+    return isHttpUrl(norm) ? norm : '';
+  };
   
+  // --- ИСПРАВЛЕННАЯ ФУНКЦИЯ ---
   function openLink(url) {
-    let safeUrl = sanitizeLink(url);
-    if (!safeUrl) return;
-
-    if (safeUrl.startsWith('tg://') && !safeUrl.includes('?')) {
-        const username = safeUrl.replace('tg://', '').replace('/', '');
-        safeUrl = `https://t.me/${username}`;
-    }
-
-    if (safeUrl.startsWith('https://t.me')) {
+    const safeUrl = String(url || '');
+    if (/^tg:\/\//.test(safeUrl)) {
         if (tg && typeof tg.openTelegramLink === 'function') {
             tg.openTelegramLink(safeUrl);
         } else {
-            window.open(safeUrl, '_blank', 'noopener');
+            // Фоллбек: попробуем открыть в браузере telgram-ссылку
+            window.location.href = safeUrl;
         }
-    } else {
-        if (tg && typeof tg.openLink === 'function') {
-            tg.openLink(safeUrl);
-        } else {
-            window.open(safeUrl, '_blank', 'noopener');
-        }
+        return;
     }
+    if (/^@[\w\d_]{3,}$/i.test(safeUrl)) {
+      const u = `https://t.me/${safeUrl.replace(/^@/, '')}`;
+      window.open(u, '_blank', 'noopener');
+      return;
+    }
+    const httpUrl = sanitizeUrl(safeUrl);
+    if (httpUrl) window.open(httpUrl, '_blank', 'noopener');
   }
 
-  function formatSmartTime(isoString) {
-    if (!isoString) return '';
-    const d = new Date(isoString);
+  // ---- EMPTY / ERROR STATE ----
+  function renderEmptyState({ title = 'Пусто', description = '' } = {}) {
+    const wrap = document.createElement('div');
+    wrap.className = 'empty-state';
+    wrap.innerHTML = `
+      <div class="empty-ico">🗂️</div>
+      <div class="empty-title">${escapeHtml(title)}</div>
+      ${description ? `<div class="empty-desc">${escapeHtml(description)}</div>` : ''}
+    `;
+    return wrap;
+  }
+  function renderError({ title = 'Ошибка', description = '' } = {}) {
+    const wrap = document.createElement('div');
+    wrap.className = 'error-state';
+    wrap.innerHTML = `
+      <div class="error-ico">⚠️</div>
+      <div class="error-title">${escapeHtml(title)}</div>
+      ${description ? `<div class="error-desc">${escapeHtml(description)}</div>` : ''}
+    `;
+    return wrap;
+  }
+
+  // ---- LOAD MORE helpers ----
+  function ensureLoadMore(container) {
+    let btn = container.querySelector('.load-more');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.className = 'load-more';
+      btn.type = 'button';
+      btn.textContent = 'Загрузить ещё';
+      container.appendChild(btn);
+    }
+    return btn;
+  }
+  function updateLoadMore(btn, { disabled = false, hidden = false, loading = false } = {}) {
+    if (!btn) return;
+    btn.disabled = !!disabled || !!loading;
+    btn.hidden = !!hidden;
+    btn.classList.toggle('loading', !!loading);
+    btn.textContent = loading ? 'Загружаю…' : 'Загрузить ещё';
+  }
+
+  // ---- формат времени ----
+  function formatSmartTime(iso) {
+    const d = new Date(iso || Date.now());
     const now = new Date();
-    const diffMs = now - d;
-    const sec = Math.floor(diffMs / 1000);
+    const sec = Math.floor((now.getTime() - d.getTime()) / 1000);
     const min = Math.floor(sec / 60);
     const pad = n => n.toString().padStart(2, '0');
-    const months = ['янв','фев','мар','апр','мая','июн','юл','авг','сен','окт','ноя','дек'];
+    const months = ['янв','фев','мар','апр','мая','июн','июл','авг','сен','окт','ноя','дек'];
     const isSameDay = now.toDateString() === d.toDateString();
     const yest = new Date(now); yest.setDate(now.getDate() - 1);
     const isYesterday = yest.toDateString() === d.toDateString();
@@ -177,19 +157,13 @@
   }
   const formatTimestamp = (s) => formatSmartTime(s);
 
-  function parseTotal(resp){
-    const cr = resp.headers.get('content-range');
-    if (!cr || !cr.includes('/')) return 0;
-    const total = cr.split('/').pop();
-    return Number(total) || 0;
-  }
-  
+  // ---- image markers ----
   const containsImageMarker = (text = '') =>
     /(\[\s*изображени[ея]\s*\]|\b(изображени[ея]|фото|картинк\w|скрин)\b)/i.test(text);
   const cleanImageMarkers = (text = '') => String(text).replace(/\[\s*изображени[ея]\s*\]/gi, '').replace(/\s{2,}/g, ' ').trim();
   function pickImageUrl(v, detailsText = '') {
-    const msg = sanitizeLink(v.message_link || '');
-    const img = sanitizeLink(v.image_link || '');
+    const msg = sanitizeUrl(v.message_link || '');
+    const img = sanitizeUrl(v.image_link || '');
     const allow = (v.has_image === true) || containsImageMarker(detailsText) || containsImageMarker(v.reason || '');
     if (!allow) return '';
     if (msg) return msg;
@@ -197,320 +171,228 @@
     return '';
   }
 
+  // ---- fetch with retry ----
   async function fetchWithRetry(url, options = {}, retryCfg = { retries: 0, backoffMs: 300 }) {
     let attempt = 0;
     let lastErr = null;
     while (attempt <= (retryCfg.retries || 0)) {
       try {
-        return await fetch(url, options);
+        const resp = await fetch(url, options);
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        return resp;
       } catch (e) {
         lastErr = e;
-        if (attempt === retryCfg.retries) break;
-        await new Promise(r => setTimeout(r, (retryCfg.backoffMs || 300) * Math.pow(2, attempt)));
+        if (attempt === (retryCfg.retries || 0)) break;
+        await new Promise(r => setTimeout(r, (retryCfg.backoffMs || 300) * (attempt + 1)));
         attempt++;
       }
     }
     throw lastErr || new Error('Network error');
   }
 
-  function renderEmptyState(container, message) {
-    const catGifUrl = 'https://raw.githubusercontent.com/OshuNik/oshu_vacancies/5325db67878d324810971a262d689ea2ec7ac00f/img/Uploading%20a%20vacancy.%20The%20doggie.gif';
-    container.innerHTML = `<div class="empty-state"><img src="${catGifUrl}" class="empty-state-gif" alt=""><p class="empty-state-text">${escapeHtml(message)}</p></div>`;
-  }
-
-  function renderError(container, message, onRetry) {
-    container.innerHTML = `
-      <div class="empty-state">
-        <p class="empty-state-text">Ошибка: ${escapeHtml(message || 'Ошибка сети')}</p>
-        <div class="load-more-wrap"><button class="load-more-btn">Повторить</button></div>
-      </div>`;
-    const btn = container.querySelector('.load-more-btn');
-    btn?.addEventListener('click', () => onRetry?.());
-  }
-
-  function ensureLoadMore(container, onClick) {
-    let wrap = container.querySelector('.load-more-wrap');
-    let btn = container.querySelector('.load-more-btn');
-    if (!wrap) {
-      wrap = document.createElement('div');
-      wrap.className = 'load-more-wrap';
-      btn = document.createElement('button');
-      btn.className = 'load-more-btn';
-      btn.type = 'button';
-      btn.textContent = 'Загрузить ещё';
-      wrap.appendChild(btn);
-      container.appendChild(wrap);
-    }
-    btn.onclick = onClick;
-    return { wrap, btn };
-  }
-  
-  function updateLoadMore(container, visible) {
-    let wrap = container.querySelector('.load-more-wrap');
-    if (!wrap) return;
-    wrap.style.display = visible ? '' : 'none';
-  }
-
-  function createVacancyCard(v, options = {}) {
-    const { pageType = 'main', searchQuery = '' } = options;
-    const template = document.getElementById('vacancy-card-template');
-    if (!template) {
-        console.error('Template #vacancy-card-template not found!');
-        const el = document.createElement('div');
-        el.textContent = 'Ошибка: шаблон не найден.';
-        return el;
-    }
-    
-    const card = template.content.cloneNode(true).querySelector('.vacancy-card');
-    if (!card) {
-        console.error('Could not find .vacancy-card in template');
-        const el = document.createElement('div');
-        el.textContent = 'Ошибка: структура шаблона неверна.';
-        return el;
-    }
-
-    card.id = `card-${v.id}`;
-    if (v.category === CFG.CATEGORIES.MAIN) card.classList.add('category-main');
-    else if (v.category === CFG.CATEGORIES.MAYBE) card.classList.add('category-maybe');
+  // ---- CARD RENDER ----
+  function createVacancyCard(v, { pageType = 'main', searchQuery = '' } = {}) {
+    const card = document.createElement('article');
+    card.className = 'vacancy-card';
+    if (v.category === 'ТОЧНО ТВОЁ') card.classList.add('category-good');
+    else if (v.category === 'МОЖЕТ БЫТЬ') card.classList.add('category-maybe');
     else card.classList.add('category-other');
-    const elements = {
-      applyBtn: card.querySelector('[data-element="apply-btn"]'),
-      favoriteBtn: card.querySelector('[data-element="favorite-btn"]'),
-      deleteBtn: card.querySelector('[data-element="delete-btn"]'),
-      category: card.querySelector('[data-element="category"]'),
-      summary: card.querySelector('[data-element="summary"]'),
-      infoWindow: card.querySelector('[data-element="info-window"]'),
-      details: card.querySelector('[data-element="details"]'),
-      attachments: card.querySelector('[data-element="attachments"]'),
-      fullText: card.querySelector('[data-element="full-text"]'),
-      skills: card.querySelector('[data-element="skills"]'),
-      channel: card.querySelector('[data-element="channel"]'),
-      timestamp: card.querySelector('[data-element="timestamp"]'),
-      metaSeparator: card.querySelector('.meta-separator'),
+
+    const allowHttpOrTg = (url) => {
+        if (!url) return '';
+        try {
+            const u = new URL(url, window.location.href);
+            if (/^https?:$/.test(u.protocol) || /^tg:$/.test(u.protocol)) return u.href;
+            return '';
+        } catch { return ''; }
     };
-    const applyUrl = sanitizeLink(v.apply_url || '');
-    if (applyUrl) {
-      elements.applyBtn.dataset.action = 'apply';
-      elements.applyBtn.dataset.url = applyUrl;
-    } else {
-      elements.applyBtn.remove();
+    const applyUrl = allowHttpOrTg(String(v.apply_url || ''));
+    const applyBtnHtml = applyUrl ? `
+      <button class="card-action-btn apply" data-action="apply" data-url="${escapeHtml(applyUrl)}" aria-label="Откликнуться">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="2 2 15 22 11 13 2 9 22 2"></polygon></svg>
+      </button>` : '';
+
+    const favoriteBtnHtml = pageType === 'main' ? `
+      <button class="card-action-btn favorite" data-action="favorite" data-id="${v.id}" aria-label="В избранное">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 1 0-7.78 7.78L12 21.35l8.84-8.84a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      </button>` : '';
+
+    const deleteBtnHtml = `
+      <button class="card-action-btn delete" data-action="delete" data-id="${v.id}" aria-label="Удалить">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>
+      </button>`;
+
+    const actionsHtml = `<div class="card-actions">${applyBtnHtml}${favoriteBtnHtml}${deleteBtnHtml}</div>`;
+
+    const UNKNOWN = ['не указано', 'n/a', 'none', 'null', '/'];
+    const pretty = (s = '') => {
+      const x = String(s || '').trim();
+      if (!x) return '—';
+      if (UNKNOWN.includes(x.toLowerCase())) return '—';
+      return escapeHtml(x);
+    };
+
+    const summaryText = String(v.reason || '').trim() || 'Описание отсутствует';
+    const infoHtml = `
+      <ul class="meta">
+        <li><span class="meta-name">Компания:</span> <span class="meta-val">${pretty(v.company_name)}</span></li>
+        <li><span class="meta-name">Формат:</span> <span class="meta-val">${pretty(v.work_format)}</span></li>
+        <li><span class="meta-name">Занятость:</span> <span class="meta-val">${pretty(v.employment_type)}</span></li>
+        <li><span class="meta-name">Сфера:</span> <span class="meta-val">${pretty(v.industry)}</span></li>
+        <li><span class="meta-name">Оплата:</span> <span class="meta-val">${pretty(v.salary_display_text)}</span></li>
+      </ul>
+    `;
+
+    const skills = Array.isArray(v.skills) ? v.skills : [];
+    const skillsFooterHtml = skills.length ? `
+      <div class="skills">
+        ${skills.slice(0, 6).map(s => `<span class="skill">${escapeHtml(String(s))}</span>`).join('')}
+      </div>` : '';
+
+    const detailsHTML = `
+      <div class="vacancy-text" data-original="1"></div>
+    `;
+
+    const footerMetaHtml = `
+      <div class="footer-meta">
+        <span class="channel">${escapeHtml(v.channel || '')}</span>
+        <span class="timestamp">${formatTimestamp(v.timestamp)}</span>
+      </div>
+    `;
+
+    card.innerHTML = `
+      ${actionsHtml}
+      <div class="card-header"><h3>${escapeHtml(v.category || 'NO_CATEGORY')}</h3></div>
+      <div class="card-body">
+        <p class="card-summary"></p>
+        ${infoHtml}
+        ${detailsHTML}
+      </div>
+      <div class="card-footer">${skillsFooterHtml}${footerMetaHtml}</div>
+    `;
+
+    const summaryEl = card.querySelector('.card-summary');
+    if (summaryEl) {
+      summaryEl.dataset.originalSummary = summaryText;
+      summaryEl.innerHTML = searchQuery ? highlightText(summaryText, searchQuery) : escapeHtml(summaryText);
     }
-    if (pageType === 'main') {
-      elements.favoriteBtn.dataset.action = 'favorite';
-      elements.favoriteBtn.dataset.id = v.id;
-    } else {
-      elements.favoriteBtn.remove();
+    const detailsEl = card.querySelector('.vacancy-text');
+    if (detailsEl) {
+      detailsEl.innerHTML = (v.attachments_html || '') + (v.text_highlighted || '');
     }
-    elements.deleteBtn.dataset.action = 'delete';
-    elements.deleteBtn.dataset.id = v.id;
-    elements.category.textContent = v.category || 'NO_CATEGORY';
-    const summaryText = v.reason || 'Описание не было сгенерировано.';
-    elements.summary.dataset.originalSummary = summaryText;
-    elements.summary.innerHTML = searchQuery ? highlightText(summaryText, searchQuery) : escapeHtml(summaryText);
-    const infoRows = [];
-    const cleanVal = val => String(val ?? '').replace(/[«»"“”'‘’`']/g,'').trim();
-    const isMeaningful = val => !!cleanVal(val) && !['не указано', 'n/a'].includes(cleanVal(val).toLowerCase());
-    const fmt = [v.employment_type, v.work_format].map(cleanVal).filter(isMeaningful).join(' / ');
-    if (fmt) infoRows.push({ label: 'ФОРМАТ', value: fmt, type: 'default' });
-    if (isMeaningful(v.salary_display_text)) infoRows.push({ label: 'ОПЛАТА', value: cleanVal(v.salary_display_text), type: 'salary' });
-    if (isMeaningful(v.industry)) infoRows.push({ label: 'СФЕРА', value: cleanVal(v.industry), type: 'industry' });
-    if (infoRows.length > 0) {
-      infoRows.forEach(r => {
-        const row = document.createElement('div');
-        row.className = `info-row info-row--${r.type}`;
-        row.innerHTML = `<div class="info-label">${escapeHtml(r.label)} >></div><div class="info-value">${escapeHtml(r.value)}</div>`;
-        elements.infoWindow.appendChild(row);
-      });
-    } else {
-      elements.infoWindow.remove();
-    }
-    const originalDetailsHtml = String(v.text_highlighted || '').replace(/\[\s*Изображение\s*\]\s*/gi, '');
-    const bestImageUrl = pickImageUrl(v, originalDetailsHtml);
-    if (bestImageUrl) {
-        const imgBtn = document.createElement('a');
-        imgBtn.className = 'image-link-button';
-        imgBtn.href = bestImageUrl;
-        imgBtn.target = '_blank';
-        imgBtn.rel = 'noopener noreferrer';
-        imgBtn.textContent = 'Изображение';
-        elements.attachments.appendChild(imgBtn);
-    }
-    if (originalDetailsHtml) {
-        elements.fullText.innerHTML = originalDetailsHtml;
-    }
-    if (!bestImageUrl && !originalDetailsHtml) {
-        elements.details.remove();
-    }
-    if (Array.isArray(v.skills) && v.skills.length > 0) {
-        v.skills.slice(0, 3).forEach(s => {
-            const tag = document.createElement('span');
-            tag.className = 'footer-skill-tag';
-            tag.textContent = s;
-            elements.skills.appendChild(tag);
-        });
-    } else {
-      elements.skills.remove();
-    }
-    if(v.channel) {
-      elements.channel.textContent = v.channel;
-    } else {
-      elements.channel.remove();
-      elements.metaSeparator.remove();
-    }
-    elements.timestamp.textContent = formatTimestamp(v.timestamp);
     const searchChunks = [
       v.category, v.reason, v.industry, v.company_name,
       Array.isArray(v.skills) ? v.skills.join(' ') : '',
-      stripTags(originalDetailsHtml)
+      stripTags(v.text_highlighted || '')
     ].filter(Boolean);
     card.dataset.searchText = searchChunks.join(' ').toLowerCase();
+
     return card;
   }
-  
-  /**
-   * НОВАЯ ВЕРСИЯ PULL-TO-REFRESH
-   */
+
+  // ---- ОБЩАЯ ФУНКЦИЯ ДЛЯ PULL-TO-REFRESH ----
   function setupPullToRefresh(options = {}) {
-    const { onRefresh, refreshEventName } = options;
-    if (typeof onRefresh !== 'function' || !refreshEventName) {
-      return;
-    }
+    const { onRefresh, refreshEventName, container = window } = options;
+    if (typeof onRefresh !== 'function' || !refreshEventName) return;
 
-    const wrapper = document.querySelector('.main-wrapper');
-    const ptrBar = wrapper?.querySelector('.ptr-bar');
-    if (!wrapper || !ptrBar) {
-      return;
-    }
+    const threshold = 78;            // сколько тянуть, чтобы сработал refresh
+    const activatePx = 16;           // минимальный вертикальный сдвиг, чтобы вообще показать плашку
+    const slopeRatio = 1.3;          // вертикаль должна быть сильнее горизонтали (dy > dx * ratio)
 
-    // Динамически создаем контент для плашки
-    ptrBar.innerHTML = `
-      <div class="ptr-icon">
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"></line>
-          <polyline points="19 12 12 19 5 12"></polyline>
-        </svg>
-      </div>
-      <div class="ptr-spinner retro-spinner-inline"></div>
-      <span class="ptr-text">Потяните для обновления</span>
-    `;
-    
-    const ptrText = ptrBar.querySelector('.ptr-text');
-    const THRESHOLD = CFG.PTR_CONFIG?.THRESHOLD || 80;
-    const BAR_HEIGHT = CFG.PTR_CONFIG?.BAR_HEIGHT || 60;
+    let startY = 0, startX = 0;
+    let pulling = false, ready = false, locked = false, activated = false;
 
-    let startY = 0;
-    let pullDistance = 0;
-    let state = 'waiting'; // 'waiting', 'pulling', 'refreshing'
+    const bar = document.createElement('div');
+    bar.className = 'ptr-bar';
+    bar.innerHTML = '<span class="ptr-text">Потяните для обновления</span>';
+    document.body.appendChild(bar);
+    const barText = bar.querySelector('.ptr-text');
 
-    const setState = (newState) => {
-      if (state === newState) return;
-      state = newState;
+    const setBar = (y) => {
+      bar.style.transform = `translateY(${Math.min(0, -100 + (y / (threshold / 100)))}%)`;
+      bar.classList.toggle('visible', y > activatePx);
+    };
+    const resetBar = () => {
+      bar.style.transform = 'translateY(-100%)';
+      bar.classList.remove('visible');
+      if (barText) barText.textContent = 'Потяните для обновления';
+    };
 
-      switch(state) {
-        case 'waiting':
-          wrapper.classList.remove('ptr-pulling');
-          ptrBar.classList.remove('ptr-visible', 'ptr-ready', 'ptr-refreshing');
-          wrapper.style.transform = 'translateY(0px)';
-          break;
-
-        case 'pulling':
-          wrapper.classList.add('ptr-pulling');
-          ptrBar.classList.add('ptr-visible');
-          break;
-
-        case 'refreshing':
-          wrapper.classList.remove('ptr-pulling');
-          ptrBar.classList.add('ptr-refreshing');
-          wrapper.style.transform = `translateY(${BAR_HEIGHT}px)`;
-          ptrText.textContent = 'Обновление...';
-          
-          if (tg && tg.HapticFeedback && tg.HapticFeedback.impactOccurred) {
-            tg.HapticFeedback.impactOccurred('medium');
-          }
-
-          onRefresh();
-          
-          const safetyTimeout = setTimeout(() => {
-            if (state === 'refreshing') setState('waiting');
-          }, 8000);
-
-          const onLoaded = () => {
-            clearTimeout(safetyTimeout);
-            document.removeEventListener(refreshEventName, onLoaded);
-            setState('waiting');
-          };
-          document.addEventListener(refreshEventName, onLoaded);
-          break;
+    container.addEventListener('touchstart', (e) => {
+      if (locked || window.scrollY > 0 || e.touches.length !== 1) {
+        pulling = false;
+        activated = false;
+        return;
       }
-    };
+      const t = e.touches[0];
+      startY = t.clientY;
+      startX = t.clientX;
+      pulling = true;
+      ready = false;
+      activated = false;
+    }, { passive: true });
 
-    const handleTouchStart = (e) => {
-      if (state !== 'waiting' || window.scrollY > 0) return;
-      startY = e.touches[0].clientY;
-      setState('pulling');
-    };
+    container.addEventListener('touchmove', (e) => {
+      if (!pulling || locked) return;
+      const t = e.touches[0];
+      const dy = t.clientY - startY;
+      const dx = Math.abs(t.clientX - startX);
 
-    const handleTouchMove = (e) => {
-      if (state !== 'pulling') return;
-      
-      pullDistance = e.touches[0].clientY - startY;
-      
-      if (pullDistance > 0) {
-        e.preventDefault();
-        
-        const dragDistance = Math.pow(pullDistance, 0.85);
-        wrapper.style.transform = `translateY(${dragDistance}px)`;
-        
-        if (dragDistance > THRESHOLD) {
-          ptrBar.classList.add('ptr-ready');
-          ptrText.textContent = 'Отпустите для обновления';
-        } else {
-          ptrBar.classList.remove('ptr-ready');
-          ptrText.textContent = 'Потяните для обновления';
+      // пока нет явного вертикального жеста — ничего не делаем
+      if (!activated) {
+        if (dy <= activatePx || dy <= dx * slopeRatio) return;
+        activated = true; // теперь можно показывать плашку и блокировать прокрутку
+      }
+
+      if (dy > 0) {
+        e.preventDefault();           // блокируем скролл только ПОСЛЕ активации
+        setBar(dy);
+        if (dy > threshold && !ready) {
+          ready = true;
+          if (barText) barText.textContent = 'Отпустите для обновления';
+        } else if (dy <= threshold && ready) {
+          ready = false;
+          if (barText) barText.textContent = 'Потяните для обновления';
         }
-      }
-    };
-
-    const handleTouchEnd = () => {
-      if (state !== 'pulling') return;
-
-      if (Math.pow(pullDistance, 0.85) > THRESHOLD) {
-        setState('refreshing');
       } else {
-        setState('waiting');
+        pulling = false;
+        activated = false;
+        resetBar();
       }
-      pullDistance = 0;
-    };
+    }, { passive: false });
 
-    document.body.addEventListener('touchstart', handleTouchStart, { passive: true });
-    document.body.addEventListener('touchmove', handleTouchMove, { passive: false });
-    document.body.addEventListener('touchend', handleTouchEnd);
+    container.addEventListener('touchend', () => {
+      if (!pulling || locked) {
+        resetBar();
+        pulling = false;
+        activated = false;
+        return;
+      }
+      if (ready) {
+        locked = true;
+        if (barText) barText.textContent = 'Обновляю…';
+        setBar(threshold * 1.2);
+        const done = () => { locked = false; pulling = false; activated = false; resetBar(); };
+        const onLoaded = () => { document.removeEventListener(refreshEventName, onLoaded); done(); };
+        document.addEventListener(refreshEventName, onLoaded);
+        onRefresh();
+        setTimeout(() => { if (locked) done(); }, 8000);
+      } else {
+        resetBar();
+        pulling = false;
+        activated = false;
+      }
+    }, { passive: true });
   }
 
 
   window.utils = {
-    tg, 
-    escapeHtml, 
-    stripTags, 
-    debounce, 
-    highlightText, 
-    safeAlert, 
-    uiToast,
-    formatTimestamp, 
-    sanitizeLink, 
-    openLink,
-    containsImageMarker, 
-    cleanImageMarkers, 
-    pickImageUrl,
-    fetchWithRetry, 
-    renderEmptyState, 
-    renderError,
-    ensureLoadMore, 
-    updateLoadMore,
+    tg, escapeHtml, stripTags, debounce, highlightText, safeAlert, uiToast,
+    formatTimestamp, sanitizeUrl, openLink,
+    containsImageMarker, cleanImageMarkers, pickImageUrl,
+    fetchWithRetry, renderEmptyState, renderError,
+    ensureLoadMore, updateLoadMore,
     createVacancyCard,
-    setupPullToRefresh, // <-- Новая функция
-    showCustomConfirm,
-    createSupabaseHeaders,
-    parseTotal
+    setupPullToRefresh
   };
 })();

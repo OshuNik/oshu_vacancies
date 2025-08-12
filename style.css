@@ -40,7 +40,6 @@ body {
     height: 50px;
     background-color: var(--card-color);
     color: var(--text-color);
-    z-index: -1;
     font-family: inherit;
     font-weight: 700;
     display: flex;
@@ -68,9 +67,6 @@ body {
 .header {
     padding-bottom: 25px;
     text-align: center;
-    position: relative; /* <--- ДОБАВИТЬ */
-    z-index: 2; /* <--- ДОБАВИТЬ */
-    background-color: var(--background-color); /* <--- ДОБАВИТЬ */
 }
 .header h1 {
     font-family: 'Press Start 2P', 'Courier New', Courier, monospace;
@@ -900,4 +896,11 @@ details[open] .vacancy-text {
     padding: 4px;
     margin-left: auto;
     flex-shrink: 0;
+}
+
+/* === ИСПРАВЛЕНИЕ ДЛЯ PULL-TO-REFRESH === */
+#main-header {
+    position: relative;
+    z-index: 2;
+    background-color: var(--background-color);
 }

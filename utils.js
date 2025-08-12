@@ -511,22 +511,11 @@
       if (touchY > 100) return; // Не реагируем на касания ниже 100px от верха
       
       startY = touchY;
-      // НЕ устанавливаем состояние pulling сразу - ждем реального движения
+      // Устанавливаем состояние pulling при касании в верхней части
+      setState('pulling');
     };
 
     const handleTouchMove = (e) => {
-      // Если состояние waiting и есть startY, проверяем движение
-      if (state === 'waiting' && startY !== 0) {
-        const currentY = e.touches[0].clientY;
-        const moveDistance = currentY - startY;
-        
-        // Если движение вниз больше 10px, активируем pulling
-        if (moveDistance > 10) {
-          setState('pulling');
-        }
-        return;
-      }
-      
       if (state !== 'pulling') return;
       
       pullDistance = e.touches[0].clientY - startY;

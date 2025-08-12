@@ -25,33 +25,42 @@ body {
     overflow-x: hidden;
 }
 
-/* === Pull-to-Refresh (Новая Версия) === */
-
+/* === Pull-to-Refresh (Финальный Ретро-дизайн) === */
 .main-wrapper {
     position: relative;
     z-index: 1;
     background-color: var(--background-color);
     padding-bottom: 80px;
-    transition: transform 0.3s ease-out; /* Плавный возврат в исходное положение */
+    transition: transform 0.3s ease-out;
 }
 .main-wrapper.ptr-pulling {
-    transition: none; /* Отключаем анимацию во время свайпа */
+    transition: none;
 }
 
 .ptr-bar {
+    box-sizing: border-box;
     position: absolute;
-    top: -60px; /* Смещаем над экраном на свою высоту */
-    left: 0;
-    right: 0;
-    height: 60px;
+    top: -60px;
+    left: 15px;
+    right: 15px;
+    height: 55px;
     display: flex;
     align-items: center;
     justify-content: center;
+    gap: 12px;
+    
+    /* Ретро-стиль, как у других компонентов */
+    background-color: var(--card-color);
+    border: var(--border-width) solid var(--border-color);
+    border-top: none;
+    border-radius: 0 0 12px 12px;
+    box-shadow: var(--shadow-offset) var(--shadow-offset) 0px var(--border-color);
+
     color: var(--text-color);
     font-family: 'Roboto Mono', monospace;
     font-weight: 700;
     font-size: 14px;
-    /* Плашка изначально невидима и появляется плавно */
+    
     opacity: 0;
     transition: opacity 0.2s ease-out;
 }
@@ -60,30 +69,25 @@ body {
 }
 
 .ptr-icon {
-    width: 24px;
-    height: 24px;
-    margin-right: 12px;
+    width: 22px;
+    height: 22px;
     stroke: var(--text-color);
     stroke-width: 2.5;
     transition: transform 0.2s ease-out;
 }
 .ptr-bar.ptr-ready .ptr-icon {
-    transform: rotate(180deg); /* Переворачиваем стрелку */
+    transform: rotate(180deg);
 }
 
 .ptr-spinner {
     display: none;
-    width: 22px;
-    height: 22px;
-    margin-right: 12px;
 }
 .ptr-bar.ptr-refreshing .ptr-icon {
-    display: none; /* Прячем стрелку */
+    display: none;
 }
 .ptr-bar.ptr-refreshing .ptr-spinner {
-    display: inline-block; /* Показываем спиннер */
+    display: inline-block;
 }
-
 /* === Конец секции Pull-to-Refresh === */
 
 .vacancy-list.loading-seamless {

@@ -84,17 +84,21 @@
     const channelItem = document.createElement('div');
     channelItem.className = 'channel-item';
     channelItem.dataset.dbId = channel.id;
+    
     const infoDiv = document.createElement('div');
     infoDiv.className = 'channel-item-info';
+    
     const cleanId = channel.channel_id.replace('@', '');
     const titleSpan = document.createElement('span');
     titleSpan.className = 'channel-item-title';
     titleSpan.textContent = channel.channel_title || cleanId;
+    
     const idLink = document.createElement('a');
     idLink.className = 'channel-item-id';
     idLink.textContent = `@${cleanId}`;
     idLink.href = `https://t.me/${cleanId}`;
     idLink.target = '_blank';
+    idLink.rel = 'noopener noreferrer';
     const toggleContainer = document.createElement('div');
     toggleContainer.className = 'channel-item-toggle';
     const toggleLabel = document.createElement('label');
@@ -168,26 +172,77 @@
   async function addChannel() {
     let channelId = channelInput.value.trim();
     if (!channelId) return;
+    
+    console.log('🔍 Добавление канала:', channelId);
+    
+    // Валидация формата канала
     if (channelId.includes('t.me/')) {
       channelId = '@' + channelId.split('t.me/')[1].split('/')[0];
+      console.log('🔗 Преобразован из t.me:', channelId);
     }
     if (!channelId.startsWith('@')) channelId = '@' + channelId;
+    
+    console.log('✅ Финальный channelId:', channelId);
+    
+    // Проверяем, что это валидный username (только буквы, цифры, подчеркивания)
+    const username = channelId.substring(1); // убираем @
+    if (!/^[a-zA-Z0-9_]{5,32}$/.test(username)) {
+      safeAlert('Неверный формат username. Используйте только буквы, цифры и подчеркивания (5-32 символа).');
+      return;
+    }
+    
     addChannelBtn.disabled = true;
-    const newChannelData = { channel_id: channelId, channel_title: channelId, is_enabled: true };
+    
     try {
+      // Сначала проверяем, не существует ли уже такой канал
+      console.log('🔍 Проверяем существование канала...');
+      const checkResponse = await fetch(`${CFG.SUPABASE_URL}/rest/v1/channels?channel_id=eq.${encodeURIComponent(channelId)}&select=id`, {
+        headers: createSupabaseHeaders()
+      });
+      
+      if (checkResponse.ok) {
+        const existingChannels = await checkResponse.json();
+        console.log('📊 Найдено существующих каналов:', existingChannels.length);
+        if (existingChannels.length > 0) {
+          safeAlert('Такой канал уже существует в списке!');
+          return;
+        }
+      } else {
+        console.warn('⚠️ Ошибка проверки дубликатов:', checkResponse.status, checkResponse.statusText);
+      }
+      
+      const newChannelData = { 
+        channel_id: channelId, 
+        channel_title: channelId, 
+        is_enabled: true 
+      };
+      
+      console.log('📤 Отправляем данные в API:', newChannelData);
+      console.log('🌐 URL:', `${CFG.SUPABASE_URL}/rest/v1/channels`);
+      
       const response = await fetch(`${CFG.SUPABASE_URL}/rest/v1/channels`, {
         method: 'POST',
         headers: createSupabaseHeaders({ prefer: 'return=representation' }),
         body: JSON.stringify(newChannelData)
       });
-      if (!response.ok) throw new Error('Канал не найден или ошибка сети');
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Ошибка API: ${response.status} ${response.statusText}. ${errorText}`);
+      }
+      
       const data = await response.json();
-      renderChannel(data[0]);
-      channelInput.value = '';
-      uiToast('Канал добавлен');
+      if (data && data.length > 0) {
+        renderChannel(data[0]);
+        channelInput.value = '';
+        uiToast('Канал добавлен успешно!');
+      } else {
+        throw new Error('API не вернул данные о добавленном канале');
+      }
+      
     } catch (error) {
       console.error('Ошибка добавления канала:', error);
-      safeAlert('Не удалось добавить канал. Проверьте имя.');
+      safeAlert(`Не удалось добавить канал: ${error.message}`);
     } finally {
       addChannelBtn.disabled = false;
     }

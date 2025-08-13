@@ -195,6 +195,13 @@
     if (!keywordsInput) return;
     const kws = keywordsInput.value.trim();
     saveBtn.disabled = true;
+    
+    // Показываем ретро-галочку
+    const checkmark = createRetroCheckmark();
+    const originalText = saveBtn.innerHTML;
+    saveBtn.innerHTML = '';
+    saveBtn.appendChild(checkmark);
+    
     try {
       await fetch(API_ENDPOINTS.SETTINGS, {
         method: 'POST',
@@ -208,6 +215,8 @@
       safeAlert('Не удалось сохранить настройки. Проверьте подключение к интернету.');
     } finally {
       saveBtn.disabled = false;
+      // Восстанавливаем оригинальную кнопку
+      saveBtn.innerHTML = originalText;
     }
   }
 
@@ -307,6 +316,16 @@
     
     addChannelBtn.disabled = true;
     
+    // Показываем ретро-прогресс-бар
+    const progressContainer = document.createElement('div');
+    progressContainer.style.marginTop = '15px';
+    const progress = createRetroProgress(channelId);
+    progressContainer.appendChild(progress);
+    
+    // Вставляем прогресс-бар после формы добавления
+    const addForm = document.querySelector('.add-channel-form');
+    addForm.parentNode.insertBefore(progressContainer, addForm.nextSibling);
+    
     try {
       // Проверяем существование канала
       if (await isChannelExists(channelId)) {
@@ -322,6 +341,8 @@
       safeAlert(`${MESSAGES.ERRORS.ADD_FAILED}: ${error.message}`);
     } finally {
       addChannelBtn.disabled = false;
+      // Убираем прогресс-бар
+      progressContainer.remove();
     }
   }
 
@@ -330,7 +351,12 @@
         console.error('loadChannels: элемент channelsListContainer не найден');
         return;
     }
-    channelsListContainer.innerHTML = '<p class="empty-list">Загрузка каналов...</p>';
+    
+    // Показываем ретро-спиннер
+    const spinner = createRetroSpinner();
+    channelsListContainer.innerHTML = '';
+    channelsListContainer.appendChild(spinner);
+    
     try {
       const response = await fetch(`${API_ENDPOINTS.CHANNELS}?select=*`, {
         headers: createSupabaseHeaders()
@@ -359,6 +385,16 @@
 
   loadDefaultsBtn?.addEventListener('click', async () => {
     loadDefaultsBtn.disabled = true;
+    
+    // Показываем ретро-прогресс
+    const progressContainer = document.createElement('div');
+    progressContainer.style.marginTop = '15px';
+    const progress = createRetroChannelsProgress(0, 0);
+    progressContainer.appendChild(progress);
+    
+    // Вставляем прогресс после кнопки
+    loadDefaultsBtn.parentNode.insertBefore(progressContainer, loadDefaultsBtn.nextSibling);
+    
     try {
       const response = await fetch(`${API_ENDPOINTS.DEFAULT_CHANNELS}?select=channel_id`, {
         headers: createSupabaseHeaders()
@@ -366,12 +402,28 @@
       if (!response.ok) throw new Error('Не удалось получить стандартные каналы');
       const defaultChannels = await response.json();
       if (defaultChannels.length === 0) { safeAlert('Список стандартных каналов пуст.'); return; }
-      const channelsToUpsert = defaultChannels.map(ch => ({ channel_id: ch.channel_id, is_enabled: true }));
-      await fetch(API_ENDPOINTS.CHANNELS, {
-        method: 'POST',
-        headers: createSupabaseHeaders({ prefer: 'resolution=merge-duplicates' }),
-        body: JSON.stringify(channelsToUpsert)
-      });
+      
+      // Обновляем прогресс
+      const progressFill = progress.querySelector('.progress-fill');
+      const progressStats = progress.querySelector('.progress-stats');
+      
+      for (let i = 0; i < defaultChannels.length; i++) {
+        const channel = defaultChannels[i];
+        await fetch(API_ENDPOINTS.CHANNELS, {
+          method: 'POST',
+          headers: createSupabaseHeaders({ prefer: 'resolution=merge-duplicates' }),
+          body: JSON.stringify({ channel_id: channel.channel_id, is_enabled: true })
+        });
+        
+        // Обновляем прогресс
+        const percentage = ((i + 1) / defaultChannels.length) * 100;
+        progressFill.style.width = `${percentage}%`;
+        progressStats.textContent = `Канал ${i + 1} из ${defaultChannels.length}`;
+        
+        // Небольшая задержка для визуального эффекта
+        await new Promise(resolve => setTimeout(resolve, 200));
+      }
+      
       await loadChannels();
       uiToast(MESSAGES.SUCCESS.DEFAULTS_LOADED);
     } catch (error) {
@@ -379,6 +431,8 @@
       safeAlert('Не удалось добавить стандартные каналы. Проверьте подключение к интернету.');
     } finally {
       loadDefaultsBtn.disabled = false;
+      // Убираем прогресс
+      progressContainer.remove();
     }
   });
 
@@ -405,4 +459,155 @@
   // Инициализация приложения
   loadKeywords();
   loadChannels();
+
+  // === РЕТРО-ГЕЙМИНГ ПРОГРЕСС-ИНДИКАТОРЫ ===
+  
+  /**
+   * Создает ретро-спиннер загрузки каналов
+   * @returns {HTMLElement} Элемент спиннера
+   */
+  function createRetroSpinner() {
+    const spinner = document.createElement('div');
+    spinner.className = 'retro-spinner';
+    
+    const blocks = document.createElement('div');
+    blocks.className = 'blocks';
+    
+    for (let i = 0; i < 6; i++) {
+      const block = document.createElement('div');
+      block.className = 'block';
+      blocks.appendChild(block);
+    }
+    
+    const text = document.createElement('span');
+    text.textContent = 'Загружаем каналы...';
+    
+    spinner.appendChild(blocks);
+    spinner.appendChild(text);
+    
+    return spinner;
+  }
+
+  /**
+   * Создает ретро-прогресс-бар для добавления канала
+   * @param {string} channelName - Имя канала
+   * @returns {HTMLElement} Элемент прогресс-бара
+   */
+  function createRetroProgress(channelName) {
+    const container = document.createElement('div');
+    container.className = 'retro-progress';
+    
+    const text = document.createElement('div');
+    text.textContent = `Добавляем ${channelName}...`;
+    text.style.textAlign = 'center';
+    text.style.marginBottom = '8px';
+    text.style.fontFamily = 'var(--font-mono)';
+    text.style.fontSize = '14px';
+    
+    const progressBar = document.createElement('div');
+    progressBar.className = 'retro-progress-bar';
+    progressBar.style.width = '0%';
+    
+    container.appendChild(text);
+    container.appendChild(progressBar);
+    
+    // Анимация прогресса
+    setTimeout(() => {
+      progressBar.style.width = '100%';
+    }, 100);
+    
+    return container;
+  }
+
+  /**
+   * Создает ретро-счетчик для удаления каналов
+   * @param {number} current - Текущее количество
+   * @param {number} total - Общее количество
+   * @returns {HTMLElement} Элемент счетчика
+   */
+  function createRetroCounter(current, total) {
+    const counter = document.createElement('div');
+    counter.className = 'retro-counter';
+    
+    const currentSpan = document.createElement('span');
+    currentSpan.className = 'current';
+    currentSpan.textContent = current;
+    
+    const separator = document.createElement('span');
+    separator.textContent = ' / ';
+    separator.style.color = 'var(--hint-color)';
+    
+    const totalSpan = document.createElement('span');
+    totalSpan.className = 'total';
+    totalSpan.textContent = total;
+    
+    counter.appendChild(currentSpan);
+    counter.appendChild(separator);
+    counter.appendChild(totalSpan);
+    
+    return counter;
+  }
+
+  /**
+   * Создает ретро-галочку для сохранения
+   * @returns {HTMLElement} Элемент галочки
+   */
+  function createRetroCheckmark() {
+    const checkmark = document.createElement('div');
+    checkmark.className = 'retro-checkmark';
+    return checkmark;
+  }
+
+  /**
+   * Создает ретро-прогресс для загрузки стандартных каналов
+   * @param {number} current - Текущий канал
+   * @param {number} total - Общее количество каналов
+   * @returns {HTMLElement} Элемент прогресса
+   */
+  function createRetroChannelsProgress(current, total) {
+    const container = document.createElement('div');
+    container.className = 'retro-channels-progress';
+    
+    const progressText = document.createElement('div');
+    progressText.className = 'progress-text';
+    progressText.textContent = 'Загрузка стандартных каналов';
+    
+    const progressBar = document.createElement('div');
+    progressBar.className = 'progress-bar';
+    
+    const progressFill = document.createElement('div');
+    progressFill.className = 'progress-fill';
+    progressFill.style.width = `${(current / total) * 100}%`;
+    
+    const progressStats = document.createElement('div');
+    progressStats.className = 'progress-stats';
+    progressStats.textContent = `Канал ${current} из ${total}`;
+    
+    progressBar.appendChild(progressFill);
+    container.appendChild(progressText);
+    container.appendChild(progressBar);
+    container.appendChild(progressStats);
+    
+    return container;
+  }
+
+  /**
+   * Показывает прогресс-индикатор в указанном контейнере
+   * @param {HTMLElement} container - Контейнер для показа
+   * @param {HTMLElement} indicator - Индикатор для показа
+   */
+  function showProgress(container, indicator) {
+    // Очищаем контейнер и показываем индикатор
+    container.innerHTML = '';
+    container.appendChild(indicator);
+  }
+
+  /**
+   * Скрывает прогресс-индикатор и восстанавливает содержимое
+   * @param {HTMLElement} container - Контейнер
+   * @param {string} originalContent - Оригинальное содержимое
+   */
+  function hideProgress(container, originalContent) {
+    container.innerHTML = originalContent;
+  }
 })();

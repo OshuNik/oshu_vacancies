@@ -27,6 +27,11 @@
     <button class="settings-tab-button active" data-target="tab-keywords">Ключевые слова</button>
     <button class="settings-tab-button" data-target="tab-channels">Каналы</button>
   </div>
+  
+  <!-- Поиск по настройкам -->
+  <div class="settings-search">
+    <input type="search" id="settings-search-input" placeholder="🔍 Поиск по настройкам..." aria-label="Поиск по настройкам">
+  </div>
 
   <main class="content">
     <div id="tab-keywords" class="settings-tab-content active">
@@ -48,7 +53,16 @@
           <input type="text" id="channel-input" placeholder="@username или https://t.me/..." aria-label="Адрес канала для добавления">
           <button id="add-channel-btn" aria-label="Добавить канал">+</button>
         </div>
-        <div id="channels-list" class="channels-list"></div>
+        <div class="channels-groups">
+          <div class="channels-group enabled">
+            <h3 class="group-title">✅ Активные каналы</h3>
+            <div id="channels-list-enabled" class="channels-list"></div>
+          </div>
+          <div class="channels-group disabled">
+            <h3 class="group-title">❌ Отключенные каналы</h3>
+            <div id="channels-list-disabled" class="channels-list"></div>
+          </div>
+        </div>
         <button id="delete-all-btn" class="button-delete">Удалить все каналы</button>
       </div>
     </div>

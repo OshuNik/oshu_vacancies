@@ -4,56 +4,40 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://telegram.org; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: raw.githubusercontent.com; connect-src 'self' *.supabase.co;">
-  <title>Избранные вакансии - oshu://work</title>
+  <title>Избранное</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
 <div class="main-wrapper">
-  <div id="main-header">
-    <header class="header">
-      <h1>Избранные вакансии</h1>
-      <div id="header-actions" class="header-actions">
-        <a href="index.html" class="header-button">← Назад</a>
-        <a href="settings.html" class="header-button">⚙︎ Настройки</a>
-      </div>
-    </header>
-  </div>
+  <div class="ptr-bar"><div class="ptr-text">Потяните для обновления</div></div>
 
-  <main class="content" id="favorites-content">
-    <div class="search-container">
-      <div class="search-input-wrapper" id="search-input-wrapper-fav">
-        <input type="text" id="search-input-fav" class="search-input" placeholder="Поиск в избранном...">
-        <button type="button" id="search-clear-btn-fav" class="search-clear-btn" aria-label="Очистить поиск">×</button>
-      </div>
-      <div class="search-stats" id="search-stats-fav">
-        <span class="stats-text">Всего: <span id="total-fav">0</span></span>
-        <span class="stats-text">Показано: <span id="visible-fav">0</span></span>
-      </div>
+  <header class="header header-centered">
+    <h1>★ Избранное</h1>
+    <div class="header-actions">
+      <a href="index.html" class="header-button">← Назад</a>
     </div>
-    <div id="favorites-list" class="vacancy-list active"></div>
-  </main>
-</div>
+  </header>
 
-<div id="loader" class="loader-container hidden">
-  <div class="retro-progress-bar-outline">
-    <div class="retro-progress-bar-fill"></div>
+  <div class="search-container" id="search-container-fav">
+    <div class="search-input-wrapper">
+      <input type="search" id="search-input-fav" class="search-input" placeholder="Поиск по избранному...">
+      <button type="button" id="search-clear-btn-fav" class="search-clear-btn" aria-label="Очистить поиск"></button>
+    </div>
   </div>
-  <div class="loader-text">Загрузка избранных вакансий...</div>
-</div>
 
+  <main class="content" id="favorites-list"></main>
+</div>
+<div id="toast-container" class="toast-container"></div>
 <div id="custom-confirm-overlay" class="custom-confirm-overlay hidden">
     <div class="custom-confirm-box">
-    <p id="custom-confirm-text"></p>
-    <div class="custom-confirm-actions">
-      <button type="button" id="confirm-btn-cancel" class="custom-confirm-button" aria-label="Отменить действие">Отмена</button>
-      <button type="button" id="confirm-btn-ok" class="custom-confirm-button ok" aria-label="Подтвердить действие">OK</button>
+      <p id="custom-confirm-text"></p>
+      <div class="custom-confirm-actions">
+        <button type="button" id="confirm-btn-cancel" class="custom-confirm-button">Отмена</button>
+        <button type="button" id="confirm-btn-ok" class="custom-confirm-button ok">OK</button>
+      </div>
     </div>
-  </div>
 </div>
-
-<div id="toast-container" class="toast-container"></div>
-
 <template id="vacancy-card-template">
     <div class="vacancy-card">
     <div class="card-actions">
@@ -81,9 +65,20 @@
         </div>
       </details>
     </div>
+    <div class="card-footer">
+      <div class="footer-skill-tags" data-element="skills"></div>
+      <div class="footer-meta">
+        <span class="channel-name" data-element="channel"></span>
+        <span class="meta-separator"> • </span>
+        <span class="timestamp-footer" data-element="timestamp"></span>
+      </div>
+    </div>
   </div>
 </template>
 
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script src="constants.js"></script>
+<script src="utils.js"></script>
 <script src="favorites.js"></script>
 </body>
 </html>

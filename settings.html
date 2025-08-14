@@ -17,91 +17,35 @@
       </div>
     </header>
   </div>
-  <main class="content" id="settings-content">
+    <main class="content" id="settings-content">
     <div class="settings-tabs">
-      <button type="button" class="settings-tab-button active" data-tab="search">🔍 Поиск</button>
-      <button type="button" class="settings-tab-button" data-tab="channels">📺 Каналы</button>
-      <button type="button" class="settings-tab-button" data-tab="notifications">🔔 Уведомления</button>
-      <button type="button" class="settings-tab-button" data-tab="data">💾 Данные</button>
-      <button type="button" class="settings-tab-button" data-tab="about">ℹ️ О приложении</button>
+      <button type="button" class="settings-tab-button active" data-target="tab-keywords">📝 Ключевые слова</button>
+      <button type="button" class="settings-tab-button" data-target="tab-channels">📺 Каналы</button>
     </div>
 
-    <div class="settings-tab-content active" id="search-tab">
-      <div class="settings-section">
-        <h2>Поиск и фильтрация</h2>
-        <div class="setting-item">
-          <label for="keywords-input">Ключевые слова для поиска:</label>
-          <textarea id="keywords-input" placeholder="Введите ключевые слова через запятую"></textarea>
-          <button type="button" id="save-keywords-btn" class="settings-button">Сохранить</button>
-        </div>
-        <div class="setting-item">
-          <label for="exclude-keywords-input">Исключить слова:</label>
-          <textarea id="exclude-keywords-input" placeholder="Введите слова для исключения через запятую"></textarea>
-          <button type="button" id="save-exclude-keywords-btn" class="settings-button">Сохранить</button>
-        </div>
+    <div class="settings-tab-content active" id="tab-keywords">
+      <div class="current-keywords-container">
+        <p class="current-keywords-label">Текущие ключевые слова</p>
+        <div class="current-keywords-list" id="current-keywords-display">-- не заданы --</div>
+      </div>
+
+      <div class="settings-form">
+        <label for="keywords-input">Введите ключевые слова для поиска (через запятую):</label>
+        <textarea id="keywords-input" rows="5" placeholder="Например: React, JavaScript, Frontend, Vue.js"></textarea>
+        <button type="button" id="save-button" class="button-load-defaults">Сохранить настройки</button>
       </div>
     </div>
 
-    <div class="settings-tab-content" id="channels-tab">
-      <div class="settings-section">
-        <h2>Управление каналами</h2>
-        <div class="setting-item">
-          <label for="channel-id-input">ID канала:</label>
-          <input type="text" id="channel-id-input" placeholder="Введите ID канала">
-          <button type="button" id="add-channel-btn" class="settings-button">Добавить канал</button>
-        </div>
-        <div class="setting-item">
-          <label>Добавленные каналы:</label>
-          <div id="channels-list" class="channels-list">
-            <!-- Каналы будут добавлены динамически -->
-          </div>
-        </div>
+    <div class="settings-tab-content" id="tab-channels">
+      <button type="button" id="load-defaults-btn" class="button-load-defaults">Загрузить стандартные каналы</button>
+      <div class="add-channel-form">
+        <input type="text" id="channel-input" placeholder="@username или t.me/username">
+        <button type="button" id="add-channel-btn">+</button>
       </div>
-    </div>
-
-    <div class="settings-tab-content" id="notifications-tab">
-      <div class="settings-section">
-        <h2>Уведомления</h2>
-        <div class="setting-item">
-          <label>
-            <input type="checkbox" id="notifications-enabled">
-            Включить уведомления о новых вакансиях
-          </label>
-        </div>
-        <div class="setting-item">
-          <label for="notification-interval">Интервал проверки:</label>
-          <select id="notification-interval">
-            <option value="5">5 минут</option>
-            <option value="10">10 минут</option>
-            <option value="15">15 минут</option>
-            <option value="30">30 минут</option>
-          </select>
-          <button type="button" id="save-notification-settings-btn" class="settings-button">Сохранить</button>
-        </div>
+      <div id="channels-list" class="channels-list">
+        <p class="empty-list">Загрузка каналов...</p>
       </div>
-    </div>
-
-    <div class="settings-tab-content" id="data-tab">
-      <div class="settings-section">
-        <h2>Данные</h2>
-        <div class="setting-item">
-          <button type="button" id="export-data-btn" class="settings-button">Экспорт данных</button>
-          <button type="button" id="import-data-btn" class="settings-button">Импорт данных</button>
-        </div>
-        <div class="setting-item">
-          <button type="button" id="clear-data-btn" class="settings-button danger">Очистить все данные</button>
-        </div>
-      </div>
-    </div>
-
-    <div class="settings-tab-content" id="about-tab">
-      <div class="settings-section">
-        <h2>О приложении</h2>
-        <div class="setting-item">
-          <p>Версия: <span id="app-version">1.0.0</span></p>
-          <p>Разработчик: OshuNik</p>
-        </div>
-      </div>
+      <button type="button" id="delete-all-btn" class="button-delete">Удалить все каналы</button>
     </div>
   </main>
 </div>

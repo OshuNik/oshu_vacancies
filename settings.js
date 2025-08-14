@@ -8,9 +8,9 @@
   const CFG = window.APP_CONFIG;
   const UTIL = window.utils;
 
-  if (!CFG || !UTIL) {
-    alert("Критическая ошибка: Не найден config.js или utils.js!");
-    console.error('settings.js: CFG или UTIL не найдены');
+  try {
+    const { config, utils } = UTIL.validateConfiguration(CFG, UTIL);
+  } catch (error) {
     return;
   }
 
@@ -69,18 +69,18 @@
     if (!input) return null;
     
     let channelId = input.trim();
-    console.log('🔍 Валидация канала:', channelId);
+            utils.safeLog.log('🔍 Валидация канала:', channelId);
     
     // Преобразование t.me ссылок
     if (channelId.includes('t.me/')) {
       channelId = '@' + channelId.split('t.me/')[1].split('/')[0];
-      console.log('🔗 Преобразован из t.me:', channelId);
+              utils.safeLog.log('🔗 Преобразован из t.me:', channelId);
     }
     
     // Добавление @ если отсутствует
     if (!channelId.startsWith('@')) channelId = '@' + channelId;
     
-    console.log('✅ Финальный channelId:', channelId);
+            utils.safeLog.log('✅ Финальный channelId:', channelId);
     
     // Валидация username
     const username = channelId.substring(1);
@@ -100,7 +100,7 @@
    * @returns {Promise<boolean>} true если канал существует, false если нет
    */
   async function isChannelExists(channelId) {
-    console.log('🔍 Проверяем существование канала...');
+            utils.safeLog.log('🔍 Проверяем существование канала...');
     try {
       const response = await fetch(`${API_ENDPOINTS.CHANNELS}?channel_id=eq.${encodeURIComponent(channelId)}&select=id`, {
         headers: createSupabaseHeaders()
@@ -108,7 +108,7 @@
       
       if (response.ok) {
         const existingChannels = await response.json();
-        console.log('📊 Найдено существующих каналов:', existingChannels.length);
+        utils.safeLog.log('📊 Найдено существующих каналов:', existingChannels.length);
         return existingChannels.length > 0;
       } else {
         console.warn('⚠️ Ошибка проверки дубликатов:', response.status, response.statusText);
@@ -132,8 +132,8 @@
       is_enabled: true 
     };
     
-    console.log('📤 Отправляем данные в API:', newChannelData);
-    console.log('🌐 URL:', API_ENDPOINTS.CHANNELS);
+            utils.safeLog.log('📤 Отправляем данные в API:', newChannelData);
+        utils.safeLog.log('🌐 URL:', API_ENDPOINTS.CHANNELS);
     
     const response = await fetch(API_ENDPOINTS.CHANNELS, {
       method: 'POST',
@@ -242,7 +242,7 @@
     toggleSlider.className = 'toggle-slider';
     const deleteButton = document.createElement('button');
     deleteButton.className = 'channel-item-delete';
-    deleteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
+            utils.setSafeHTML(deleteButton, `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`);
     // Создаем обработчики как отдельные функции для возможности cleanup
           const deleteHandler = async () => {
         const dbId = channelItem.dataset.dbId;
@@ -330,22 +330,22 @@
         console.error('loadChannels: элемент channelsListContainer не найден');
         return;
     }
-    channelsListContainer.innerHTML = '<p class="empty-list">Загрузка каналов...</p>';
+            utils.setSafeHTML(channelsListContainer, '<p class="empty-list">Загрузка каналов...</p>');
     try {
       const response = await fetch(`${API_ENDPOINTS.CHANNELS}?select=*`, {
         headers: createSupabaseHeaders()
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-      channelsListContainer.innerHTML = '';
+              utils.clearElement(channelsListContainer);
       if (data && data.length > 0) {
           data.forEach(item => renderChannel(item));
       } else {
-          channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
+          utils.setSafeHTML(channelsListContainer, '<p class="empty-list">-- Список каналов пуст --</p>');
       }
     } catch (error) {
       console.error('loadChannels: произошла ошибка', error);
-      channelsListContainer.innerHTML = '<p class="empty-list">Не удалось загрузить каналы.</p>';
+              utils.setSafeHTML(channelsListContainer, '<p class="empty-list">Не удалось загрузить каналы.</p>');
     }
   }
 
@@ -392,7 +392,7 @@
         method: 'DELETE',
         headers: createSupabaseHeaders()
       });
-      channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
+              utils.setSafeHTML(channelsListContainer, '<p class="empty-list">-- Список каналов пуст --</p>');
       uiToast(MESSAGES.SUCCESS.ALL_DELETED);
     } catch (error) {
       console.error('Ошибка удаления каналов:', error);

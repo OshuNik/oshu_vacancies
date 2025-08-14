@@ -978,3 +978,7 @@ details[open] .vacancy-text {
     margin-left: auto;
     flex-shrink: 0;
 }
+
+.vacancy-text-margin {
+  margin-top: 10px;
+}

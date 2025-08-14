@@ -5,11 +5,18 @@
   
   const CFG = window.APP_CONFIG || {};
   const UTIL = window.utils || {};
+  
+  // Инициализируем MCP Manager для Context7
+  let mcpManager = null;
 
-  if (!CFG || !UTIL) {
-    alert('Критическая ошибка: не удалось загрузить config.js или utils.js');
+  try {
+    const { config, utils } = UTIL.validateConfiguration(CFG, UTIL);
+  } catch (error) {
     return;
   }
+
+  // Инициализируем поиск
+  searchManager.setupSearch();
 
   const {
     PAGE_SIZE_MAIN,
@@ -83,30 +90,29 @@
     }
   }
 
-  let searchStatsEl=null;
-  function ensureSearchUI(){
-    const searchContainer = document.getElementById('search-container');
-    if(!searchContainer || searchStatsEl || !searchInputWrapper) return;
-    searchStatsEl=document.createElement('div');
-    searchStatsEl.className='search-stats';
-    searchInputWrapper.insertAdjacentElement('afterend', searchStatsEl);
-  }
-  function updateSearchStats(){
-    ensureSearchUI();
-    const active = containers[state.activeKey];
-    if(!active || !searchStatsEl){
-        if(searchStatsEl) searchStatsEl.textContent='';
-        return;
+  // Создаем менеджер поиска для устранения дублирования кода
+  const searchManager = UTIL.createSearchManager({
+    container: vacanciesContent,
+    searchInput,
+    searchClearBtn,
+    searchInputWrapper,
+    onSearch: () => {
+      renderFilteredVacancies();
+    },
+    onClear: () => {
+      renderFilteredVacancies();
     }
+  });
+
+  function updateSearchStats(){
+    const active = containers[state.activeKey];
+    if(!active) return;
+    
     const visible = active.querySelectorAll('.vacancy-card').length;
     const total   = state[state.activeKey].total || visible;
     const q = (searchInput?.value||'').trim();
     
-    // Безопасное обновление текста
-    const statsText = q ? (visible === 0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
-    if (searchStatsEl) {
-      searchStatsEl.textContent = statsText;
-    }
+    searchManager.updateStats(total, visible, q);
   }
 
   function abortCurrent(){
@@ -129,7 +135,7 @@
   function clearContainer(el){
     if(!el) return;
     const lm=el.querySelector('.load-more-wrap');
-    el.innerHTML='';
+    utils.clearElement(el);
     if(lm) el.appendChild(lm);
   }
   function hideLoadMore(container){
@@ -331,7 +337,7 @@
     console.log(`🚀 Начинаем загрузку ${key}...`);
 
     if (st.offset === 0 && !isInitialLoad) {
-        container.innerHTML = '<div class="empty-list"><div class="retro-spinner-inline"></div> Загрузка...</div>';
+        utils.setSafeHTML(container, '<div class="empty-list"><div class="retro-spinner-inline"></div> Загрузка...</div>');
     }
 
     const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, st.offset, state.query);
@@ -511,6 +517,13 @@
 
   const onSearch = debounce(() => {
     state.query = (searchInput?.value || '').trim();
+    
+    // Проверяем триггер для Context7
+    if (mcpManager && state.query.toLowerCase().includes('контекст7')) {
+      console.log('🔧 Обнаружен триггер Context7 в поиске');
+      mcpManager.manualActivate();
+    }
+    
     fetchCountsAll(state.query);
     seamlessSearch(state.activeKey);
     ['main', 'maybe', 'other'].forEach(key => {
@@ -1238,6 +1251,14 @@
       await waitForDOM();
       console.log('✅ DOM готов');
       
+      // Инициализируем MCP Manager
+      if (window.MCPManager) {
+        mcpManager = new window.MCPManager();
+        console.log('🔧 MCP Manager инициализирован');
+      } else {
+        console.warn('⚠️ MCPManager не найден, Context7 недоступен');
+      }
+      
       // Проверяем критические элементы
       if (!checkCriticalElements()) {
         throw new Error('Критические элементы не найдены');
@@ -1264,7 +1285,7 @@
         z-index: 10000;
         max-width: 80%;
       `;
-      errorDiv.innerHTML = `
+      utils.setSafeHTML(errorDiv, `
         <h3>Ошибка загрузки приложения</h3>
         <p>${error.message}</p>
         <button onclick="location.reload()" style="
@@ -1276,7 +1297,7 @@
           margin-top: 10px;
           cursor: pointer;
         ">Перезагрузить</button>
-      `;
+      `);
       document.body.appendChild(errorDiv);
     }
   }

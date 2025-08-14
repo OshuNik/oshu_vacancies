@@ -15,9 +15,6 @@
     return;
   }
 
-  // Инициализируем поиск
-  searchManager.setupSearch();
-
   const {
     PAGE_SIZE_MAIN,
     RETRY_OPTIONS,
@@ -103,6 +100,9 @@
       renderFilteredVacancies();
     }
   });
+
+  // Инициализируем поиск
+  searchManager.setupSearch();
 
   function updateSearchStats(){
     const active = containers[state.activeKey];

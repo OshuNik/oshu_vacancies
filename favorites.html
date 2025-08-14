@@ -21,6 +21,16 @@
   </div>
 
   <main class="content" id="favorites-content">
+    <div class="search-container">
+      <div class="search-input-wrapper" id="search-input-wrapper-fav">
+        <input type="text" id="search-input-fav" class="search-input" placeholder="Поиск в избранном...">
+        <button type="button" id="search-clear-btn-fav" class="search-clear-btn" aria-label="Очистить поиск">×</button>
+      </div>
+      <div class="search-stats" id="search-stats-fav">
+        <span class="stats-text">Всего: <span id="total-fav">0</span></span>
+        <span class="stats-text">Показано: <span id="visible-fav">0</span></span>
+      </div>
+    </div>
     <div id="favorites-list" class="vacancy-list active"></div>
   </main>
 </div>

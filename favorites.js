@@ -65,7 +65,18 @@
 
   function updateFavStats(total, visible) {
     const q = (searchInputFav?.value || '').trim();
-    searchManager.updateStats(total, visible, q);
+    
+    // Обновляем статистику поиска
+    const totalEl = document.getElementById('total-fav');
+    const visibleEl = document.getElementById('visible-fav');
+    
+    if (totalEl) totalEl.textContent = total;
+    if (visibleEl) visibleEl.textContent = visible;
+    
+    // Обновляем статистику в searchManager если он доступен
+    if (searchManager && searchManager.updateStats) {
+      searchManager.updateStats(total, visible, q);
+    }
   }
 
   function renderFilteredFavorites() {

@@ -52,13 +52,34 @@
   const settingsTabButtons = document.querySelectorAll('.settings-tab-button');
   const settingsTabContents = document.querySelectorAll('.settings-tab-content');
   const keywordsInput = document.getElementById('keywords-input');
-  const keywordsDisplay = document.getElementById('current-keywords-display');
-  const saveBtn = document.getElementById('save-button');
-  const loadDefaultsBtn = document.getElementById('load-defaults-btn');
+  const excludeKeywordsInput = document.getElementById('exclude-keywords-input');
+  const saveKeywordsBtn = document.getElementById('save-keywords-btn');
+  const saveExcludeKeywordsBtn = document.getElementById('save-exclude-keywords-btn');
   const addChannelBtn = document.getElementById('add-channel-btn');
-  const channelInput = document.getElementById('channel-input');
+  const channelInput = document.getElementById('channel-id-input');
   const channelsListContainer = document.getElementById('channels-list');
-  const deleteAllBtn = document.getElementById('delete-all-btn');
+  const exportDataBtn = document.getElementById('export-data-btn');
+  const importDataBtn = document.getElementById('import-data-btn');
+  const clearDataBtn = document.getElementById('clear-data-btn');
+  const notificationsEnabled = document.getElementById('notifications-enabled');
+  const notificationInterval = document.getElementById('notification-interval');
+  const saveNotificationSettingsBtn = document.getElementById('save-notification-settings-btn');
+
+  /**
+   * Переключает табы настроек
+   */
+  function switchTab(tabName) {
+    // Убираем активный класс со всех табов и контента
+    settingsTabButtons.forEach(btn => btn.classList.remove('active'));
+    settingsTabContents.forEach(content => content.classList.remove('active'));
+    
+    // Активируем нужный таб и контент
+    const activeTab = document.querySelector(`[data-tab="${tabName}"]`);
+    const activeContent = document.getElementById(`${tabName}-tab`);
+    
+    if (activeTab) activeTab.classList.add('active');
+    if (activeContent) activeContent.classList.add('active');
+  }
 
   /**
    * Валидирует и форматирует ID канала
@@ -349,60 +370,152 @@
     }
   }
 
+  // Обработчики событий для табов
+  settingsTabButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabName = btn.dataset.tab;
+      if (tabName) {
+        switchTab(tabName);
+      }
+    });
+  });
+
+  // Обработчики для кнопок
   addChannelBtn?.addEventListener('click', addChannel);
+  saveKeywordsBtn?.addEventListener('click', saveKeywords);
+  saveExcludeKeywordsBtn?.addEventListener('click', saveExcludeKeywords);
+  saveNotificationSettingsBtn?.addEventListener('click', saveNotificationSettings);
+  exportDataBtn?.addEventListener('click', exportData);
+  importDataBtn?.addEventListener('click', importData);
+  clearDataBtn?.addEventListener('click', clearAllData);
 
-  saveBtn?.addEventListener('click', () => {
-    const activeTab = document.querySelector('.settings-tab-content.active');
-    if (activeTab.id === 'tab-keywords') saveKeywords();
-    else safeAlert('Изменения в каналах сохраняются автоматически!');
-  });
 
-  loadDefaultsBtn?.addEventListener('click', async () => {
-    loadDefaultsBtn.disabled = true;
+
+  // Функции для работы с ключевыми словами
+  async function saveKeywords() {
+    if (!keywordsInput) return;
+    const keywords = keywordsInput.value.trim();
     try {
-      const response = await fetch(`${API_ENDPOINTS.DEFAULT_CHANNELS}?select=channel_id`, {
-        headers: createSupabaseHeaders()
-      });
-      if (!response.ok) throw new Error('Не удалось получить стандартные каналы');
-      const defaultChannels = await response.json();
-      if (defaultChannels.length === 0) { safeAlert('Список стандартных каналов пуст.'); return; }
-      const channelsToUpsert = defaultChannels.map(ch => ({ channel_id: ch.channel_id, is_enabled: true }));
-      await fetch(API_ENDPOINTS.CHANNELS, {
-        method: 'POST',
-        headers: createSupabaseHeaders({ prefer: 'resolution=merge-duplicates' }),
-        body: JSON.stringify(channelsToUpsert)
-      });
-      await loadChannels();
-      uiToast(MESSAGES.SUCCESS.DEFAULTS_LOADED);
+      localStorage.setItem('search-keywords', keywords);
+      uiToast('Ключевые слова сохранены');
     } catch (error) {
-      console.error('Ошибка загрузки стандартных каналов:', error);
-      safeAlert('Не удалось добавить стандартные каналы. Проверьте подключение к интернету.');
-    } finally {
-      loadDefaultsBtn.disabled = false;
+      safeAlert('Не удалось сохранить ключевые слова');
     }
-  });
+  }
 
-  deleteAllBtn?.addEventListener('click', async () => {
-    const message = 'Удалить все каналы из базы? Это действие необратимо.';
+  async function saveExcludeKeywords() {
+    if (!excludeKeywordsInput) return;
+    const excludeKeywords = excludeKeywordsInput.value.trim();
+    try {
+      localStorage.setItem('exclude-keywords', excludeKeywords);
+      uiToast('Слова для исключения сохранены');
+    } catch (error) {
+      safeAlert('Не удалось сохранить слова для исключения');
+    }
+  }
+
+  async function saveNotificationSettings() {
+    if (!notificationsEnabled || !notificationInterval) return;
+    try {
+      localStorage.setItem('notifications-enabled', notificationsEnabled.checked);
+      localStorage.setItem('notification-interval', notificationInterval.value);
+      uiToast('Настройки уведомлений сохранены');
+    } catch (error) {
+      safeAlert('Не удалось сохранить настройки уведомлений');
+    }
+  }
+
+  async function exportData() {
+    try {
+      const data = {
+        keywords: localStorage.getItem('search-keywords') || '',
+        excludeKeywords: localStorage.getItem('exclude-keywords') || '',
+        notificationsEnabled: localStorage.getItem('notifications-enabled') || 'false',
+        notificationInterval: localStorage.getItem('notification-interval') || '10'
+      };
+      
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'oshu-work-settings.json';
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      uiToast('Данные экспортированы');
+    } catch (error) {
+      safeAlert('Не удалось экспортировать данные');
+    }
+  }
+
+  async function importData() {
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.json';
+      input.onchange = async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const text = await file.text();
+        const data = JSON.parse(text);
+        
+        if (data.keywords !== undefined) localStorage.setItem('search-keywords', data.keywords);
+        if (data.excludeKeywords !== undefined) localStorage.setItem('exclude-keywords', data.excludeKeywords);
+        if (data.notificationsEnabled !== undefined) localStorage.setItem('notifications-enabled', data.notificationsEnabled);
+        if (data.notificationInterval !== undefined) localStorage.setItem('notification-interval', data.notificationInterval);
+        
+        // Обновляем UI
+        loadKeywords();
+        loadNotificationSettings();
+        
+        uiToast('Данные импортированы');
+      };
+      input.click();
+    } catch (error) {
+      safeAlert('Не удалось импортировать данные');
+    }
+  }
+
+  async function clearAllData() {
+    const message = 'Очистить все данные? Это действие необратимо.';
     const isConfirmed = await showCustomConfirm(message);
     if (!isConfirmed) return;
-    deleteAllBtn.disabled = true;
+    
     try {
-      await fetch(`${API_ENDPOINTS.CHANNELS}?id=gt.0`, {
-        method: 'DELETE',
-        headers: createSupabaseHeaders()
-      });
-              utils.setSafeHTML(channelsListContainer, '<p class="empty-list">-- Список каналов пуст --</p>');
-      uiToast(MESSAGES.SUCCESS.ALL_DELETED);
+      localStorage.clear();
+      uiToast('Все данные очищены');
+      
+      // Обновляем UI
+      loadKeywords();
+      loadNotificationSettings();
     } catch (error) {
-      console.error('Ошибка удаления каналов:', error);
-      safeAlert(String(error));
-    } finally {
-      deleteAllBtn.disabled = false;
+      safeAlert('Не удалось очистить данные');
     }
-  });
+  }
+
+  // Функция загрузки ключевых слов
+  function loadKeywords() {
+    if (keywordsInput) {
+      keywordsInput.value = localStorage.getItem('search-keywords') || '';
+    }
+    if (excludeKeywordsInput) {
+      excludeKeywordsInput.value = localStorage.getItem('exclude-keywords') || '';
+    }
+  }
+
+  // Функция загрузки настроек уведомлений
+  function loadNotificationSettings() {
+    if (notificationsEnabled) {
+      notificationsEnabled.checked = localStorage.getItem('notifications-enabled') === 'true';
+    }
+    if (notificationInterval) {
+      notificationInterval.value = localStorage.getItem('notification-interval') || '10';
+    }
+  }
 
   // Инициализация приложения
   loadKeywords();
   loadChannels();
+  loadNotificationSettings();
 })();

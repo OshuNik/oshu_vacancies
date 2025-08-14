@@ -170,7 +170,7 @@
         onTimeout: async () => {
             try {
               cardElement.remove();
-              const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(vacancyId)}`;
+              const url = `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(vacancyId)}`;
               const resp = await fetchWithRetry(url, {
                 method: 'PATCH',
                 headers: createSupabaseHeaders({ prefer: 'return=minimal' }),
@@ -223,6 +223,5 @@
       refreshEventName: 'favorites:loaded'
   });
 
-  ensureFavSearchUI();
   loadFavorites();
 })();

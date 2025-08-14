@@ -27,12 +27,11 @@
 - `state-manager.js` - управление состоянием приложения
 - `constants.js` - константы приложения
 - `utils.js` - вспомогательные функции
-- `mcp-manager.js` - менеджер MCP (Model Context Protocol)
+- `config.js` - конфигурация Supabase
 
 ### Конфигурация
 - `package.json` - конфигурация npm проекта
 - `.gitignore` - исключения для git
-- `img/` - изображения и медиафайлы
 
 ## Установка и запуск
 

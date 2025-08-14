@@ -94,10 +94,10 @@
     searchClearBtn,
     searchInputWrapper,
     onSearch: () => {
-      renderFilteredVacancies();
+      onSearch();
     },
     onClear: () => {
-      renderFilteredVacancies();
+      onSearch();
     }
   });
 
@@ -132,12 +132,12 @@
     if (targetId.endsWith('-maybe')) return 'maybe';
     return 'other';
   }
-  function clearContainer(el){
-    if(!el) return;
-    const lm=el.querySelector('.load-more-wrap');
-    utils.clearElement(el);
-    if(lm) el.appendChild(lm);
-  }
+     function clearContainer(el){
+     if(!el) return;
+     const lm=el.querySelector('.load-more-wrap');
+     UTIL.clearElement(el);
+     if(lm) el.appendChild(lm);
+   }
   function hideLoadMore(container){
     updateLoadMore?.(container, false);
     const lm=container?.querySelector('.load-more-wrap');
@@ -336,9 +336,9 @@
     st.busy = true;
     console.log(`🚀 Начинаем загрузку ${key}...`);
 
-    if (st.offset === 0 && !isInitialLoad) {
-        utils.setSafeHTML(container, '<div class="empty-list"><div class="retro-spinner-inline"></div> Загрузка...</div>');
-    }
+         if (st.offset === 0 && !isInitialLoad) {
+         UTIL.setSafeHTML(container, '<div class="empty-list"><div class="retro-spinner-inline"></div> Загрузка...</div>');
+     }
 
     const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, st.offset, state.query);
     console.log(`🌐 URL для ${key}:`, url);
@@ -1285,19 +1285,19 @@
         z-index: 10000;
         max-width: 80%;
       `;
-      utils.setSafeHTML(errorDiv, `
-        <h3>Ошибка загрузки приложения</h3>
-        <p>${error.message}</p>
-        <button onclick="location.reload()" style="
-          background: white;
-          color: #ff4444;
-          border: none;
-          padding: 10px 20px;
-          border-radius: 4px;
-          margin-top: 10px;
-          cursor: pointer;
-        ">Перезагрузить</button>
-      `);
+             UTIL.setSafeHTML(errorDiv, `
+         <h3>Ошибка загрузки приложения</h3>
+         <p>${error.message}</p>
+         <button onclick="location.reload()" style="
+           background: white;
+           color: #ff4444;
+           border: none;
+           padding: 10px 20px;
+           border-radius: 4px;
+           margin-top: 10px;
+           cursor: pointer;
+         ">Перезагрузить</button>
+       `);
       document.body.appendChild(errorDiv);
     }
   }

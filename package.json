@@ -2,7 +2,10 @@
   "name": "oshu-vacancies",
   "version": "1.0.0",
   "description": "Мини-приложение для поиска вакансий с автоматической проверкой багов",
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
     "check-fixes": "node check-fixes.js",
     "test-app": "echo 'Откройте приложение и проверьте функциональность'",
     "git-status": "git status",
@@ -10,6 +13,9 @@
   },
   "keywords": ["telegram-webapp", "vacancies", "supabase"],
   "author": "OshuNik",
+  "dependencies": {
+    "express": "^4.18.2"
+  },
   "devDependencies": {},
   "repository": {
     "type": "git",

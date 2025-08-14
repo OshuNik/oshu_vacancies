@@ -90,21 +90,3 @@
   };
 
 })();
-
-// Экспортируем константы из APP_CONFIG
-window.constants = {
-  STATUSES: window.APP_CONFIG?.STATUSES || {
-    NEW: 'new',
-    FAVORITE: 'favorite',
-    DELETED: 'deleted',
-  },
-  CATEGORIES: window.APP_CONFIG?.CATEGORIES || {
-    MAIN: 'ТОЧНО ТВОЁ',
-    MAYBE: 'МОЖЕТ БЫТЬ',
-  },
-  PAGE_SIZE_MAIN: window.APP_CONFIG?.PAGE_SIZE_MAIN || 10,
-  RETRY_OPTIONS: window.APP_CONFIG?.RETRY_OPTIONS || { retries: 2, backoffMs: 400 },
-  SEARCH_FIELDS: window.APP_CONFIG?.SEARCH_FIELDS || ['reason', 'text_highlighted', 'industry', 'company_name'],
-  SUPABASE_URL: window.APP_CONFIG?.SUPABASE_URL,
-  SUPABASE_ANON_KEY: window.APP_CONFIG?.SUPABASE_ANON_KEY,
-};

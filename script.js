@@ -5,14 +5,9 @@
   
   const CFG = window.APP_CONFIG || {};
   const UTIL = window.utils || {};
-  const CONSTANTS = window.constants || {};
-  
-  // Инициализируем MCP Manager для Context7
-  let mcpManager = null;
 
-  try {
-    const { config, utils } = UTIL.validateConfiguration(CFG, UTIL);
-  } catch (error) {
+  if (!CFG || !UTIL) {
+    alert('Критическая ошибка: не удалось загрузить config.js или utils.js');
     return;
   }
 
@@ -22,7 +17,7 @@
     SEARCH_FIELDS,
     STATUSES,
     CATEGORIES
-  } = CONSTANTS;
+  } = CFG;
 
   const {
     debounce,
@@ -88,32 +83,30 @@
     }
   }
 
-  // Создаем менеджер поиска для устранения дублирования кода
-  const searchManager = UTIL.createSearchManager({
-    container: vacanciesContent,
-    searchInput,
-    searchClearBtn,
-    searchInputWrapper,
-    onSearch: () => {
-      onSearch();
-    },
-    onClear: () => {
-      onSearch();
-    }
-  });
-
-  // Инициализируем поиск
-  searchManager.setupSearch();
-
+  let searchStatsEl=null;
+  function ensureSearchUI(){
+    const searchContainer = document.getElementById('search-container');
+    if(!searchContainer || searchStatsEl || !searchInputWrapper) return;
+    searchStatsEl=document.createElement('div');
+    searchStatsEl.className='search-stats';
+    searchInputWrapper.insertAdjacentElement('afterend', searchStatsEl);
+  }
   function updateSearchStats(){
+    ensureSearchUI();
     const active = containers[state.activeKey];
-    if(!active) return;
-    
+    if(!active || !searchStatsEl){
+        if(searchStatsEl) searchStatsEl.textContent='';
+        return;
+    }
     const visible = active.querySelectorAll('.vacancy-card').length;
     const total   = state[state.activeKey].total || visible;
     const q = (searchInput?.value||'').trim();
     
-    searchManager.updateStats(total, visible, q);
+    // Безопасное обновление текста
+    const statsText = q ? (visible === 0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
+    if (searchStatsEl) {
+      searchStatsEl.textContent = statsText;
+    }
   }
 
   function abortCurrent(){
@@ -133,12 +126,12 @@
     if (targetId.endsWith('-maybe')) return 'maybe';
     return 'other';
   }
-     function clearContainer(el){
-     if(!el) return;
-     const lm=el.querySelector('.load-more-wrap');
-     UTIL.clearElement(el);
-     if(lm) el.appendChild(lm);
-   }
+  function clearContainer(el){
+    if(!el) return;
+    const lm=el.querySelector('.load-more-wrap');
+    el.innerHTML='';
+    if(lm) el.appendChild(lm);
+  }
   function hideLoadMore(container){
     updateLoadMore?.(container, false);
     const lm=container?.querySelector('.load-more-wrap');
@@ -166,7 +159,7 @@
       const orExpr = '(' + SEARCH_FIELDS.map(f => `${f}.ilike.*${q}*`).join(',') + ')';
       p.set('or', orExpr);
     }
-    return `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+    return `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
   }
 
   async function fetchCountsAll(query){
@@ -186,7 +179,7 @@
           p.set('or', orExpr);
         }
         
-        const url = `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+        const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
         
         // Увеличиваем таймаут для мобильных устройств
         const controller = new AbortController();
@@ -298,7 +291,7 @@
       onTimeout: async () => {
           try {
             cardEl.remove();
-                         const url = `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
+            const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
             const resp = await fetchWithRetry(url, {
               method: 'PATCH',
               headers: createSupabaseHeaders({ prefer: 'return=minimal' }),
@@ -337,9 +330,9 @@
     st.busy = true;
     console.log(`🚀 Начинаем загрузку ${key}...`);
 
-         if (st.offset === 0 && !isInitialLoad) {
-         UTIL.setSafeHTML(container, '<div class="empty-list"><div class="retro-spinner-inline"></div> Загрузка...</div>');
-     }
+    if (st.offset === 0 && !isInitialLoad) {
+        container.innerHTML = '<div class="empty-list"><div class="retro-spinner-inline"></div> Загрузка...</div>';
+    }
 
     const url = buildCategoryUrl(key, PAGE_SIZE_MAIN || 10, st.offset, state.query);
     console.log(`🌐 URL для ${key}:`, url);
@@ -518,13 +511,6 @@
 
   const onSearch = debounce(() => {
     state.query = (searchInput?.value || '').trim();
-    
-    // Проверяем триггер для Context7
-    if (mcpManager && state.query.toLowerCase().includes('контекст7')) {
-      console.log('🔧 Обнаружен триггер Context7 в поиске');
-      mcpManager.manualActivate();
-    }
-    
     fetchCountsAll(state.query);
     seamlessSearch(state.activeKey);
     ['main', 'maybe', 'other'].forEach(key => {
@@ -591,7 +577,7 @@
         else if (key === 'maybe') p.set('category', `eq.${CATEGORIES.MAYBE}`);
         else p.set('category', `not.in.("${CATEGORIES.MAIN}","${CATEGORIES.MAYBE}")`);
 
-        const url = `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+        const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
         const resp = await fetchWithRetry(url, {
             method: 'PATCH',
             headers: createSupabaseHeaders({ prefer: 'return=minimal' }),
@@ -1252,14 +1238,6 @@
       await waitForDOM();
       console.log('✅ DOM готов');
       
-      // Инициализируем MCP Manager
-      if (window.MCPManager) {
-        mcpManager = new window.MCPManager();
-        console.log('🔧 MCP Manager инициализирован');
-      } else {
-        console.warn('⚠️ MCPManager не найден, Context7 недоступен');
-      }
-      
       // Проверяем критические элементы
       if (!checkCriticalElements()) {
         throw new Error('Критические элементы не найдены');
@@ -1286,19 +1264,19 @@
         z-index: 10000;
         max-width: 80%;
       `;
-             UTIL.setSafeHTML(errorDiv, `
-         <h3>Ошибка загрузки приложения</h3>
-         <p>${error.message}</p>
-         <button onclick="location.reload()" style="
-           background: white;
-           color: #ff4444;
-           border: none;
-           padding: 10px 20px;
-           border-radius: 4px;
-           margin-top: 10px;
-           cursor: pointer;
-         ">Перезагрузить</button>
-       `);
+      errorDiv.innerHTML = `
+        <h3>Ошибка загрузки приложения</h3>
+        <p>${error.message}</p>
+        <button onclick="location.reload()" style="
+          background: white;
+          color: #ff4444;
+          border: none;
+          padding: 10px 20px;
+          border-radius: 4px;
+          margin-top: 10px;
+          cursor: pointer;
+        ">Перезагрузить</button>
+      `;
       document.body.appendChild(errorDiv);
     }
   }

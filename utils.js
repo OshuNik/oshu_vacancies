@@ -20,12 +20,12 @@
     toast.appendChild(textEl);
     let actionTimeout;
     const removeToast = () => {
-                 toast.classList.remove('show');
-         timerManager.setTimeout(() => {
-             if (toast.parentElement) {
-                 toast.parentElement.removeChild(toast);
-             }
-         }, 300, 'toast_remove');
+        toast.classList.remove('show');
+        setTimeout(() => {
+            if (toast.parentElement) {
+                toast.parentElement.removeChild(toast);
+            }
+        }, 300);
     };
     if (typeof onUndo === 'function') {
       const undoBtn = document.createElement('button');
@@ -33,7 +33,7 @@
       undoBtn.textContent = 'Отменить';
       undoBtn.onclick = (e) => {
         e.stopPropagation();
-                 if (actionTimeout) timerManager.clearTimeout(actionTimeout);
+        clearTimeout(actionTimeout);
         onUndo();
         removeToast();
       };
@@ -43,12 +43,12 @@
     requestAnimationFrame(() => {
       toast.classList.add('show');
     });
-         actionTimeout = timerManager.setTimeout(() => {
-         removeToast();
-         if (onTimeout) {
-             onTimeout();
-         }
-     }, timeout, 'toast_action');
+    actionTimeout = setTimeout(() => {
+        removeToast();
+        if (onTimeout) {
+            onTimeout();
+        }
+    }, timeout);
   }
 
   const safeAlert = (msg) => {
@@ -82,8 +82,8 @@
   function createSupabaseHeaders(options = {}) {
     const { prefer } = options;
     const headers = {
-          'apikey': window.constants?.SUPABASE_ANON_KEY,
-    'Authorization': `Bearer ${window.constants?.SUPABASE_ANON_KEY}`,
+      'apikey': CFG.SUPABASE_ANON_KEY,
+      'Authorization': `Bearer ${CFG.SUPABASE_ANON_KEY}`,
       'Content-Type': 'application/json',
     };
     if (prefer) {
@@ -97,16 +97,16 @@
 
   const stripTags = (html = '') => {
     const tmp = document.createElement('div');
-    setSafeHTML(tmp, html);
+    tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || '';
   };
 
   const debounce = (fn, delay = 250) => {
-       let t;
-   return (...args) => {
-     if (t) clearTimeout(t);
-     t = setTimeout(() => fn(...args), delay);
-   };
+    let t;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), delay);
+    };
   };
 
   const highlightText = (text = '', q = '') => {
@@ -234,7 +234,7 @@
     
     emptyDiv.appendChild(img);
     emptyDiv.appendChild(p);
-    clearElement(container); // очищаем
+    container.innerHTML = ''; // очищаем
     container.appendChild(emptyDiv);
   }
 
@@ -274,7 +274,7 @@
     emptyDiv.appendChild(p);
     emptyDiv.appendChild(wrapDiv);
     
-    clearElement(container);
+    container.innerHTML = '';
     container.appendChild(emptyDiv);
   }
 
@@ -320,8 +320,8 @@
     }
 
     card.id = `card-${v.id}`;
-    if (v.category === window.constants?.CATEGORIES?.MAIN) card.classList.add('category-main');
-    else if (v.category === window.constants?.CATEGORIES?.MAYBE) card.classList.add('category-maybe');
+    if (v.category === CFG.CATEGORIES.MAIN) card.classList.add('category-main');
+    else if (v.category === CFG.CATEGORIES.MAYBE) card.classList.add('category-maybe');
     else card.classList.add('category-other');
     const elements = {
       applyBtn: card.querySelector('[data-element="apply-btn"]'),
@@ -356,7 +356,7 @@
     elements.category.textContent = v.category || 'NO_CATEGORY';
     const summaryText = v.reason || 'Описание не было сгенерировано.';
     elements.summary.dataset.originalSummary = summaryText;
-    setSafeText(elements.summary, searchQuery ? highlightText(summaryText, searchQuery) : escapeHtml(summaryText));
+    elements.summary.innerHTML = searchQuery ? highlightText(summaryText, searchQuery) : escapeHtml(summaryText);
     const infoRows = [];
     const cleanVal = val => String(val ?? '').replace(/[«»"“”'‘’`']/g,'').trim();
     const isMeaningful = val => !!cleanVal(val) && !['не указано', 'n/a'].includes(cleanVal(val).toLowerCase());
@@ -368,7 +368,7 @@
       infoRows.forEach(r => {
         const row = document.createElement('div');
         row.className = `info-row info-row--${r.type}`;
-        setSafeHTML(row, `<div class="info-label">${escapeHtml(r.label)} >></div><div class="info-value">${escapeHtml(r.value)}</div>`);
+        row.innerHTML = `<div class="info-label">${escapeHtml(r.label)} >></div><div class="info-value">${escapeHtml(r.value)}</div>`;
         elements.infoWindow.appendChild(row);
       });
     } else {
@@ -386,7 +386,7 @@
         elements.attachments.appendChild(imgBtn);
     }
     if (originalDetailsHtml) {
-        setSafeHTML(elements.fullText, originalDetailsHtml);
+        elements.fullText.innerHTML = originalDetailsHtml;
     }
     if (!bestImageUrl && !originalDetailsHtml) {
         elements.details.remove();
@@ -428,7 +428,7 @@
      
      // Определяем, находимся ли мы в Mini App
      const isMiniApp = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
-             safeLog.log('🚀 PTR: Mini App detected:', isMiniApp);
+     console.log('🚀 PTR: Mini App detected:', isMiniApp);
 
     const wrapper = document.querySelector('.main-wrapper');
     const ptrBar = wrapper?.querySelector('.ptr-bar');
@@ -437,7 +437,7 @@
     }
 
     // Динамически создаем контент для плашки
-    setSafeHTML(ptrBar, `
+    ptrBar.innerHTML = `
       <div class="ptr-icon">
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="5" x2="12" y2="19"></line>
@@ -446,13 +446,13 @@
       </div>
       <div class="ptr-spinner retro-spinner-inline"></div>
       <span class="ptr-text">Потяните для обновления</span>
-    `);
+    `;
     
     const ptrText = ptrBar.querySelector('.ptr-text');
               // В Mini App делаем PTR максимально простым
-     const THRESHOLD = isMiniApp ? 15 : (window.constants?.PTR_CONFIG?.THRESHOLD || 60);
-     const BAR_HEIGHT = window.constants?.PTR_CONFIG?.BAR_HEIGHT || 75;
-             safeLog.log('🚀 PTR: Threshold:', THRESHOLD, 'BAR_HEIGHT:', BAR_HEIGHT);
+     const THRESHOLD = isMiniApp ? 15 : (CFG.PTR_CONFIG?.THRESHOLD || 60);
+     const BAR_HEIGHT = CFG.PTR_CONFIG?.BAR_HEIGHT || 75;
+     console.log('🚀 PTR: Threshold:', THRESHOLD, 'BAR_HEIGHT:', BAR_HEIGHT);
 
     let startY = 0;
     let pullDistance = 0;
@@ -497,12 +497,12 @@
 
           onRefresh();
           
-                     const safetyTimeout = timerManager.setTimeout(() => {
-             if (state === 'refreshing') setState('waiting');
-           }, 8000, 'ptr_safety');
+          const safetyTimeout = setTimeout(() => {
+            if (state === 'refreshing') setState('waiting');
+          }, 8000);
 
           const onLoaded = () => {
-            if (safetyTimeout) timerManager.clearTimeout(safetyTimeout);
+            clearTimeout(safetyTimeout);
             document.removeEventListener(refreshEventName, onLoaded);
             setState('waiting');
           };
@@ -617,316 +617,6 @@
     };
   }
 
-/**
- * Безопасные методы для работы с DOM
- * Заменяют innerHTML для предотвращения XSS атак
- */
-
-/**
- * Безопасно устанавливает HTML содержимое элемента
- * @param {Element} element - DOM элемент
- * @param {string} html - HTML строка
- */
-function setSafeHTML(element, html) {
-  if (!element) return;
-  
-  // Очищаем элемент
-  element.textContent = '';
-  
-  // Создаем временный контейнер для парсинга HTML
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
-  
-  // Перемещаем все дочерние элементы
-  while (temp.firstChild) {
-    element.appendChild(temp.firstChild);
-  }
-}
-
-/**
- * Безопасно устанавливает текст элемента
- * @param {Element} element - DOM элемент
- * @param {string} text - Текст для установки
- */
-function setSafeText(element, text) {
-  if (!element) return;
-  element.textContent = text || '';
-}
-
-/**
- * Безопасно добавляет HTML в конец элемента
- * @param {Element} element - DOM элемент
- * @param {string} html - HTML строка
- */
-function appendSafeHTML(element, html) {
-  if (!element) return;
-  
-  const temp = document.createElement('div');
-  temp.innerHTML = html;
-  
-  while (temp.firstChild) {
-    element.appendChild(temp.firstChild);
-  }
-}
-
-/**
- * Безопасно очищает элемент
- * @param {Element} element - DOM элемент
- */
-function clearElement(element) {
-  if (!element) return;
-  element.textContent = '';
-}
-
-/**
- * Безопасное логирование для продакшена
- * В продакшене console.log отключается
- */
-const isProduction = window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1';
-
-/**
- * Консолидация условных выражений
- * Убирает дублирующиеся проверки и объединяет логику
- */
-function consolidateConditions(conditions, defaultValue = false) {
-  if (!Array.isArray(conditions)) {
-    return defaultValue;
-  }
-  
-  return conditions.every(condition => {
-    if (typeof condition === 'function') {
-      return condition();
-    }
-    return Boolean(condition);
-  });
-}
-
-/**
- * Универсальная функция для проверки конфигурации
- * Заменяет дублирующиеся проверки в разных файлах
- */
-function validateConfiguration(config, utils) {
-  const errors = [];
-  
-  if (!config) {
-    errors.push('APP_CONFIG не найден');
-  }
-  
-  if (!utils) {
-    errors.push('utils не найден');
-  }
-  
-  if (errors.length > 0) {
-    const errorMessage = `Критическая ошибка: ${errors.join(', ')}`;
-    if (typeof alert === 'function') {
-      alert(errorMessage);
-    }
-    throw new Error(errorMessage);
-  }
-  
-  return { config, utils };
-}
-
-/**
- * Универсальная функция поиска
- * Заменяет дублирующуюся логику поиска в разных файлах
- */
-function createSearchManager(options = {}) {
-  const {
-    container,
-    searchInput,
-    searchClearBtn,
-    searchInputWrapper,
-    onSearch,
-    onClear,
-    placeholder = 'Поиск...',
-    className = 'search-stats'
-  } = options;
-
-  let statsElement = null;
-
-  function ensureSearchUI() {
-    if (!searchInputWrapper || statsElement) return;
-    
-    statsElement = document.createElement('div');
-    statsElement.className = className;
-    searchInputWrapper.insertAdjacentElement('afterend', statsElement);
-  }
-
-  function updateStats(total, visible, query = '') {
-    if (!statsElement) return;
-    
-    const searchQuery = query || (searchInput?.value || '').trim();
-    statsElement.textContent = searchQuery ? 
-      (visible === 0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
-  }
-
-  function setupSearch() {
-    if (!searchInput) return;
-
-    // Обработчик поиска с debounce
-    const debouncedSearch = debounce(() => {
-      if (onSearch) onSearch();
-    }, 300);
-
-    searchInput.addEventListener('input', debouncedSearch);
-
-    // Обработчик очистки
-    if (searchClearBtn) {
-      searchClearBtn.addEventListener('click', () => {
-        if (searchInput) searchInput.value = '';
-        if (onClear) onClear();
-        if (onSearch) onSearch();
-      });
-    }
-
-    // Инициализация UI
-    ensureSearchUI();
-  }
-
-  return {
-    setupSearch,
-    updateStats,
-    ensureSearchUI,
-    getStatsElement: () => statsElement
-  };
-}
-
-const safeLog = {
-  log: (...args) => {
-    if (!isProduction) {
-      console.log(...args);
-    }
-  },
-  error: (...args) => {
-    // Ошибки всегда логируем
-    console.error(...args);
-  },
-  warn: (...args) => {
-    if (!isProduction) {
-      console.warn(...args);
-    }
-  },
-  info: (...args) => {
-    if (!isProduction) {
-      console.info(...args);
-    }
-  }
-};
-
-/**
- * Безопасное управление таймерами
- * Предотвращает утечки памяти и обеспечивает правильную очистку
- */
-class TimerManager {
-  constructor() {
-    this.timers = new Map();
-    this.intervalTimers = new Map();
-  }
-
-  /**
-   * Безопасно устанавливает timeout
-   * @param {Function} callback - функция для выполнения
-   * @param {number} delay - задержка в миллисекундах
-   * @param {string} id - уникальный идентификатор таймера
-   * @returns {string} id таймера
-   */
-  setTimeout(callback, delay, id = null) {
-    if (!id) {
-      id = `timer_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    }
-
-    // Очищаем существующий таймер с таким же id
-    this.clearTimeout(id);
-
-    const timerId = setTimeout(() => {
-      try {
-        callback();
-      } catch (error) {
-                 safeLog.error('Ошибка в таймере:', error);
-      } finally {
-        this.timers.delete(id);
-      }
-    }, delay);
-
-    this.timers.set(id, timerId);
-    return id;
-  }
-
-  /**
-   * Безопасно устанавливает interval
-   * @param {Function} callback - функция для выполнения
-   * @param {number} delay - задержка в миллисекундах
-   * @param {string} id - уникальный идентификатор интервала
-   * @returns {string} id интервала
-   */
-  setInterval(callback, delay, id = null) {
-    if (!id) {
-      id = `interval_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    }
-
-    // Очищаем существующий интервал с таким же id
-    this.clearInterval(id);
-
-    const intervalId = setInterval(() => {
-      try {
-        callback();
-      } catch (error) {
-        utils.safeLog.error('Ошибка в интервале:', error);
-      }
-    }, delay);
-
-    this.intervalTimers.set(id, intervalId);
-    return id;
-  }
-
-  /**
-   * Очищает timeout по id
-   * @param {string} id - идентификатор таймера
-   */
-  clearTimeout(id) {
-    if (this.timers.has(id)) {
-      clearTimeout(this.timers.get(id));
-      this.timers.delete(id);
-    }
-  }
-
-  /**
-   * Очищает interval по id
-   * @param {string} id - идентификатор интервала
-   */
-  clearInterval(id) {
-    if (this.intervalTimers.has(id)) {
-      clearInterval(this.intervalTimers.get(id));
-      this.intervalTimers.delete(id);
-    }
-  }
-
-  /**
-   * Очищает все таймеры
-   */
-  clearAll() {
-    this.timers.forEach((timerId) => clearTimeout(timerId));
-    this.intervalTimers.forEach((intervalId) => clearInterval(intervalId));
-    this.timers.clear();
-    this.intervalTimers.clear();
-  }
-
-  /**
-   * Получает количество активных таймеров
-   * @returns {Object} объект с количеством таймеров и интервалов
-   */
-  getStats() {
-    return {
-      timeouts: this.timers.size,
-      intervals: this.intervalTimers.size,
-      total: this.timers.size + this.intervalTimers.size
-    };
-  }
-}
-
-// Создаем глобальный экземпляр менеджера таймеров
-const timerManager = new TimerManager();
 
   window.utils = {
     tg, 
@@ -951,15 +641,6 @@ const timerManager = new TimerManager();
     setupPullToRefresh, // <-- Новая функция
     showCustomConfirm,
     createSupabaseHeaders,
-    parseTotal,
-    setSafeHTML,
-    setSafeText,
-    appendSafeHTML,
-    clearElement,
-    safeLog,
-    timerManager,
-    consolidateConditions,
-    validateConfiguration,
-    createSearchManager
+    parseTotal
   };
 })();

@@ -3,20 +3,18 @@
 (function () {
   'use strict';
 
-  const CFG  = window.APP_CONFIG || {};
-  const UTIL = window.utils || {};
-  const CONSTANTS = window.constants || {};
+  const CFG  = window.APP_CONFIG;
+  const UTIL = window.utils;
 
-  try {
-    const { config, utils } = UTIL.validateConfiguration(CFG, UTIL);
-  } catch (error) {
-    return;
+  if (!CFG || !UTIL) {
+      alert('Критическая ошибка: не удалось загрузить config.js или utils.js');
+      return;
   }
 
   const {
     RETRY_OPTIONS,
     STATUSES
-  } = CONSTANTS;
+  } = CFG;
 
   const {
     debounce,
@@ -47,26 +45,18 @@
   
   let allFavorites = [];
 
-  // Создаем менеджер поиска для устранения дублирования кода
-  const searchManager = UTIL.createSearchManager({
-    container,
-    searchInput: searchInputFav,
-    searchClearBtn: searchClearBtnFav,
-    searchInputWrapper: searchInputWrapperFav,
-    onSearch: () => {
-      renderFilteredFavorites();
-    },
-    onClear: () => {
-      renderFilteredFavorites();
-    }
-  });
-
-  // Инициализируем поиск
-  searchManager.setupSearch();
-
+  let favStatsEl = null;
+  function ensureFavSearchUI() {
+    const parent = document.getElementById('search-container-fav') || searchInputFav?.parentElement;
+    if (!parent || favStatsEl || !searchInputWrapperFav) return;
+    favStatsEl = document.createElement('div');
+    favStatsEl.className = 'search-stats';
+    searchInputWrapperFav.insertAdjacentElement('afterend', favStatsEl);
+  }
   function updateFavStats(total, visible) {
+    if (!favStatsEl) return;
     const q = (searchInputFav?.value || '').trim();
-    searchManager.updateStats(total, visible, q);
+    favStatsEl.textContent = q ? (visible===0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
   }
 
   function renderFilteredFavorites() {
@@ -82,7 +72,7 @@
             visibleCount++;
             const summaryEl = card.querySelector('.card-summary');
             if (summaryEl && summaryEl.dataset.originalSummary) {
-                UTIL.setSafeText(summaryEl, highlightText(summaryEl.dataset.originalSummary, query));
+                summaryEl.innerHTML = highlightText(summaryEl.dataset.originalSummary, query);
             }
         }
     });
@@ -102,14 +92,14 @@
   }
 
   async function loadFavorites(query = '') {
-    UTIL.setSafeHTML(container, '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="retro-spinner-inline"></div></div>');
+    container.innerHTML = '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="retro-spinner-inline"></div></div>';
     try {
       const p = new URLSearchParams();
       p.set('select', '*');
       p.set('status', `eq.${STATUSES.FAVORITE}`);
       p.set('order', 'timestamp.desc');
 
-      const url  = `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+      const url  = `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
 
       const resp = await fetchWithRetry(url, {
         headers: createSupabaseHeaders()
@@ -117,7 +107,7 @@
       if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
       allFavorites = await resp.json();
-      UTIL.clearElement(container);
+      container.innerHTML = '';
 
       if (!allFavorites || allFavorites.length === 0) {
         renderEmptyState(container, '-- В избранном пусто --');
@@ -170,7 +160,7 @@
         onTimeout: async () => {
             try {
               cardElement.remove();
-              const url = `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(vacancyId)}`;
+              const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(vacancyId)}`;
               const resp = await fetchWithRetry(url, {
                 method: 'PATCH',
                 headers: createSupabaseHeaders({ prefer: 'return=minimal' }),
@@ -223,5 +213,6 @@
       refreshEventName: 'favorites:loaded'
   });
 
+  ensureFavSearchUI();
   loadFavorites();
 })();

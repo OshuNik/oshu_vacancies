@@ -5,6 +5,7 @@
   
   const CFG = window.APP_CONFIG || {};
   const UTIL = window.utils || {};
+  const CONSTANTS = window.constants || {};
   
   // Инициализируем MCP Manager для Context7
   let mcpManager = null;
@@ -21,7 +22,7 @@
     SEARCH_FIELDS,
     STATUSES,
     CATEGORIES
-  } = CFG;
+  } = CONSTANTS;
 
   const {
     debounce,
@@ -165,7 +166,7 @@
       const orExpr = '(' + SEARCH_FIELDS.map(f => `${f}.ilike.*${q}*`).join(',') + ')';
       p.set('or', orExpr);
     }
-    return `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+    return `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
   }
 
   async function fetchCountsAll(query){
@@ -185,7 +186,7 @@
           p.set('or', orExpr);
         }
         
-        const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+        const url = `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
         
         // Увеличиваем таймаут для мобильных устройств
         const controller = new AbortController();
@@ -297,7 +298,7 @@
       onTimeout: async () => {
           try {
             cardEl.remove();
-            const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
+                         const url = `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?id=eq.${encodeURIComponent(id)}`;
             const resp = await fetchWithRetry(url, {
               method: 'PATCH',
               headers: createSupabaseHeaders({ prefer: 'return=minimal' }),
@@ -590,7 +591,7 @@
         else if (key === 'maybe') p.set('category', `eq.${CATEGORIES.MAYBE}`);
         else p.set('category', `not.in.("${CATEGORIES.MAIN}","${CATEGORIES.MAYBE}")`);
 
-        const url = `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+        const url = `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
         const resp = await fetchWithRetry(url, {
             method: 'PATCH',
             headers: createSupabaseHeaders({ prefer: 'return=minimal' }),

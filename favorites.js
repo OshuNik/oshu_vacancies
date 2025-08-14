@@ -3,8 +3,9 @@
 (function () {
   'use strict';
 
-  const CFG  = window.APP_CONFIG;
-  const UTIL = window.utils;
+  const CFG  = window.APP_CONFIG || {};
+  const UTIL = window.utils || {};
+  const CONSTANTS = window.constants || {};
 
   try {
     const { config, utils } = UTIL.validateConfiguration(CFG, UTIL);
@@ -15,7 +16,7 @@
   const {
     RETRY_OPTIONS,
     STATUSES
-  } = CFG;
+  } = CONSTANTS;
 
   const {
     debounce,
@@ -81,7 +82,7 @@
             visibleCount++;
             const summaryEl = card.querySelector('.card-summary');
             if (summaryEl && summaryEl.dataset.originalSummary) {
-                utils.setSafeText(summaryEl, highlightText(summaryEl.dataset.originalSummary, query));
+                UTIL.setSafeText(summaryEl, highlightText(summaryEl.dataset.originalSummary, query));
             }
         }
     });
@@ -101,14 +102,14 @@
   }
 
   async function loadFavorites(query = '') {
-    utils.setSafeHTML(container, '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="retro-spinner-inline"></div></div>');
+    UTIL.setSafeHTML(container, '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="retro-spinner-inline"></div></div>');
     try {
       const p = new URLSearchParams();
       p.set('select', '*');
       p.set('status', `eq.${STATUSES.FAVORITE}`);
       p.set('order', 'timestamp.desc');
 
-      const url  = `${CFG.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
+      const url  = `${CONSTANTS.SUPABASE_URL}/rest/v1/vacancies?${p.toString()}`;
 
       const resp = await fetchWithRetry(url, {
         headers: createSupabaseHeaders()
@@ -116,7 +117,7 @@
       if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
       allFavorites = await resp.json();
-      utils.clearElement(container);
+      UTIL.clearElement(container);
 
       if (!allFavorites || allFavorites.length === 0) {
         renderEmptyState(container, '-- В избранном пусто --');

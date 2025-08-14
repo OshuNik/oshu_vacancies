@@ -18,6 +18,12 @@
         <a href="settings.html" class="header-button">⚙︎ Настройки</a>
       </div>
     </header>
+    <div id="search-container" class="search-container">
+      <div class="search-input-wrapper">
+        <input type="search" id="search-input-fav" class="search-input" placeholder="Поиск по тексту...">
+        <button type="button" id="search-clear-btn-fav" class="search-clear-btn" aria-label="Очистить поиск"></button>
+      </div>
+    </div>
   </div>
 
   <main class="content" id="favorites-content">
@@ -74,6 +80,7 @@
   </div>
 </template>
 
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <script src="config.js"></script>
   <script src="constants.js"></script>
   <script src="state-manager.js"></script>

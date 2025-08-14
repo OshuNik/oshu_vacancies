@@ -82,8 +82,8 @@
   function createSupabaseHeaders(options = {}) {
     const { prefer } = options;
     const headers = {
-      'apikey': CFG.SUPABASE_ANON_KEY,
-      'Authorization': `Bearer ${CFG.SUPABASE_ANON_KEY}`,
+          'apikey': window.constants?.SUPABASE_ANON_KEY,
+    'Authorization': `Bearer ${window.constants?.SUPABASE_ANON_KEY}`,
       'Content-Type': 'application/json',
     };
     if (prefer) {
@@ -206,7 +206,7 @@
       } catch (e) {
         lastErr = e;
         if (attempt === retryCfg.retries) break;
-        await new Promise(r => utils.timerManager.setTimeout(r, (retryCfg.backoffMs || 300) * Math.pow(2, attempt), `retry_${attempt}`));
+        await new Promise(r => setTimeout(r, (retryCfg.backoffMs || 300) * Math.pow(2, attempt)));
         attempt++;
       }
     }
@@ -320,8 +320,8 @@
     }
 
     card.id = `card-${v.id}`;
-    if (v.category === CFG.CATEGORIES.MAIN) card.classList.add('category-main');
-    else if (v.category === CFG.CATEGORIES.MAYBE) card.classList.add('category-maybe');
+    if (v.category === window.constants?.CATEGORIES?.MAIN) card.classList.add('category-main');
+    else if (v.category === window.constants?.CATEGORIES?.MAYBE) card.classList.add('category-maybe');
     else card.classList.add('category-other');
     const elements = {
       applyBtn: card.querySelector('[data-element="apply-btn"]'),
@@ -450,8 +450,8 @@
     
     const ptrText = ptrBar.querySelector('.ptr-text');
               // В Mini App делаем PTR максимально простым
-     const THRESHOLD = isMiniApp ? 15 : (CFG.PTR_CONFIG?.THRESHOLD || 60);
-     const BAR_HEIGHT = CFG.PTR_CONFIG?.BAR_HEIGHT || 75;
+     const THRESHOLD = isMiniApp ? 15 : (window.constants?.PTR_CONFIG?.THRESHOLD || 60);
+     const BAR_HEIGHT = window.constants?.PTR_CONFIG?.BAR_HEIGHT || 75;
              utils.safeLog.log('🚀 PTR: Threshold:', THRESHOLD, 'BAR_HEIGHT:', BAR_HEIGHT);
 
     let startY = 0;

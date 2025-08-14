@@ -8,9 +8,9 @@
   const CFG = window.APP_CONFIG;
   const UTIL = window.utils;
 
-  try {
-    const { config, utils } = UTIL.validateConfiguration(CFG, UTIL);
-  } catch (error) {
+  if (!CFG || !UTIL) {
+    alert("Критическая ошибка: Не найден config.js или utils.js!");
+    console.error('settings.js: CFG или UTIL не найдены');
     return;
   }
 
@@ -61,22 +61,6 @@
   const deleteAllBtn = document.getElementById('delete-all-btn');
 
   /**
-   * Переключает табы настроек
-   */
-  function switchTab(tabName) {
-    // Убираем активный класс со всех табов и контента
-    settingsTabButtons.forEach(btn => btn.classList.remove('active'));
-    settingsTabContents.forEach(content => content.classList.remove('active'));
-    
-    // Активируем нужный таб и контент
-    const activeTab = document.querySelector(`[data-tab="${tabName}"]`);
-    const activeContent = document.getElementById(`${tabName}-tab`);
-    
-    if (activeTab) activeTab.classList.add('active');
-    if (activeContent) activeContent.classList.add('active');
-  }
-
-  /**
    * Валидирует и форматирует ID канала
    * @param {string} input - Входная строка (username, t.me ссылка или @username)
    * @returns {string|null} Отформатированный channelId или null при ошибке
@@ -85,18 +69,18 @@
     if (!input) return null;
     
     let channelId = input.trim();
-            utils.safeLog.log('🔍 Валидация канала:', channelId);
+    console.log('🔍 Валидация канала:', channelId);
     
     // Преобразование t.me ссылок
     if (channelId.includes('t.me/')) {
       channelId = '@' + channelId.split('t.me/')[1].split('/')[0];
-              utils.safeLog.log('🔗 Преобразован из t.me:', channelId);
+      console.log('🔗 Преобразован из t.me:', channelId);
     }
     
     // Добавление @ если отсутствует
     if (!channelId.startsWith('@')) channelId = '@' + channelId;
     
-            utils.safeLog.log('✅ Финальный channelId:', channelId);
+    console.log('✅ Финальный channelId:', channelId);
     
     // Валидация username
     const username = channelId.substring(1);
@@ -116,7 +100,7 @@
    * @returns {Promise<boolean>} true если канал существует, false если нет
    */
   async function isChannelExists(channelId) {
-            utils.safeLog.log('🔍 Проверяем существование канала...');
+    console.log('🔍 Проверяем существование канала...');
     try {
       const response = await fetch(`${API_ENDPOINTS.CHANNELS}?channel_id=eq.${encodeURIComponent(channelId)}&select=id`, {
         headers: createSupabaseHeaders()
@@ -124,7 +108,7 @@
       
       if (response.ok) {
         const existingChannels = await response.json();
-        utils.safeLog.log('📊 Найдено существующих каналов:', existingChannels.length);
+        console.log('📊 Найдено существующих каналов:', existingChannels.length);
         return existingChannels.length > 0;
       } else {
         console.warn('⚠️ Ошибка проверки дубликатов:', response.status, response.statusText);
@@ -148,8 +132,8 @@
       is_enabled: true 
     };
     
-            utils.safeLog.log('📤 Отправляем данные в API:', newChannelData);
-        utils.safeLog.log('🌐 URL:', API_ENDPOINTS.CHANNELS);
+    console.log('📤 Отправляем данные в API:', newChannelData);
+    console.log('🌐 URL:', API_ENDPOINTS.CHANNELS);
     
     const response = await fetch(API_ENDPOINTS.CHANNELS, {
       method: 'POST',
@@ -258,7 +242,7 @@
     toggleSlider.className = 'toggle-slider';
     const deleteButton = document.createElement('button');
     deleteButton.className = 'channel-item-delete';
-            utils.setSafeHTML(deleteButton, `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`);
+    deleteButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>`;
     // Создаем обработчики как отдельные функции для возможности cleanup
           const deleteHandler = async () => {
         const dbId = channelItem.dataset.dbId;
@@ -346,42 +330,31 @@
         console.error('loadChannels: элемент channelsListContainer не найден');
         return;
     }
-            utils.setSafeHTML(channelsListContainer, '<p class="empty-list">Загрузка каналов...</p>');
+    channelsListContainer.innerHTML = '<p class="empty-list">Загрузка каналов...</p>';
     try {
       const response = await fetch(`${API_ENDPOINTS.CHANNELS}?select=*`, {
         headers: createSupabaseHeaders()
       });
       if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
       const data = await response.json();
-              utils.clearElement(channelsListContainer);
+      channelsListContainer.innerHTML = '';
       if (data && data.length > 0) {
           data.forEach(item => renderChannel(item));
       } else {
-          utils.setSafeHTML(channelsListContainer, '<p class="empty-list">-- Список каналов пуст --</p>');
+          channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
       }
     } catch (error) {
       console.error('loadChannels: произошла ошибка', error);
-              utils.setSafeHTML(channelsListContainer, '<p class="empty-list">Не удалось загрузить каналы.</p>');
+      channelsListContainer.innerHTML = '<p class="empty-list">Не удалось загрузить каналы.</p>';
     }
   }
-
-  // Обработчики событий для табов (из оригинального кода)
-  settingsTabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      settingsTabButtons.forEach(btn => btn.classList.remove('active'));
-      settingsTabContents.forEach(content => content.classList.remove('active'));
-      button.classList.add('active');
-      const targetContent = document.getElementById(button.dataset.target);
-      if (targetContent) targetContent.classList.add('active');
-    });
-  });
 
   addChannelBtn?.addEventListener('click', addChannel);
 
   saveBtn?.addEventListener('click', () => {
     const activeTab = document.querySelector('.settings-tab-content.active');
     if (activeTab.id === 'tab-keywords') saveKeywords();
-    else utils.safeAlert('Изменения в каналах сохраняются автоматически!');
+    else safeAlert('Изменения в каналах сохраняются автоматически!');
   });
 
   loadDefaultsBtn?.addEventListener('click', async () => {
@@ -392,7 +365,7 @@
       });
       if (!response.ok) throw new Error('Не удалось получить стандартные каналы');
       const defaultChannels = await response.json();
-      if (defaultChannels.length === 0) { utils.safeAlert('Список стандартных каналов пуст.'); return; }
+      if (defaultChannels.length === 0) { safeAlert('Список стандартных каналов пуст.'); return; }
       const channelsToUpsert = defaultChannels.map(ch => ({ channel_id: ch.channel_id, is_enabled: true }));
       await fetch(API_ENDPOINTS.CHANNELS, {
         method: 'POST',
@@ -403,7 +376,7 @@
       uiToast(MESSAGES.SUCCESS.DEFAULTS_LOADED);
     } catch (error) {
       console.error('Ошибка загрузки стандартных каналов:', error);
-      utils.safeAlert('Не удалось добавить стандартные каналы. Проверьте подключение к интернету.');
+      safeAlert('Не удалось добавить стандартные каналы. Проверьте подключение к интернету.');
     } finally {
       loadDefaultsBtn.disabled = false;
     }
@@ -419,61 +392,15 @@
         method: 'DELETE',
         headers: createSupabaseHeaders()
       });
-      utils.setSafeHTML(channelsListContainer, '<p class="empty-list">-- Список каналов пуст --</p>');
+      channelsListContainer.innerHTML = '<p class="empty-list">-- Список каналов пуст --</p>';
       uiToast(MESSAGES.SUCCESS.ALL_DELETED);
     } catch (error) {
       console.error('Ошибка удаления каналов:', error);
-      utils.safeAlert(String(error));
+      safeAlert(String(error));
     } finally {
       deleteAllBtn.disabled = false;
     }
   });
-
-
-  // Оригинальные функции для работы с ключевыми словами
-  async function loadKeywords() {
-    if (!keywordsDisplay) {
-        console.error('loadKeywords: элемент keywordsDisplay не найден');
-        return;
-    }
-    saveBtn.disabled = true;
-    keywordsDisplay.textContent = 'Загрузка...';
-    try {
-      const response = await fetch(`${API_ENDPOINTS.SETTINGS}?select=keywords`, {
-        headers: createSupabaseHeaders()
-      });
-      if (!response.ok) throw new Error('Network response was not ok');
-      const data = await response.json();
-      const keywords = data.length > 0 ? data[0].keywords : '';
-      keywordsInput.value = keywords;
-      keywordsDisplay.textContent = keywords || '-- не заданы --';
-    } catch (error) {
-      console.error('loadKeywords: произошла ошибка', error);
-      keywordsDisplay.textContent = 'Ошибка загрузки';
-    } finally {
-      saveBtn.disabled = false;
-    }
-  }
-
-  async function saveKeywords() {
-    if (!keywordsInput) return;
-    const kws = keywordsInput.value.trim();
-    saveBtn.disabled = true;
-    try {
-      await fetch(API_ENDPOINTS.SETTINGS, {
-        method: 'POST',
-        headers: createSupabaseHeaders({ prefer: 'resolution=merge-duplicates' }),
-        body: JSON.stringify({ update_key: 1, keywords: kws })
-      });
-      keywordsDisplay.textContent = kws || '-- не заданы --';
-      uiToast(MESSAGES.SUCCESS.KEYWORDS_SAVED);
-    } catch (error) {
-      console.error('saveKeywords: произошла ошибка', error);
-      utils.safeAlert('Не удалось сохранить настройки. Проверьте подключение к интернету.');
-    } finally {
-      saveBtn.disabled = false;
-    }
-  }
 
   // Инициализация приложения
   loadKeywords();

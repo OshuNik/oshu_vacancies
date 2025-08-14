@@ -6,9 +6,10 @@
   const CFG  = window.APP_CONFIG;
   const UTIL = window.utils;
 
-  if (!CFG || !UTIL) {
-      alert('Критическая ошибка: не удалось загрузить config.js или utils.js');
-      return;
+  try {
+    const { config, utils } = UTIL.validateConfiguration(CFG, UTIL);
+  } catch (error) {
+    return;
   }
 
   const {
@@ -45,18 +46,26 @@
   
   let allFavorites = [];
 
-  let favStatsEl = null;
-  function ensureFavSearchUI() {
-    const parent = document.getElementById('search-container-fav') || searchInputFav?.parentElement;
-    if (!parent || favStatsEl || !searchInputWrapperFav) return;
-    favStatsEl = document.createElement('div');
-    favStatsEl.className = 'search-stats';
-    searchInputWrapperFav.insertAdjacentElement('afterend', favStatsEl);
-  }
+  // Создаем менеджер поиска для устранения дублирования кода
+  const searchManager = UTIL.createSearchManager({
+    container,
+    searchInput: searchInputFav,
+    searchClearBtn: searchClearBtnFav,
+    searchInputWrapper: searchInputWrapperFav,
+    onSearch: () => {
+      renderFilteredFavorites();
+    },
+    onClear: () => {
+      renderFilteredFavorites();
+    }
+  });
+
+  // Инициализируем поиск
+  searchManager.setupSearch();
+
   function updateFavStats(total, visible) {
-    if (!favStatsEl) return;
     const q = (searchInputFav?.value || '').trim();
-    favStatsEl.textContent = q ? (visible===0 ? 'Ничего не найдено' : `Найдено: ${visible} из ${total}`) : '';
+    searchManager.updateStats(total, visible, q);
   }
 
   function renderFilteredFavorites() {
@@ -72,7 +81,7 @@
             visibleCount++;
             const summaryEl = card.querySelector('.card-summary');
             if (summaryEl && summaryEl.dataset.originalSummary) {
-                summaryEl.innerHTML = highlightText(summaryEl.dataset.originalSummary, query);
+                utils.setSafeText(summaryEl, highlightText(summaryEl.dataset.originalSummary, query));
             }
         }
     });
@@ -92,7 +101,7 @@
   }
 
   async function loadFavorites(query = '') {
-    container.innerHTML = '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="retro-spinner-inline"></div></div>';
+    utils.setSafeHTML(container, '<div class="loader-container" style="position: static; padding: 50px 0;"><div class="retro-spinner-inline"></div></div>');
     try {
       const p = new URLSearchParams();
       p.set('select', '*');
@@ -107,7 +116,7 @@
       if (!resp.ok) throw new Error(`${resp.status} ${resp.statusText}`);
 
       allFavorites = await resp.json();
-      container.innerHTML = '';
+      utils.clearElement(container);
 
       if (!allFavorites || allFavorites.length === 0) {
         renderEmptyState(container, '-- В избранном пусто --');

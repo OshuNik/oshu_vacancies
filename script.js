@@ -15,6 +15,44 @@
     return;
   }
 
+  // Кэшируем DOM элементы с проверкой на null
+  const containers = {
+    main:  document.getElementById('vacancies-list-main'),
+    maybe: document.getElementById('vacancies-list-maybe'),
+    other: document.getElementById('vacancies-list-other'),
+  };
+  
+  const counts = {
+    main:  document.getElementById('count-main'),
+    maybe: document.getElementById('count-maybe'),
+    other: document.getElementById('count-other'),
+  };
+
+  // Контейнеры будут проверены в соответствующих функциях
+
+  const tabButtons      = document.querySelectorAll('.tab-button');
+  const vacancyLists    = document.querySelectorAll('.vacancy-list');
+  let searchInput       = document.getElementById('search-input');
+  const mainHeader      = document.getElementById('main-header');
+  const vacanciesContent= document.getElementById('vacancies-content');
+  const loader          = document.getElementById('loader');
+  let searchClearBtn    = document.getElementById('search-clear-btn');
+  let searchInputWrapper = searchInput?.parentElement;
+
+  // Создаем менеджер поиска для устранения дублирования кода
+  const searchManager = UTIL.createSearchManager({
+    container: vacanciesContent,
+    searchInput,
+    searchClearBtn,
+    searchInputWrapper,
+    onSearch: () => {
+      renderFilteredVacancies();
+    },
+    onClear: () => {
+      renderFilteredVacancies();
+    }
+  });
+
   // Инициализируем поиск
   searchManager.setupSearch();
 
@@ -43,30 +81,6 @@
     parseTotal
   } = UTIL;
 
-  // Кэшируем DOM элементы с проверкой на null
-  const containers = {
-    main:  document.getElementById('vacancies-list-main'),
-    maybe: document.getElementById('vacancies-list-maybe'),
-    other: document.getElementById('vacancies-list-other'),
-  };
-  
-  const counts = {
-    main:  document.getElementById('count-main'),
-    maybe: document.getElementById('count-maybe'),
-    other: document.getElementById('count-other'),
-  };
-
-  // Контейнеры будут проверены в соответствующих функциях
-
-  const tabButtons      = document.querySelectorAll('.tab-button');
-  const vacancyLists    = document.querySelectorAll('.vacancy-list');
-  let searchInput       = document.getElementById('search-input');
-  const mainHeader      = document.getElementById('main-header');
-  const vacanciesContent= document.getElementById('vacancies-content');
-  const loader          = document.getElementById('loader');
-  let searchClearBtn    = document.getElementById('search-clear-btn');
-  let searchInputWrapper = searchInput?.parentElement;
-
   const state = {
     query: '',
     activeKey: 'main',
@@ -89,20 +103,6 @@
       loader.classList.add('hidden');
     }
   }
-
-  // Создаем менеджер поиска для устранения дублирования кода
-  const searchManager = UTIL.createSearchManager({
-    container: vacanciesContent,
-    searchInput,
-    searchClearBtn,
-    searchInputWrapper,
-    onSearch: () => {
-      renderFilteredVacancies();
-    },
-    onClear: () => {
-      renderFilteredVacancies();
-    }
-  });
 
   function updateSearchStats(){
     const active = containers[state.activeKey];

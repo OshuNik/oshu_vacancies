@@ -20,12 +20,12 @@
     toast.appendChild(textEl);
     let actionTimeout;
     const removeToast = () => {
-        toast.classList.remove('show');
-        utils.timerManager.setTimeout(() => {
-            if (toast.parentElement) {
-                toast.parentElement.removeChild(toast);
-            }
-        }, 300, 'toast_remove');
+                 toast.classList.remove('show');
+         timerManager.setTimeout(() => {
+             if (toast.parentElement) {
+                 toast.parentElement.removeChild(toast);
+             }
+         }, 300, 'toast_remove');
     };
     if (typeof onUndo === 'function') {
       const undoBtn = document.createElement('button');
@@ -33,7 +33,7 @@
       undoBtn.textContent = 'Отменить';
       undoBtn.onclick = (e) => {
         e.stopPropagation();
-        if (actionTimeout) utils.timerManager.clearTimeout(actionTimeout);
+                 if (actionTimeout) timerManager.clearTimeout(actionTimeout);
         onUndo();
         removeToast();
       };
@@ -43,12 +43,12 @@
     requestAnimationFrame(() => {
       toast.classList.add('show');
     });
-    actionTimeout = utils.timerManager.setTimeout(() => {
-        removeToast();
-        if (onTimeout) {
-            onTimeout();
-        }
-    }, timeout, 'toast_action');
+         actionTimeout = timerManager.setTimeout(() => {
+         removeToast();
+         if (onTimeout) {
+             onTimeout();
+         }
+     }, timeout, 'toast_action');
   }
 
   const safeAlert = (msg) => {
@@ -102,11 +102,11 @@
   };
 
   const debounce = (fn, delay = 250) => {
-    let t;
-    return (...args) => {
-      if (t) utils.timerManager.clearTimeout(t);
-      t = utils.timerManager.setTimeout(() => fn(...args), delay, 'debounce');
-    };
+       let t;
+   return (...args) => {
+     if (t) clearTimeout(t);
+     t = setTimeout(() => fn(...args), delay);
+   };
   };
 
   const highlightText = (text = '', q = '') => {
@@ -428,7 +428,7 @@
      
      // Определяем, находимся ли мы в Mini App
      const isMiniApp = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
-             utils.safeLog.log('🚀 PTR: Mini App detected:', isMiniApp);
+             safeLog.log('🚀 PTR: Mini App detected:', isMiniApp);
 
     const wrapper = document.querySelector('.main-wrapper');
     const ptrBar = wrapper?.querySelector('.ptr-bar');
@@ -452,7 +452,7 @@
               // В Mini App делаем PTR максимально простым
      const THRESHOLD = isMiniApp ? 15 : (window.constants?.PTR_CONFIG?.THRESHOLD || 60);
      const BAR_HEIGHT = window.constants?.PTR_CONFIG?.BAR_HEIGHT || 75;
-             utils.safeLog.log('🚀 PTR: Threshold:', THRESHOLD, 'BAR_HEIGHT:', BAR_HEIGHT);
+             safeLog.log('🚀 PTR: Threshold:', THRESHOLD, 'BAR_HEIGHT:', BAR_HEIGHT);
 
     let startY = 0;
     let pullDistance = 0;
@@ -497,12 +497,12 @@
 
           onRefresh();
           
-          const safetyTimeout = utils.timerManager.setTimeout(() => {
-            if (state === 'refreshing') setState('waiting');
-          }, 8000, 'ptr_safety');
+                     const safetyTimeout = timerManager.setTimeout(() => {
+             if (state === 'refreshing') setState('waiting');
+           }, 8000, 'ptr_safety');
 
           const onLoaded = () => {
-            if (safetyTimeout) utils.timerManager.clearTimeout(safetyTimeout);
+            if (safetyTimeout) timerManager.clearTimeout(safetyTimeout);
             document.removeEventListener(refreshEventName, onLoaded);
             setState('waiting');
           };
@@ -843,7 +843,7 @@ class TimerManager {
       try {
         callback();
       } catch (error) {
-        utils.safeLog.error('Ошибка в таймере:', error);
+                 safeLog.error('Ошибка в таймере:', error);
       } finally {
         this.timers.delete(id);
       }

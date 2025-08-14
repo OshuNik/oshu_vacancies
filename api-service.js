@@ -47,10 +47,12 @@
         params.set('category', `not.in.("${CFG.CATEGORIES.MAIN}","${CFG.CATEGORIES.MAYBE}")`);
       }
 
-      // Добавление поискового запроса
+      // Добавление поискового запроса с экранированием
       const trimmedQuery = (query || '').trim();
       if (trimmedQuery && Array.isArray(CFG.SEARCH_FIELDS) && CFG.SEARCH_FIELDS.length) {
-        const orExpr = '(' + CFG.SEARCH_FIELDS.map(field => `${field}.ilike.*${trimmedQuery}*`).join(',') + ')';
+        // Экранируем специальные символы для PostgreSQL
+        const escapedQuery = InputValidator.escapePgLike(trimmedQuery);
+        const orExpr = '(' + CFG.SEARCH_FIELDS.map(field => `${field}.ilike.*${escapedQuery}*`).join(',') + ')';
         params.set('or', orExpr);
       }
 
@@ -73,10 +75,12 @@
         params.set('category', `not.in.("${CFG.CATEGORIES.MAIN}","${CFG.CATEGORIES.MAYBE}")`);
       }
 
-      // Добавление поискового запроса
+      // Добавление поискового запроса с экранированием
       const trimmedQuery = (query || '').trim();
       if (trimmedQuery && Array.isArray(CFG.SEARCH_FIELDS) && CFG.SEARCH_FIELDS.length) {
-        const orExpr = '(' + CFG.SEARCH_FIELDS.map(field => `${field}.ilike.*${trimmedQuery}*`).join(',') + ')';
+        // Экранируем специальные символы для PostgreSQL
+        const escapedQuery = InputValidator.escapePgLike(trimmedQuery);
+        const orExpr = '(' + CFG.SEARCH_FIELDS.map(field => `${field}.ilike.*${escapedQuery}*`).join(',') + ')';
         params.set('or', orExpr);
       }
 

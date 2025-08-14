@@ -526,7 +526,18 @@
   }, 300);
   
   searchInput?.addEventListener('input', () => {
-      searchInputWrapper?.classList.toggle('has-text', searchInput.value.length > 0);
+      // Безопасная валидация и ограничение длины
+      const value = InputValidator.validateSearchQuery(searchInput.value, {
+          maxLength: 100,
+          allowedPattern: /[^\wа-яА-ЯёЁ\s.,\-_]/gi
+      });
+      
+      // Обновляем значение, если оно изменилось после валидации
+      if (value !== searchInput.value) {
+          searchInput.value = value;
+      }
+      
+      searchInputWrapper?.classList.toggle('has-text', value.length > 0);
       onSearch();
   });
   searchClearBtn?.addEventListener('click', () => {

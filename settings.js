@@ -222,8 +222,8 @@
     const cleanId = channel.channel_id.replace('@', '');
     const titleSpan = document.createElement('span');
     titleSpan.className = 'channel-item-title';
-    // Санитизируем текст для безопасности
-    titleSpan.textContent = escapeHtml(channel.channel_title || cleanId);
+    // Безопасно устанавливаем текст
+    titleSpan.textContent = channel.channel_title || cleanId;
     
     const idLink = document.createElement('a');
     idLink.className = 'channel-item-id';

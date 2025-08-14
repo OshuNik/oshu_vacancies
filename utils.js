@@ -109,27 +109,72 @@
     };
   };
 
+  /**
+   * Безопасно выделяет совпадения в тексте
+   * @param {string} text - Исходный текст
+   * @param {string} q - Поисковый запрос для выделения
+   * @returns {string} Безопасный HTML с выделенными совпадениями
+   */
   const highlightText = (text = '', q = '') => {
     if (!q) return escapeHtml(text);
-    const rx = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
-    return escapeHtml(text).replace(rx, '<mark class="highlight">$1</mark>');
+    
+    try {
+      // Экранируем текст и запрос
+      const escapedText = escapeHtml(text);
+      // Экранируем и защищаем спецсимволы в запросе
+      const escapedQuery = escapeHtml(q).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      
+      // Создаем регулярное выражение и заменяем совпадения
+      const rx = new RegExp(`(${escapedQuery})`, 'gi');
+      return escapedText.replace(rx, '<mark class="highlight">$1</mark>');
+    } catch (e) {
+      console.warn('Ошибка в highlightText:', e);
+      return escapeHtml(text);
+    }
   };
 
+  /**
+   * Безопасная валидация и нормализация URL
+   * @param {string} raw - Исходный URL
+   * @returns {string} Безопасный URL или пустая строка
+   */
   function sanitizeLink(raw = '') {
     let s = String(raw).trim();
     if (!s) return '';
+    
+    // Нормализация t.me ссылок
     if (/^(t\.me|telegram\.me)\//i.test(s)) {
         s = 'https://' + s;
     }
+    
+    // Добавляем протокол для относительных URL
     if (!/^[a-z]+:\/\//i.test(s) && s.includes('.')) {
         s = 'https://' + s;
     }
+    
     try {
         const url = new URL(s);
+        
+        // Более строгая проверка протоколов
         if (['https:', 'http:', 'tg:'].includes(url.protocol)) {
+            // Дополнительная проверка для javascript: URL
+            if (url.href.toLowerCase().includes('javascript:')) {
+                console.warn('Обнаружен javascript: URL');
+                return '';
+            }
+            
+            // Проверка на другие опасные протоколы
+            if (url.href.toLowerCase().match(/^(vbscript|data|file):/)) {
+                console.warn('Обнаружен опасный протокол:', url.protocol);
+                return '';
+            }
+            
             return url.href;
         }
-    } catch (e) {}
+    } catch (e) {
+        console.warn('Невалидный URL:', s);
+    }
+    
     return '';
   }
   
@@ -386,7 +431,23 @@
         elements.attachments.appendChild(imgBtn);
     }
     if (originalDetailsHtml) {
-        elements.fullText.innerHTML = originalDetailsHtml;
+        // Безопасное отображение HTML с использованием DOMPurify
+        if (typeof DOMPurify !== 'undefined') {
+            // Настройки безопасной санитизации
+            const sanitizeOptions = {
+                ALLOWED_TAGS: ['p', 'b', 'i', 'em', 'strong', 'a', 'ul', 'ol', 'li', 'br', 'span', 'mark'],
+                ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+                ALLOW_DATA_ATTR: false,
+                ADD_ATTR: ['target="_blank"', 'rel="noopener noreferrer"']
+            };
+            
+            // Санитизируем и устанавливаем HTML
+            elements.fullText.innerHTML = DOMPurify.sanitize(originalDetailsHtml, sanitizeOptions);
+        } else {
+            // Fallback, если DOMPurify не доступен
+            console.warn('DOMPurify не найден. Используется безопасный режим без HTML.');
+            elements.fullText.textContent = stripTags(originalDetailsHtml);
+        }
     }
     if (!bestImageUrl && !originalDetailsHtml) {
         elements.details.remove();

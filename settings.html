@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://telegram.org; style-src 'self' 'unsafe-inline' fonts.googleapis.com; font-src 'self' fonts.gstatic.com; img-src 'self' data: raw.githubusercontent.com; connect-src 'self' *.supabase.co;">
+  <title>Настройки</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="header header-settings">
+    <h1>⚙︎ Настройки</h1>
+    <div class="header-actions">
+      <a href="index.html" class="header-button">← Назад</a>
+      <button id="save-button" class="header-icon-btn" aria-label="Сохранить настройки">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+          <polyline points="17 21 17 13 7 13 7 21"></polyline>
+          <polyline points="7 3 7 8 15 8"></polyline>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="settings-tabs">
+    <button class="settings-tab-button active" data-target="tab-keywords">Ключевые слова</button>
+    <button class="settings-tab-button" data-target="tab-channels">Каналы</button>
+  </div>
+
+  <main class="content">
+    <div id="tab-keywords" class="settings-tab-content active">
+      <div class="current-keywords-container">
+        <p class="current-keywords-label">Текущие ключевые слова:</p>
+        <p id="current-keywords-display" class="current-keywords-list">Загрузка...</p>
+      </div>
+      <div class="settings-form">
+        <label for="keywords-input">Изменить список (через запятую):</label>
+        <textarea id="keywords-input" rows="5" placeholder="монтаж, рилс, анимация..."></textarea>
+      </div>
+    </div>
+
+    <div id="tab-channels" class="settings-tab-content">
+      <div class="settings-form">
+        <button id="load-defaults-btn" class="button-load-defaults">Загрузить стандартные каналы</button>
+        <label for="channel-input">Добавить новый канал:</label>
+        <div class="add-channel-form">
+          <input type="text" id="channel-input" placeholder="@username или https://t.me/..." aria-label="Адрес канала для добавления">
+          <button id="add-channel-btn" aria-label="Добавить канал">+</button>
+        </div>
+        <div id="channels-list" class="channels-list"></div>
+        <button id="delete-all-btn" class="button-delete">Удалить все каналы</button>
+      </div>
+    </div>
+  </main>
+  
+  <div id="toast-container" class="toast-container"></div>
+
+  <div id="custom-confirm-overlay" class="custom-confirm-overlay hidden">
+    <div class="custom-confirm-box">
+      <p id="custom-confirm-text"></p>
+      <div class="custom-confirm-actions">
+        <button id="confirm-btn-cancel" class="custom-confirm-button">Отмена</button>
+        <button id="confirm-btn-ok" class="custom-confirm-button ok">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <script src="config.js"></script>
+  <script src="utils.js"></script>
+  <script src="settings.js"></script>
+</body>
+</html>
